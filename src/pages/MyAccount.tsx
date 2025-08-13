@@ -89,9 +89,9 @@ const MyAccount = () => {
             {rows.map((r) => (
               <article key={r.id} className="rounded-xl border bg-card p-5 text-card-foreground flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
-                  <h2 className="font-medium">{r.subject} • {r.grade_level} • {r.section}</h2>
+                  <h2 className="font-medium">{r.subject} {r.grade_level} {new Date(r.created_at).toLocaleDateString()}</h2>
                   <p className="text-sm text-muted-foreground">
-                    Covered Dates: {r.date_from} – {r.date_to} • Created {new Date(r.created_at).toLocaleString()}
+                    Section: {r.section} • Covered Dates: {r.date_from} – {r.date_to} • Created {new Date(r.created_at).toLocaleString()}
                   </p>
                 </div>
                 <div className="flex gap-3">

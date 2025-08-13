@@ -370,13 +370,17 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
         },
       });
 
-      const A4_TWIPS = { w: 16838, h: 11906 }; // Landscape A4
+      const A4_TWIPS = { w: 16838, h: 11906 }; // Landscape A4 (11.7" x 8.3")
       const doc = new Document({
         sections: [
           {
             properties: {
               page: {
-                size: { orientation: PageOrientation.LANDSCAPE, width: A4_TWIPS.w, height: A4_TWIPS.h },
+                size: { 
+                  orientation: PageOrientation.LANDSCAPE, 
+                  width: A4_TWIPS.w, 
+                  height: A4_TWIPS.h 
+                },
                 margin: { top: 720, bottom: 720, left: 720, right: 720 },
               },
             },

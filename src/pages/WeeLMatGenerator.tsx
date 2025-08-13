@@ -131,14 +131,25 @@ const WeeLMatGenerator = () => {
         navigate("/auth");
         return;
       }
+      
+      // Check if we already have this matrix saved
       if (matrixId) {
-        const { data } = await supabase.from("weelmat_matrices").select("id").eq("id", matrixId).single();
+        const { data } = await supabase.from("weelmat_matrices").select("id, docx_url, pdf_url").eq("id", matrixId).single();
         if (data?.id) {
+          // Update the record with URLs if they're missing
+          if (!data.docx_url || !data.pdf_url) {
+            await supabase.from("weelmat_matrices").update({
+              docx_url: docxUrl,
+              pdf_url: pdfUrl,
+            }).eq("id", matrixId);
+          }
           toast("Saved to My Files.");
           navigate("/my-account");
           return;
         }
       }
+      
+      // Create new record if matrixId doesn't exist or record not found
       const { error } = await supabase.from("weelmat_matrices").insert({
         user_id: session.session?.user.id,
         subject: values?.subject,
@@ -162,28 +173,20 @@ const WeeLMatGenerator = () => {
   };
 
   const Success = () => (
-    <section className="container max-w-4xl animate-fade-in">
+    <section className="container max-w-6xl animate-fade-in">
       <article className="rounded-2xl border bg-card text-card-foreground shadow-sm overflow-hidden">
-        <header className="px-6 pt-6 pb-4 border-b">
-          <h1 className="text-xl font-semibold">WeeLMat is ready</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Preview below, then download or go back to Dashboard.
-          </p>
+        <header className="px-6 pt-6 pb-4 border-b flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-semibold">WeeLMat is ready</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Preview below, then download or save to your files.
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => navigate("/dashboard")}>
+            Back to Dashboard
+          </Button>
         </header>
         <div className="p-6 space-y-5">
-          <div className="flex flex-wrap gap-3">
-            <Button disabled={!docxUrl} onClick={() => docxUrl && downloadFile(docxUrl, buildFilename("docx"))}>
-              Download DOCX
-            </Button>
-            <Button variant="outline" disabled={!pdfUrl} onClick={() => pdfUrl && downloadFile(pdfUrl, buildFilename("pdf"))}>
-              Download PDF
-            </Button>
-            <Button variant="secondary" onClick={() => navigate("/dashboard")}>Dashboard</Button>
-            <Button variant="ghost" onClick={handleSave}>
-              Save to My Files
-            </Button>
-          </div>
-
           <div className="rounded-xl border bg-background p-4">
             <div className="text-center space-y-1 mb-4">
               <p className="font-semibold">Weekly Learning Matrix (WeeLMat)</p>
@@ -196,25 +199,25 @@ const WeeLMatGenerator = () => {
                   <TableBody>
                     <TableRow>
                       {Array.from({ length: 6 }).map((_, i) => (
-                        <TableCell key={i}>{""}</TableCell>
+                        <TableCell key={i} className="text-xs min-w-[120px]">{""}</TableCell>
                       ))}
                     </TableRow>
                     <TableRow>
-                      <TableCell className="font-semibold">Competency</TableCell>
+                      <TableCell className="font-semibold text-xs min-w-[120px]">Competency</TableCell>
                       {["mon","tue","wed","thu","fri"].map((d) => (
-                        <TableCell key={d}>{aiJson?.competency?.[d] || ""}</TableCell>
+                        <TableCell key={d} className="text-xs min-w-[120px] break-words">{aiJson?.competency?.[d] || ""}</TableCell>
                       ))}
                     </TableRow>
                     <TableRow>
-                      <TableCell className="font-semibold">Suggested Learning Material/Reference</TableCell>
+                      <TableCell className="font-semibold text-xs min-w-[120px]">Suggested Learning Material/Reference</TableCell>
                       {["mon","tue","wed","thu","fri"].map((d) => (
-                        <TableCell key={d}>{aiJson?.references?.[d] || ""}</TableCell>
+                        <TableCell key={d} className="text-xs min-w-[120px] break-words">{aiJson?.references?.[d] || ""}</TableCell>
                       ))}
                     </TableRow>
                     <TableRow>
-                      <TableCell className="font-semibold">Learning Activities/Tasks</TableCell>
+                      <TableCell className="font-semibold text-xs min-w-[120px]">Learning Activities/Tasks</TableCell>
                       {["mon","tue","wed","thu","fri"].map((d) => (
-                        <TableCell key={d}>{aiJson?.activities?.[d] || ""}</TableCell>
+                        <TableCell key={d} className="text-xs min-w-[120px] break-words">{aiJson?.activities?.[d] || ""}</TableCell>
                       ))}
                     </TableRow>
                   </TableBody>
@@ -223,6 +226,15 @@ const WeeLMatGenerator = () => {
             ) : (
               <p className="text-sm text-muted-foreground">Preview unavailable.</p>
             )}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button disabled={!docxUrl} onClick={() => docxUrl && downloadFile(docxUrl, buildFilename("docx"))}>
+              Download DOCX
+            </Button>
+            <Button className="bg-yellow-500 hover:bg-yellow-600 text-white" onClick={handleSave}>
+              Save to My Files
+            </Button>
           </div>
         </div>
       </article>
