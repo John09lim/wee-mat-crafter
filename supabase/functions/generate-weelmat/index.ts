@@ -339,8 +339,56 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
         spacing: { after: 200 },
       });
 
-      const blankRow = new TableRow({
-        children: Array.from({ length: 6 }).map(() => new TableCell({ children: [new Paragraph("")], width: { size: 16, type: WidthType.PERCENTAGE } })),
+      // Calculate weekday dates for the header row
+      const calculateWeekdayDates = () => {
+        if (!dateFrom || !dateTo) return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+        
+        try {
+          const startDate = new Date(dateFrom);
+          const endDate = new Date(dateTo);
+          
+          // Find the Monday of the week containing startDate
+          const monday = new Date(startDate);
+          const dayOfWeek = monday.getDay();
+          const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Sunday = 0, Monday = 1
+          monday.setDate(monday.getDate() + daysToMonday);
+          
+          const weekdays = [];
+          const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+          
+          for (let i = 0; i < 5; i++) {
+            const currentDay = new Date(monday);
+            currentDay.setDate(monday.getDate() + i);
+            
+            // Check if the current day is within the date range
+            if (currentDay >= startDate && currentDay <= endDate) {
+              const month = currentDay.getMonth() + 1;
+              const day = currentDay.getDate();
+              weekdays.push(`${dayNames[i]} ${month}/${day}`);
+            } else {
+              weekdays.push(dayNames[i]);
+            }
+          }
+          
+          return weekdays;
+        } catch (error) {
+          return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+        }
+      };
+
+      const weekdayDates = calculateWeekdayDates();
+      const dateHeaderRow = new TableRow({
+        children: [
+          new TableCell({ children: [new Paragraph("")], width: { size: 16, type: WidthType.PERCENTAGE } }),
+          ...weekdayDates.map((date) => new TableCell({ 
+            children: [new Paragraph({ 
+              children: [new TextRun({ text: date, bold: true })],
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 100 } 
+            })], 
+            width: { size: 16, type: WidthType.PERCENTAGE } 
+          })),
+        ],
       });
 
       const labelCell = (label: string) =>
@@ -358,7 +406,7 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
         });
 
       const table = new Table({
-        rows: [blankRow, rowFrom("Competency", comp), rowFrom("Suggested Learning Material/Reference", refs), rowFrom("Learning Activities/Tasks", acts)],
+        rows: [dateHeaderRow, rowFrom("Competency", comp), rowFrom("Suggested Learning Material/Reference", refs), rowFrom("Learning Activities/Tasks", acts)],
         width: { size: 100, type: WidthType.PERCENTAGE },
         borders: {
           top: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },

@@ -123,6 +123,43 @@ const WeeLMatGenerator = () => {
     return `weelmat-${safe(values?.subject)}-${safe(values?.gradeLevel)}-${safe(values?.section)}-${values?.dateFrom || ""}-${values?.dateTo || ""}.${ext}`;
   };
 
+  // Calculate Monday-Friday dates based on dateFrom
+  const calculateWeekdayDates = () => {
+    if (!values?.dateFrom || !values?.dateTo) return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    
+    try {
+      const startDate = new Date(values.dateFrom);
+      const endDate = new Date(values.dateTo);
+      
+      // Find the Monday of the week containing startDate
+      const monday = new Date(startDate);
+      const dayOfWeek = monday.getDay();
+      const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Sunday = 0, Monday = 1
+      monday.setDate(monday.getDate() + daysToMonday);
+      
+      const weekdays = [];
+      const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+      
+      for (let i = 0; i < 5; i++) {
+        const currentDay = new Date(monday);
+        currentDay.setDate(monday.getDate() + i);
+        
+        // Check if the current day is within the date range
+        if (currentDay >= startDate && currentDay <= endDate) {
+          const month = currentDay.getMonth() + 1;
+          const day = currentDay.getDate();
+          weekdays.push(`${dayNames[i]} ${month}/${day}`);
+        } else {
+          weekdays.push(dayNames[i]);
+        }
+      }
+      
+      return weekdays;
+    } catch (error) {
+      return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    }
+  };
+
   const handleSave = async () => {
     try {
       const { data: session } = await supabase.auth.getSession();
@@ -132,24 +169,14 @@ const WeeLMatGenerator = () => {
         return;
       }
       
-      // Check if we already have this matrix saved
+      // If we have a matrixId, just navigate to my-account (matrix already exists)
       if (matrixId) {
-        const { data } = await supabase.from("weelmat_matrices").select("id, docx_url, pdf_url").eq("id", matrixId).single();
-        if (data?.id) {
-          // Update the record with URLs if they're missing
-          if (!data.docx_url || !data.pdf_url) {
-            await supabase.from("weelmat_matrices").update({
-              docx_url: docxUrl,
-              pdf_url: pdfUrl,
-            }).eq("id", matrixId);
-          }
-          toast("Saved to My Files.");
-          navigate("/my-account");
-          return;
-        }
+        toast("Saved to My Files.");
+        navigate("/my-account");
+        return;
       }
       
-      // Create new record if matrixId doesn't exist or record not found
+      // Fallback: create new record if matrixId doesn't exist
       const { error } = await supabase.from("weelmat_matrices").insert({
         user_id: session.session?.user.id,
         subject: values?.subject,
@@ -198,8 +225,9 @@ const WeeLMatGenerator = () => {
                 <Table>
                   <TableBody>
                     <TableRow>
-                      {Array.from({ length: 6 }).map((_, i) => (
-                        <TableCell key={i} className="text-xs min-w-[120px]">{""}</TableCell>
+                      <TableCell className="text-xs min-w-[120px] font-semibold"></TableCell>
+                      {calculateWeekdayDates().map((date, i) => (
+                        <TableCell key={i} className="text-xs min-w-[120px] font-semibold text-center">{date}</TableCell>
                       ))}
                     </TableRow>
                     <TableRow>
