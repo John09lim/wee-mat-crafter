@@ -1,6 +1,7 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 const Header = () => {
+  const location = useLocation();
   return (
     <header className="bg-primary text-primary-foreground border-b-2 border-accent">
       <div className="container flex items-center gap-3 py-4">
@@ -17,9 +18,11 @@ const Header = () => {
           <p className="text-lg font-semibold leading-tight">WeeLMat • Weekly Learning Matrix</p>
         </div>
         <nav className="flex items-center gap-4 text-sm">
-          <Link to="/auth" className="hover:underline underline-offset-4">
-            Login
-          </Link>
+          {location.pathname !== "/auth" && (
+            <Link to="/auth" className="hover:underline underline-offset-4">
+              Login
+            </Link>
+          )}
         </nav>
       </div>
     </header>

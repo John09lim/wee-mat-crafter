@@ -23,7 +23,7 @@ const Index = () => {
           <div className="grid gap-3">
             <div className="flex flex-wrap gap-3">
               <Button size="lg" onClick={() => navigate("/auth")}>Get Started</Button>
-              <Button variant="tertiary" size="lg" onClick={() => navigate("/learn-more")}>Learn More</Button>
+              <Button variant="secondary" size="lg" onClick={() => navigate("/learn-more")}>Learn More</Button>
             </div>
             <ul className="text-sm text-muted-foreground grid gap-1.5">
               <li>• Purpose: Make weekly activities clear and accessible for learners.</li>

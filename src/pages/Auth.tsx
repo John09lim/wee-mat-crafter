@@ -90,7 +90,7 @@ const Auth = () => {
   return (
     <main className="min-h-[calc(100vh-160px)] flex items-center">
       <section className="container">
-        <div className="grid lg:grid-cols-2 gap-8 items-center">
+        <div className="max-w-md mx-auto">
           <div className="rounded-2xl border bg-card p-8 shadow-sm">
             <h1 className="text-2xl font-semibold mb-6">
               {mode === "login" ? "Login" : "Create your WeeLMat account"}
@@ -137,21 +137,6 @@ const Auth = () => {
             </div>
           </div>
 
-          {/* Side visual */}
-          <div className="rounded-2xl border bg-card p-3 shadow-sm order-first lg:order-none">
-            <div className="aspect-[4/3] w-full overflow-hidden rounded-xl border bg-muted/30 flex items-center justify-center">
-              <img
-                src="https://raw.githubusercontent.com/John09lim/wee-mat-crafter/main/public/Screenshot%202025-08-11%20074334.png"
-                alt="WeeLMat visual"
-                className="h-full w-full object-cover"
-                loading="lazy"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = "/Screenshot%202025-08-11%20074334.png";
-                }}
-              />
-            </div>
-            <p className="sr-only">Visual provided by the user</p>
-          </div>
         </div>
       </section>
     </main>

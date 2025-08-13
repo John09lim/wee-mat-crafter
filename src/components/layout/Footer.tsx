@@ -1,6 +1,6 @@
 const Footer = () => {
   return (
-    <footer className="border-t bg-card text-card-foreground">
+    <footer className="border-t bg-secondary text-secondary-foreground">
       <div className="container py-8 grid md:grid-cols-3 gap-6 text-sm">
         <div>
           <p className="font-semibold">WeeLMat</p>
@@ -12,10 +12,6 @@ const Footer = () => {
             <li><a href="/learn-more" className="hover:underline">Learn More</a></li>
             <li><a href="/auth" className="hover:underline">Login</a></li>
           </ul>
-        </div>
-        <div>
-          <p className="font-semibold mb-2">Status</p>
-          <p className="text-muted-foreground">Beta • Built with Supabase</p>
         </div>
       </div>
       <div className="border-t">
