@@ -244,6 +244,101 @@ export type Database = {
         }
         Relationships: []
       }
+      weelmat_matrices: {
+        Row: {
+          ai_json: Json | null
+          code: string | null
+          competency: string
+          created_at: string
+          custom_instructions: string | null
+          date_from: string
+          date_to: string
+          docx_url: string | null
+          grade_level: string
+          id: string
+          pdf_url: string | null
+          section: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_json?: Json | null
+          code?: string | null
+          competency: string
+          created_at?: string
+          custom_instructions?: string | null
+          date_from: string
+          date_to: string
+          docx_url?: string | null
+          grade_level: string
+          id?: string
+          pdf_url?: string | null
+          section: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_json?: Json | null
+          code?: string | null
+          competency?: string
+          created_at?: string
+          custom_instructions?: string | null
+          date_from?: string
+          date_to?: string
+          docx_url?: string | null
+          grade_level?: string
+          id?: string
+          pdf_url?: string | null
+          section?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      weelmat_runs: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          matrix_id: string
+          status: string
+          step: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          matrix_id: string
+          status?: string
+          step?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          matrix_id?: string
+          status?: string
+          step?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weelmat_runs_matrix_id_fkey"
+            columns: ["matrix_id"]
+            isOneToOne: false
+            referencedRelation: "weelmat_matrices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

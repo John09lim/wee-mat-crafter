@@ -17,14 +17,8 @@ const Header = () => {
           <p className="text-lg font-semibold leading-tight">WeeLMat • Weekly Learning Matrix</p>
         </div>
         <nav className="hidden md:flex items-center gap-4 text-sm">
-          <Link to="/" className="hover:underline underline-offset-4">
-            Home
-          </Link>
-          <Link to="/files" className="hover:underline underline-offset-4">
-            My Files
-          </Link>
-          <Link to="/account" className="hover:underline underline-offset-4">
-            Account
+          <Link to="/auth" className="hover:underline underline-offset-4">
+            Login
           </Link>
         </nav>
       </div>

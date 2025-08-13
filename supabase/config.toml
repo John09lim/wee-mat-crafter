@@ -1,1 +1,4 @@
 project_id = "velpueasbsrptocrjljg"
+
+[functions.generate-weelmat]
+verify_jwt = true
