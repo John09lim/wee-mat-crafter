@@ -37,9 +37,9 @@ const Index = () => {
         <div className="rounded-3xl border bg-card text-card-foreground p-3 shadow-sm animate-fade-in">
           <div className="w-full overflow-hidden rounded-2xl border bg-muted/30">
             <img
-              src="/weelmat-logo.png"
+              src="/Screenshot 2025-08-11 074334.png"
               alt="WeeLMat preview image"
-              className="w-full h-auto object-contain hover-scale"
+              className="w-full h-auto max-w-none object-contain hover-scale"
               loading="lazy"
             />
           </div>
