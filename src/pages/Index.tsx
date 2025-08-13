@@ -7,13 +7,13 @@ const Index = () => {
   return (
     <main className="min-h-[calc(100vh-160px)] flex flex-col bg-background">
       {/* Hero */}
-      <section className="container grid md:grid-cols-2 gap-10 items-center py-16">
+      <section className="container relative grid md:grid-cols-2 gap-10 items-center py-16 rounded-3xl bg-gradient-to-br from-accent/30 via-secondary/30 to-background">
         <div className="space-y-6 animate-fade-in">
           <span className="inline-flex items-center text-xs rounded-full border px-2 py-1 text-muted-foreground">
             Built for Teachers • WeeLMat Generator
           </span>
-          <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-            Create Weekly Learning Matrices in minutes
+          <h1 className="text-4xl md:text-5xl font-extrabold leading-tight bg-clip-text text-transparent bg-gradient-to-r from-secondary to-accent">
+            WeeLMat Generator — Weekly planning, instantly clear
           </h1>
           <p className="text-base md:text-lg text-muted-foreground max-w-prose">
             WeeLMat turns your weekly competencies into a clear, learner‑friendly plan. Generate polished DOCX/PDF
@@ -34,18 +34,19 @@ const Index = () => {
         </div>
 
         {/* Visual */}
-        <div className="rounded-3xl border bg-card text-card-foreground p-3 shadow-sm">
+        <div className="rounded-3xl border bg-card text-card-foreground p-3 shadow-sm animate-fade-in">
           <div className="aspect-[4/3] w-full overflow-hidden rounded-2xl border bg-muted/30 flex items-center justify-center">
             <img
-              src="/images/hero.png"
-              alt="WeeLMat preview"
-              className="h-full w-full object-cover"
+              src="https://raw.githubusercontent.com/John09lim/wee-mat-crafter/main/public/Screenshot%202025-08-11%20074334.png"
+              alt="WeeLMat preview image"
+              className="h-full w-full object-cover hover-scale"
               loading="lazy"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "/Screenshot%202025-08-11%20074334.png";
+              }}
             />
           </div>
-          <p className="sr-only">
-            Preview image provided by the user
-          </p>
+          <p className="sr-only">WeeLMat preview provided by the user</p>
         </div>
       </section>
 

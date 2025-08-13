@@ -141,10 +141,13 @@ const Auth = () => {
           <div className="rounded-2xl border bg-card p-3 shadow-sm order-first lg:order-none">
             <div className="aspect-[4/3] w-full overflow-hidden rounded-xl border bg-muted/30 flex items-center justify-center">
               <img
-                src="/images/hero.png"
+                src="https://raw.githubusercontent.com/John09lim/wee-mat-crafter/main/public/Screenshot%202025-08-11%20074334.png"
                 alt="WeeLMat visual"
                 className="h-full w-full object-cover"
                 loading="lazy"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = "/Screenshot%202025-08-11%20074334.png";
+                }}
               />
             </div>
             <p className="sr-only">Visual provided by the user</p>
