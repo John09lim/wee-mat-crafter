@@ -6,8 +6,8 @@ const Header = () => {
     <header className="bg-primary text-primary-foreground border-b-2 border-accent">
       <div className="container flex items-center gap-3 py-4">
           <img
-            src="https://raw.githubusercontent.com/John09lim/wee-mat-crafter/main/public/Screenshot%202025-08-11%20074334.png"
-            alt="WeeLMat logo"
+            src="/images/school-logo.png"
+            alt="School logo"
             className="h-10 w-10 rounded-md bg-primary-foreground/0"
             onError={(e) => {
               (e.currentTarget as HTMLImageElement).src = "/Screenshot%202025-08-11%20074334.png";
