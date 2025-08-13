@@ -4,12 +4,9 @@ const Header = () => {
   return <header className="bg-primary text-primary-foreground border-b-2 border-accent">
       <div className="container flex items-center gap-3 py-4 rounded-lg">
           <img
-            src="https://raw.githubusercontent.com/John09lim/wee-mat-crafter/main/public/Screenshot%202025-08-11%20074334.png"
+            src="/weelmat-logo.png"
             alt="WeeLMat school logo"
             className="h-10 w-auto rounded-md bg-primary-foreground/0 object-contain"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).src = "/Screenshot%202025-08-11%20074334.png";
-            }}
             loading="eager"
           />
         <div className="flex-1">

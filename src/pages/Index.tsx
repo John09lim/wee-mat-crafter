@@ -37,13 +37,10 @@ const Index = () => {
         <div className="rounded-3xl border bg-card text-card-foreground p-3 shadow-sm animate-fade-in">
           <div className="w-full overflow-hidden rounded-2xl border bg-muted/30">
             <img
-              src="https://raw.githubusercontent.com/John09lim/wee-mat-crafter/main/public/Screenshot%202025-08-11%20074334.png"
-              alt="WeeLMat preview image (GitHub)"
+              src="/weelmat-logo.png"
+              alt="WeeLMat preview image"
               className="w-full h-auto object-contain hover-scale"
               loading="lazy"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = "/Screenshot%202025-08-11%20074334.png";
-              }}
             />
           </div>
           <p className="sr-only">WeeLMat preview provided by the user</p>
