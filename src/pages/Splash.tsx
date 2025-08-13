@@ -40,7 +40,8 @@ const Splash = () => {
             (e.currentTarget as HTMLImageElement).src = "/Screenshot%202025-08-11%20074334.png";
           }}
         />
-        <h1 className="text-2xl font-semibold">WeeLMat • Weekly Learning Matrix</h1>
+        <h1 className="text-3xl font-semibold leading-tight">WeeLMat</h1>
+        <p className="text-lg text-primary-foreground/90 -mt-2">Weekly Learning Matrix</p>
       </div>
     </main>
   );

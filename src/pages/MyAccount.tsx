@@ -55,6 +55,24 @@ const MyAccount = () => {
     })();
   }, [navigate]);
 
+  const downloadFile = async (url: string, filename: string) => {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objUrl);
+  };
+
+  const buildFilename = (r: MatrixRow, ext: string) => {
+    const safe = (s?: string) => (s || "").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase();
+    return `weelmat-${safe(r.subject)}-${safe(r.grade_level)}-${safe(r.section)}-${r.date_from}-${r.date_to}.${ext}`;
+  };
+
   return (
     <main className="min-h-[calc(100vh-160px)] bg-background">
       <section className="container py-12">
@@ -77,8 +95,8 @@ const MyAccount = () => {
                   </p>
                 </div>
                 <div className="flex gap-3">
-                  <Button asChild disabled={!r.docx_url}><a href={r.docx_url ?? undefined} target="_blank" rel="noreferrer">DOCX</a></Button>
-                  <Button variant="outline" asChild disabled={!r.pdf_url}><a href={r.pdf_url ?? undefined} target="_blank" rel="noreferrer">PDF</a></Button>
+                  <Button disabled={!r.docx_url} onClick={() => r.docx_url && downloadFile(r.docx_url, buildFilename(r, "docx"))}>DOCX</Button>
+                  <Button variant="outline" disabled={!r.pdf_url} onClick={() => r.pdf_url && downloadFile(r.pdf_url, buildFilename(r, "pdf"))}>PDF</Button>
                 </div>
               </article>
             ))}

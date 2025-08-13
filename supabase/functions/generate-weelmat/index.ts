@@ -9,10 +9,12 @@ import {
   Table,
   TableRow,
   TableCell,
-  HeadingLevel,
   AlignmentType,
   WidthType,
   BorderStyle,
+  Header,
+  ImageRun,
+  PageOrientation,
 } from "https://esm.sh/docx@8.5.0";
 import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1";
 const corsHeaders = {
@@ -310,19 +312,31 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
       const refs = dayVals(aiJson?.references || {});
       const acts = dayVals(aiJson?.activities || {});
 
+      // Fetch logo for header
+      const logoUrl = "https://raw.githubusercontent.com/John09lim/wee-mat-crafter/main/public/Screenshot%202025-08-11%20074334.png";
+      let logoBytes: Uint8Array | null = null;
+      try {
+        const resp = await fetch(logoUrl);
+        const ab = await resp.arrayBuffer();
+        logoBytes = new Uint8Array(ab);
+      } catch (_) {
+        logoBytes = null;
+      }
+
       const headerTitle = new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [new TextRun({ text: "Weekly Learning Matrix (WeeLMat)", bold: true, size: 28 })],
+        spacing: { after: 120 },
       });
       const headerLine1 = new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [
-          new TextRun({ text: `${subject} • ${gradeLevel} • ${section}`, size: 22 }),
-        ],
+        children: [new TextRun({ text: `${subject} • ${gradeLevel} • ${section}`, size: 22 })],
+        spacing: { after: 60 },
       });
       const headerLine2 = new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [new TextRun({ text: `Covered Dates: ${dateFrom} – ${dateTo}`, size: 22 })],
+        spacing: { after: 200 },
       });
 
       const blankRow = new TableRow({
@@ -331,7 +345,7 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
 
       const labelCell = (label: string) =>
         new TableCell({
-          children: [new Paragraph({ children: [new TextRun({ text: label, bold: true })] })],
+          children: [new Paragraph({ children: [new TextRun({ text: label, bold: true })], spacing: { after: 100 } })],
           width: { size: 16, type: WidthType.PERCENTAGE },
         });
 
@@ -339,7 +353,7 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
         new TableRow({
           children: [
             labelCell(label),
-            ...vals.map((v) => new TableCell({ children: [new Paragraph(v)], width: { size: 16, type: WidthType.PERCENTAGE } })),
+            ...vals.map((v) => new TableCell({ children: [new Paragraph({ text: v, spacing: { after: 100 } })], width: { size: 16, type: WidthType.PERCENTAGE } })),
           ],
         });
 
@@ -356,10 +370,28 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
         },
       });
 
+      const A4_TWIPS = { w: 16838, h: 11906 }; // Landscape A4
       const doc = new Document({
         sections: [
           {
-            properties: {},
+            properties: {
+              page: {
+                size: { orientation: PageOrientation.LANDSCAPE, width: A4_TWIPS.w, height: A4_TWIPS.h },
+                margin: { top: 720, bottom: 720, left: 720, right: 720 },
+              },
+            },
+            headers: logoBytes
+              ? {
+                  default: new Header({
+                    children: [
+                      new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        children: [new ImageRun({ data: logoBytes, transformation: { width: 64, height: 64 } })],
+                      }),
+                    ],
+                  }),
+                }
+              : {},
             children: [headerTitle, headerLine1, headerLine2, new Paragraph(""), table],
           },
         ],
@@ -384,18 +416,29 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
     let pdfPublicUrl: string | null = null;
     try {
       const pdfDoc = await PDFDocument.create();
-      const A4 = { w: 595.28, h: 841.89 };
+      const A4 = { w: 841.89, h: 595.28 }; // Landscape A4 (points)
       const page = pdfDoc.addPage([A4.w, A4.h]);
       const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
       const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
       const margin = 50;
       let y = A4.h - margin;
+      // Header logo
+      try {
+        const logoUrl = "https://raw.githubusercontent.com/John09lim/wee-mat-crafter/main/public/Screenshot%202025-08-11%20074334.png";
+        const resp = await fetch(logoUrl);
+        const bytes = new Uint8Array(await resp.arrayBuffer());
+        let img: any;
+        try { img = await pdfDoc.embedPng(bytes); } catch { img = await pdfDoc.embedJpg(bytes); }
+        const imgW = 64, imgH = 64;
+        page.drawImage(img, { x: (A4.w - imgW) / 2, y: y - imgH, width: imgW, height: imgH });
+        y -= imgH + 12;
+      } catch (_) {}
+
       const line = (text: string, bold = false, size = 12) => {
         y -= size + 6;
         page.drawText(text, { x: margin, y, size, font: bold ? fontBold : font, color: rgb(0, 0, 0) });
       };
-
       line("Weekly Learning Matrix (WeeLMat)", true, 16);
       line(`${subject} • ${gradeLevel} • ${section}`, false, 12);
       line(`Covered Dates: ${dateFrom} – ${dateTo}`, false, 12);

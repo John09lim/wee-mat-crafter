@@ -39,6 +39,7 @@ const WeeLMatGenerator = () => {
   const [docxUrl, setDocxUrl] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [aiJson, setAiJson] = useState<any | null>(null);
+  const [matrixId, setMatrixId] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "WeeLMat Generator | WeeLMat";
@@ -87,6 +88,7 @@ const WeeLMatGenerator = () => {
         setDocxUrl(data?.docx_url || null);
         setPdfUrl(data?.pdf_url || null);
         setAiJson(data?.ai_json || null);
+        setMatrixId(data?.matrixId || null);
       } catch (err: any) {
         toast(err.message || "Generation failed");
       } finally {
@@ -99,6 +101,66 @@ const WeeLMatGenerator = () => {
     };
   }, [navigate, values]);
 
+  const downloadFile = async (url: string, filename: string) => {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objUrl);
+    } catch (e) {
+      toast("Download failed");
+    }
+  };
+
+  const buildFilename = (ext: string) => {
+    const safe = (s?: string) => (s || "").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase();
+    return `weelmat-${safe(values?.subject)}-${safe(values?.gradeLevel)}-${safe(values?.section)}-${values?.dateFrom || ""}-${values?.dateTo || ""}.${ext}`;
+  };
+
+  const handleSave = async () => {
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const user = session.session?.user;
+      if (!user) {
+        navigate("/auth");
+        return;
+      }
+      if (matrixId) {
+        const { data } = await supabase.from("weelmat_matrices").select("id").eq("id", matrixId).single();
+        if (data?.id) {
+          toast("Saved to My Files.");
+          navigate("/my-account");
+          return;
+        }
+      }
+      const { error } = await supabase.from("weelmat_matrices").insert({
+        user_id: session.session?.user.id,
+        subject: values?.subject,
+        grade_level: values?.gradeLevel,
+        section: values?.section,
+        date_from: values?.dateFrom,
+        date_to: values?.dateTo,
+        competency: values?.competency,
+        code: values?.code,
+        custom_instructions: values?.customInstructions,
+        ai_json: aiJson,
+        docx_url: docxUrl,
+        pdf_url: pdfUrl,
+      });
+      if (error) throw error;
+      toast("Saved to My Files.");
+      navigate("/my-account");
+    } catch (e: any) {
+      toast(e.message || "Save failed");
+    }
+  };
+
   const Success = () => (
     <section className="container max-w-4xl animate-fade-in">
       <article className="rounded-2xl border bg-card text-card-foreground shadow-sm overflow-hidden">
@@ -110,24 +172,14 @@ const WeeLMatGenerator = () => {
         </header>
         <div className="p-6 space-y-5">
           <div className="flex flex-wrap gap-3">
-            <Button asChild disabled={!docxUrl}>
-              <a href={docxUrl ?? undefined} target="_blank" rel="noreferrer">
-                Download DOCX
-              </a>
+            <Button disabled={!docxUrl} onClick={() => docxUrl && downloadFile(docxUrl, buildFilename("docx"))}>
+              Download DOCX
             </Button>
-            <Button variant="outline" asChild disabled={!pdfUrl}>
-              <a href={pdfUrl ?? undefined} target="_blank" rel="noreferrer">
-                Download PDF
-              </a>
+            <Button variant="outline" disabled={!pdfUrl} onClick={() => pdfUrl && downloadFile(pdfUrl, buildFilename("pdf"))}>
+              Download PDF
             </Button>
             <Button variant="secondary" onClick={() => navigate("/dashboard")}>Dashboard</Button>
-            <Button
-              variant="ghost"
-              onClick={() => {
-                toast("Saved to My Files.");
-                navigate("/my-account");
-              }}
-            >
+            <Button variant="ghost" onClick={handleSave}>
               Save to My Files
             </Button>
           </div>
