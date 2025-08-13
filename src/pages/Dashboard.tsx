@@ -20,6 +20,7 @@ const schema = z.object({
   competency: z.string().min(1, "Competency is required"),
   code: z.string().optional().or(z.literal("")),
   customInstructions: z.string().optional().or(z.literal("")),
+  language: z.enum(["English","Filipino"]).default("English"),
 }).refine((data) => new Date(data.dateFrom) <= new Date(data.dateTo), {
   message: "From date must be before or equal to To date",
   path: ["dateFrom"],
@@ -57,12 +58,13 @@ const Dashboard = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<FormValues>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      gradeLevel: "",
-    }
-  });
+const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<FormValues>({
+  resolver: zodResolver(schema),
+  defaultValues: {
+    gradeLevel: "",
+    language: "English",
+  }
+});
 
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
@@ -97,6 +99,20 @@ const Dashboard = () => {
                   </Select>
                   {errors.gradeLevel && <p className="text-destructive text-sm mt-1">{errors.gradeLevel.message}</p>}
                 </div>
+              </div>
+
+              <div>
+                <Label>Language Used</Label>
+                <Select onValueChange={(v)=>setValue("language", v as any)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="English">English</SelectItem>
+                    <SelectItem value="Filipino">Filipino</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.language && <p className="text-destructive text-sm mt-1">{errors.language.message}</p>}
               </div>
 
               <div className="grid md:grid-cols-3 gap-4">

@@ -49,6 +49,7 @@ serve(async (req) => {
       competency,
       code,
       customInstructions,
+      language,
     } = await req.json();
 
     if (!jwt) {
@@ -123,7 +124,25 @@ serve(async (req) => {
     }
 
     // Step 2: AI generation via OpenAI or OpenRouter
-    const systemPrompt = `You are the WeeLMat Lesson Matrix Writer for DepEd Negros Island Region.\nProduce Monday–Friday entries for the Weekly Learning Matrix with three rows: Row 2: COMPETENCY — restate/target the competency briefly for each day in student-friendly wording. Row 3: SUGGESTED LEARNING MATERIAL/REFERENCE — 2–3 items per day; prioritize DepEd resources, OER, and specific YouTube lesson titles (with channel). Include short descriptors; vary sources across days. Row 4: LEARNING ACTIVITIES/TASKS — substantial, achievable tasks aligned to the competency (5–9 bullet-length sentences per day). Include expected outputs and a brief contingency note for class suspension. Strict table mapping rules: Column 1 is labels only: “Competency”, “Suggested Learning Material/Reference”, “Learning Activities/Tasks”. Columns 2–6 are Monday to Friday (in that order). Monday includes a concise 15-minute briefing summary. Language: Use Filipino if Subject is Filipino or Araling Panlipunan; otherwise use English. Avoid overload; ensure daily outputs are realistic.`;
+    // Determine effective language (user override > subject rule)
+    const subjLower = (subject || "").toLowerCase();
+    const reqLower = (language || "").toLowerCase();
+    const effectiveLanguage = reqLower === "filipino"
+      ? "Filipino"
+      : reqLower === "english"
+      ? "English"
+      : (subjLower.includes("filipino") || subjLower.includes("araling panlipunan") || subjLower === "ap" || subjLower.includes(" ap"))
+      ? "Filipino"
+      : "English";
+
+    // System prompt with strict requirements (references must be populated)
+    const systemPrompt = `You are the WeeLMat Lesson Matrix Writer for DepEd Negros Island Region.
+Respond strictly in ${effectiveLanguage}.
+Produce Monday–Friday entries for the Weekly Learning Matrix with three rows:
+- Row 2: COMPETENCY — restate/target the competency briefly for each day in student-friendly wording (Mon includes a concise 15-minute briefing).
+- Row 3: SUGGESTED LEARNING MATERIAL/REFERENCE — provide 2–3 specific items per day (exact titles + source/channel); prioritize DepEd resources, OER, and specific YouTube lesson titles, and vary sources across days.
+- Row 4: LEARNING ACTIVITIES/TASKS — substantial, achievable tasks aligned to the competency (5–9 bullet-length sentences per day) with expected outputs and a brief contingency note for class suspension.
+Strict table mapping rules: Column 1 is labels only: “Competency”, “Suggested Learning Material/Reference”, “Learning Activities/Tasks”. Columns 2–6 are Monday to Friday (in that order). Output JSON only with keys competency, references, activities and days mon..fri.`;
 
     const userContent = {
       subject,
@@ -134,6 +153,7 @@ serve(async (req) => {
       code,
       customInstructions,
       curatedSources,
+      language: effectiveLanguage,
       required_output_shape: {
         competency: { mon: "", tue: "", wed: "", thu: "", fri: "" },
         references: { mon: "", tue: "", wed: "", thu: "", fri: "" },
@@ -202,6 +222,44 @@ serve(async (req) => {
     }
 
     const aiJson = await generateOnce();
+
+    // Normalize and ensure references are populated; fallback to curated sources when needed
+    const days = ["mon","tue","wed","thu","fri"] as const;
+    const norm = (v: any) => {
+      if (!v) return "";
+      if (typeof v === "string") return v;
+      if (Array.isArray(v)) return v.join(" • ");
+      if (typeof v === "object") return Object.values(v).join(" • ");
+      return String(v);
+    };
+
+    const pickDailyRefs = (): string[] => {
+      const out: string[] = [];
+      for (let i = 0; i < 5; i++) {
+        const items: Array<{title:string;url:string}> = [] as any;
+        for (let k = i; k < curatedSources.length && items.length < 3; k += 5) {
+          items.push(curatedSources[k]);
+        }
+        if (items.length < 2) {
+          items.push(...curatedSources.slice(0, Math.min(3 - items.length, curatedSources.length)));
+        }
+        out[i] = items.map((s) => `${s.title} — ${s.url}`).join(" • ");
+      }
+      if (out.every((x) => !x)) {
+        const joined = curatedSources.slice(0, 3).map((s) => `${s.title} — ${s.url}`).join(" • ");
+        return [joined, joined, joined, joined, joined];
+      }
+      return out;
+    };
+
+    const dailyFallback = pickDailyRefs();
+    const refsIn = aiJson?.references || {};
+    aiJson.references = days.reduce((acc: any, d, i) => {
+      const val = norm((refsIn as any)[d]);
+      acc[d] = val && val.trim().length > 0 ? val : dailyFallback[i] || "";
+      return acc;
+    }, {});
+
 
     // Insert matrix and run records
     const { data: matrix, error: matrixErr } = await supabase

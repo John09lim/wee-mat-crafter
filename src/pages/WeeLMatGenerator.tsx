@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/sonner";
 
 // Form values passed from Dashboard
@@ -14,6 +15,7 @@ type FormValues = {
   competency: string;
   code?: string;
   customInstructions?: string;
+  language?: string;
 };
 
 const logoUrl =
@@ -36,6 +38,7 @@ const WeeLMatGenerator = () => {
   const [loading, setLoading] = useState(true);
   const [docxUrl, setDocxUrl] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [aiJson, setAiJson] = useState<any | null>(null);
 
   useEffect(() => {
     document.title = "WeeLMat Generator | WeeLMat";
@@ -83,6 +86,7 @@ const WeeLMatGenerator = () => {
 
         setDocxUrl(data?.docx_url || null);
         setPdfUrl(data?.pdf_url || null);
+        setAiJson(data?.ai_json || null);
       } catch (err: any) {
         toast(err.message || "Generation failed");
       } finally {
@@ -96,15 +100,15 @@ const WeeLMatGenerator = () => {
   }, [navigate, values]);
 
   const Success = () => (
-    <section className="container max-w-3xl animate-fade-in">
+    <section className="container max-w-4xl animate-fade-in">
       <article className="rounded-2xl border bg-card text-card-foreground shadow-sm overflow-hidden">
         <header className="px-6 pt-6 pb-4 border-b">
           <h1 className="text-xl font-semibold">WeeLMat is ready</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Download your files or go back to Dashboard.
+            Preview below, then download or go back to Dashboard.
           </p>
         </header>
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-5">
           <div className="flex flex-wrap gap-3">
             <Button asChild disabled={!docxUrl}>
               <a href={docxUrl ?? undefined} target="_blank" rel="noreferrer">
@@ -126,6 +130,47 @@ const WeeLMatGenerator = () => {
             >
               Save to My Files
             </Button>
+          </div>
+
+          <div className="rounded-xl border bg-background p-4">
+            <div className="text-center space-y-1 mb-4">
+              <p className="font-semibold">Weekly Learning Matrix (WeeLMat)</p>
+              <p className="text-sm text-muted-foreground">{values?.subject} • {values?.gradeLevel} • {values?.section}</p>
+              <p className="text-sm text-muted-foreground">Covered Dates: {values?.dateFrom} – {values?.dateTo}</p>
+            </div>
+            {aiJson ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableBody>
+                    <TableRow>
+                      {Array.from({ length: 6 }).map((_, i) => (
+                        <TableCell key={i}>{""}</TableCell>
+                      ))}
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-semibold">Competency</TableCell>
+                      {["mon","tue","wed","thu","fri"].map((d) => (
+                        <TableCell key={d}>{aiJson?.competency?.[d] || ""}</TableCell>
+                      ))}
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-semibold">Suggested Learning Material/Reference</TableCell>
+                      {["mon","tue","wed","thu","fri"].map((d) => (
+                        <TableCell key={d}>{aiJson?.references?.[d] || ""}</TableCell>
+                      ))}
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-semibold">Learning Activities/Tasks</TableCell>
+                      {["mon","tue","wed","thu","fri"].map((d) => (
+                        <TableCell key={d}>{aiJson?.activities?.[d] || ""}</TableCell>
+                      ))}
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Preview unavailable.</p>
+            )}
           </div>
         </div>
       </article>
