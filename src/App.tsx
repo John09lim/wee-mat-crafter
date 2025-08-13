@@ -11,6 +11,8 @@ import Auth from "./pages/Auth";
 import LearnMore from "./pages/LearnMore";
 import Dashboard from "./pages/Dashboard";
 import Splash from "./pages/Splash";
+import WeeLMatGenerator from "./pages/WeeLMatGenerator";
+import MyAccount from "./pages/MyAccount";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +30,8 @@ const App = () => {
           <Route path="/auth" element={<Auth />} />
           <Route path="/learn-more" element={<LearnMore />} />
           <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/weelmatgenerator" element={<WeeLMatGenerator />} />
+          <Route path="/my-account" element={<MyAccount />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

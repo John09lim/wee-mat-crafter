@@ -66,41 +66,8 @@ const Dashboard = () => {
 
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
-    setStepIndex(0);
-    try {
-      // simulate progressive steps UI
-      const next = () => setStepIndex((i) => Math.min(i+1, steps.length-1));
-
-      const { data: sessionData } = await supabase.auth.getSession();
-      const access_token = sessionData.session?.access_token;
-      if (!access_token) throw new Error("Not authenticated");
-
-      next();
-      const { data, error } = await supabase.functions.invoke("generate-weelmat", {
-        headers: { Authorization: `Bearer ${access_token}` },
-        body: values,
-      });
-      if (error) throw error;
-
-      next();
-
-      toast("WeeLMat generated");
-
-      // Success screen: show buttons
-      setStepIndex(2);
-      setResult({
-        subject: values.subject,
-        grade: values.gradeLevel,
-        section: values.section,
-        dates: `${values.dateFrom} – ${values.dateTo}`,
-        docx: data.docx_url,
-        pdf: data.pdf_url,
-      });
-    } catch (e:any) {
-      toast(e.message || "Generation failed");
-    } finally {
-      setLoading(false);
-    }
+    // Redirect to generator page with form values; the generator will run the process
+    navigate("/weelmatgenerator", { state: values });
   }
 
   const [result, setResult] = useState<{subject:string;grade:string;section:string;dates:string;docx?:string;pdf?:string}|null>(null);

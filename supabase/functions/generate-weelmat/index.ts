@@ -1,7 +1,20 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  Table,
+  TableRow,
+  TableCell,
+  HeadingLevel,
+  AlignmentType,
+  WidthType,
+  BorderStyle,
+} from "https://esm.sh/docx@8.5.0";
+import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -213,25 +226,219 @@ serve(async (req) => {
       throw matrixErr;
     }
 
+    // Run tracking
     const { data: run, error: runErr } = await supabase
       .from("weelmat_runs")
-      .insert({ user_id: userId, matrix_id: matrix.id, status: "completed" })
+      .insert({ user_id: userId, matrix_id: matrix.id, status: "started", step: "searching" })
       .select()
       .single();
+    if (runErr) console.error(runErr);
 
-    if (runErr) {
-      console.error(runErr);
+    // Update step to drafting after AI JSON ready
+    await supabase.from("weelmat_runs").update({ step: "drafting" }).eq("id", run?.id || "00000000-0000-0000-0000-000000000000");
+
+    // Step 3: Build DOCX and PDF
+    await supabase.from("weelmat_runs").update({ step: "exporting" }).eq("id", run?.id || "00000000-0000-0000-0000-000000000000");
+
+    // Helper getters
+    function dayVals(obj: any) {
+      return [obj?.mon || "", obj?.tue || "", obj?.wed || "", obj?.thu || "", obj?.fri || ""];
     }
 
-    // TODO: Implement DOCX/PDF generation & upload, then update URLs on matrix
+    // DOCX generation
+    let docxPublicUrl: string | null = null;
+    try {
+      const comp = dayVals(aiJson?.competency || {});
+      const refs = dayVals(aiJson?.references || {});
+      const acts = dayVals(aiJson?.activities || {});
+
+      const headerTitle = new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: "Weekly Learning Matrix (WeeLMat)", bold: true, size: 28 })],
+      });
+      const headerLine1 = new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({ text: `${subject} • ${gradeLevel} • ${section}`, size: 22 }),
+        ],
+      });
+      const headerLine2 = new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: `Covered Dates: ${dateFrom} – ${dateTo}`, size: 22 })],
+      });
+
+      const blankRow = new TableRow({
+        children: Array.from({ length: 6 }).map(() => new TableCell({ children: [new Paragraph("")], width: { size: 16, type: WidthType.PERCENTAGE } })),
+      });
+
+      const labelCell = (label: string) =>
+        new TableCell({
+          children: [new Paragraph({ children: [new TextRun({ text: label, bold: true })] })],
+          width: { size: 16, type: WidthType.PERCENTAGE },
+        });
+
+      const rowFrom = (label: string, vals: string[]) =>
+        new TableRow({
+          children: [
+            labelCell(label),
+            ...vals.map((v) => new TableCell({ children: [new Paragraph(v)], width: { size: 16, type: WidthType.PERCENTAGE } })),
+          ],
+        });
+
+      const table = new Table({
+        rows: [blankRow, rowFrom("Competency", comp), rowFrom("Suggested Learning Material/Reference", refs), rowFrom("Learning Activities/Tasks", acts)],
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
+          bottom: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
+          left: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
+          right: { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" },
+          insideHorizontal: { style: BorderStyle.SINGLE, size: 1, color: "DDDDDD" },
+          insideVertical: { style: BorderStyle.SINGLE, size: 1, color: "DDDDDD" },
+        },
+      });
+
+      const doc = new Document({
+        sections: [
+          {
+            properties: {},
+            children: [headerTitle, headerLine1, headerLine2, new Paragraph(""), table],
+          },
+        ],
+      });
+
+      const b64 = await Packer.toBase64String(doc);
+      const docxBytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+      const docxBlob = new Blob([docxBytes], {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
+      const docxPath = `matrices/${userId}/${matrix.id}.docx`;
+      await supabase.storage.from("weelmat").upload(docxPath, docxBlob, {
+        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        upsert: true,
+      });
+      docxPublicUrl = supabase.storage.from("weelmat").getPublicUrl(docxPath).data.publicUrl;
+    } catch (e) {
+      console.error("DOCX generation failed", e);
+    }
+
+    // PDF generation
+    let pdfPublicUrl: string | null = null;
+    try {
+      const pdfDoc = await PDFDocument.create();
+      const A4 = { w: 595.28, h: 841.89 };
+      const page = pdfDoc.addPage([A4.w, A4.h]);
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+      const margin = 50;
+      let y = A4.h - margin;
+      const line = (text: string, bold = false, size = 12) => {
+        y -= size + 6;
+        page.drawText(text, { x: margin, y, size, font: bold ? fontBold : font, color: rgb(0, 0, 0) });
+      };
+
+      line("Weekly Learning Matrix (WeeLMat)", true, 16);
+      line(`${subject} • ${gradeLevel} • ${section}`, false, 12);
+      line(`Covered Dates: ${dateFrom} – ${dateTo}`, false, 12);
+      y -= 10;
+
+      // Table grid
+      const cols = 6, rows = 4;
+      const tableW = A4.w - margin * 2;
+      const tableH = 360;
+      const colW = tableW / cols;
+      const rowH = tableH / rows;
+      const startX = margin;
+      const startY = y;
+
+      // draw borders
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          page.drawRectangle({
+            x: startX + c * colW,
+            y: startY - (r + 1) * rowH,
+            width: colW,
+            height: rowH,
+            borderWidth: 0.5,
+            borderColor: rgb(0.8, 0.8, 0.8),
+          });
+        }
+      }
+
+      // Write labels and content
+      const wrapText = (text: string, maxChars = 90) => {
+        const words = (text || "").split(/\s+/);
+        const lines: string[] = [];
+        let cur = "";
+        for (const w of words) {
+          if ((cur + (cur ? " " : "") + w).length > maxChars) {
+            lines.push(cur);
+            cur = w;
+          } else {
+            cur = cur ? cur + " " + w : w;
+          }
+        }
+        if (cur) lines.push(cur);
+        return lines;
+      };
+
+      const comp = dayVals(aiJson?.competency || {});
+      const refs = dayVals(aiJson?.references || {});
+      const acts = dayVals(aiJson?.activities || {});
+
+      const writeCell = (r: number, c: number, text: string, bold = false) => {
+        const tx = startX + c * colW + 6;
+        const ty = startY - (r + 1) * rowH + rowH - 16;
+        const lines = wrapText(text);
+        let ly = ty;
+        for (const ln of lines.slice(0, 12)) {
+          page.drawText(ln, { x: tx, y: ly, size: 10, font: bold ? fontBold : font });
+          ly -= 12;
+        }
+      };
+
+      // Row 1: blank (do nothing)
+      // Row 2: Competency
+      writeCell(1, 0, "Competency", true);
+      comp.forEach((v, i) => writeCell(1, i + 1, v));
+      // Row 3: References
+      writeCell(2, 0, "Suggested Learning Material/Reference", true);
+      refs.forEach((v, i) => writeCell(2, i + 1, v));
+      // Row 4: Activities
+      writeCell(3, 0, "Learning Activities/Tasks", true);
+      acts.forEach((v, i) => writeCell(3, i + 1, v));
+
+      const bytes = await pdfDoc.save();
+      const pdfBlob = new Blob([bytes], { type: "application/pdf" });
+      const pdfPath = `matrices/${userId}/${matrix.id}.pdf`;
+      await supabase.storage.from("weelmat").upload(pdfPath, pdfBlob, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+      pdfPublicUrl = supabase.storage.from("weelmat").getPublicUrl(pdfPath).data.publicUrl;
+    } catch (e) {
+      console.error("PDF generation failed", e);
+    }
+
+    // Update matrix URLs
+    const { data: updated, error: updErr } = await supabase
+      .from("weelmat_matrices")
+      .update({ docx_url: docxPublicUrl, pdf_url: pdfPublicUrl })
+      .eq("id", matrix.id)
+      .select()
+      .single();
+    if (updErr) console.error(updErr);
+
+    await supabase.from("weelmat_runs").update({ status: "completed", step: "completed" }).eq("id", run?.id || "00000000-0000-0000-0000-000000000000");
 
     return new Response(
       JSON.stringify({
         matrixId: matrix.id,
         ai_json: aiJson,
         curatedSources,
-        docx_url: matrix.docx_url,
-        pdf_url: matrix.pdf_url,
+        docx_url: updated?.docx_url ?? docxPublicUrl,
+        pdf_url: updated?.pdf_url ?? pdfPublicUrl,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

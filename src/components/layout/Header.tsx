@@ -16,9 +16,12 @@ const Header = () => {
           <p className="text-lg font-semibold leading-tight">WeeLMat • Weekly Learning Matrix</p>
         </div>
         <nav className="flex items-center gap-4 text-sm">
-          {location.pathname !== "/auth" && <Link to="/auth" className="hover:underline underline-offset-4">
-              Login
-            </Link>}
+          <Link to="/my-account" className="hover:underline underline-offset-4">
+            My Files
+          </Link>
+          {location.pathname !== "/auth" && (
+            <Link to="/auth" className="hover:underline underline-offset-4">Login</Link>
+          )}
         </nav>
       </div>
     </header>;
