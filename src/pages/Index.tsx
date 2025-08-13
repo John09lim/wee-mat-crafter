@@ -1,42 +1,100 @@
+
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const navigate = useNavigate();
   return (
-    <main className="min-h-[calc(100vh-160px)] flex items-center bg-background">
+    <main className="min-h-[calc(100vh-160px)] flex flex-col bg-background">
+      {/* Hero */}
       <section className="container grid md:grid-cols-2 gap-10 items-center py-16">
-        <div className="space-y-5 animate-fade-in">
+        <div className="space-y-6 animate-fade-in">
+          <span className="inline-flex items-center text-xs rounded-full border px-2 py-1 text-muted-foreground">
+            Built for Teachers • WeeLMat Generator
+          </span>
           <h1 className="text-4xl md:text-5xl font-bold leading-tight">
-            WeeLMat • Weekly Learning Matrix
+            Create Weekly Learning Matrices in minutes
           </h1>
-          <p className="text-lg text-muted-foreground max-w-prose">
-            Generate polished DOCX/PDF Weekly Learning Matrices powered by AI and real sources.
+          <p className="text-base md:text-lg text-muted-foreground max-w-prose">
+            WeeLMat turns your weekly competencies into a clear, learner‑friendly plan. Generate polished DOCX/PDF
+            output ready for class use or contingency days—fast, consistent, and aligned with DepEd guidance.
           </p>
-          <div className="flex flex-wrap gap-3">
-            <Button size="lg" onClick={() => navigate("/auth")}>Get Started</Button>
-            <Button variant="tertiary" size="lg" onClick={() => navigate("/learn-more")}>Learn More</Button>
+
+          <div className="grid gap-3">
+            <div className="flex flex-wrap gap-3">
+              <Button size="lg" onClick={() => navigate("/auth")}>Get Started</Button>
+              <Button variant="tertiary" size="lg" onClick={() => navigate("/learn-more")}>Learn More</Button>
+            </div>
+            <ul className="text-sm text-muted-foreground grid gap-1.5">
+              <li>• Purpose: Make weekly activities clear and accessible for learners.</li>
+              <li>• Benefits: Structured planning, consistency during suspensions, and easy sharing/printing.</li>
+              <li>• Output: A4‑ready DOCX and PDF with neat tables and clean typography.</li>
+            </ul>
           </div>
         </div>
-        <div className="rounded-3xl border bg-card text-card-foreground p-6 shadow-sm">
-          <div className="aspect-[4/3] w-full rounded-2xl border bg-muted/30 flex items-center justify-center text-muted-foreground">
-            Your logo appears in the header. Replace /images/logo.png to use your own.
+
+        {/* Visual */}
+        <div className="rounded-3xl border bg-card text-card-foreground p-3 shadow-sm">
+          <div className="aspect-[4/3] w-full overflow-hidden rounded-2xl border bg-muted/30 flex items-center justify-center">
+            <img
+              src="/images/hero.png"
+              alt="WeeLMat preview"
+              className="h-full w-full object-cover"
+              loading="lazy"
+            />
           </div>
+          <p className="sr-only">
+            Preview image provided by the user
+          </p>
         </div>
       </section>
-      {/* Elegant feature strip */}
+
+      {/* Benefits */}
       <section className="container grid md:grid-cols-3 gap-6 pb-16">
         <div className="rounded-2xl border bg-card p-6 shadow-sm">
-          <h2 className="font-semibold mb-2">Grounded by real sources</h2>
-          <p className="text-sm text-muted-foreground">DepEd guides, OER, and curated videos ensure reliability.</p>
+          <h2 className="font-semibold mb-2">Grounded & clear</h2>
+          <p className="text-sm text-muted-foreground">
+            Crafted to be concise and learner‑friendly, aligned to competencies—no clutter, just clarity.
+          </p>
         </div>
         <div className="rounded-2xl border bg-card p-6 shadow-sm">
-          <h2 className="font-semibold mb-2">A4‑ready DOCX & PDF</h2>
-          <p className="text-sm text-muted-foreground">Neat tables, generous padding, and clean typography.</p>
+          <h2 className="font-semibold mb-2">Continuity ready</h2>
+          <p className="text-sm text-muted-foreground">
+            Supports learning during suspensions—easy to display, copy, or print in minimal copies.
+          </p>
         </div>
         <div className="rounded-2xl border bg-card p-6 shadow-sm">
-          <h2 className="font-semibold mb-2">Fast & simple</h2>
-          <p className="text-sm text-muted-foreground">Fill one form, review, and download in seconds.</p>
+          <h2 className="font-semibold mb-2">Fast output</h2>
+          <p className="text-sm text-muted-foreground">
+            Produce neat A4 DOCX/PDF matrices in seconds, with a simple, reliable flow.
+          </p>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="container pb-20">
+        <div className="rounded-3xl border bg-card p-6 md:p-8 shadow-sm">
+          <h3 className="text-xl font-semibold mb-4">How it works</h3>
+          <ol className="grid md:grid-cols-3 gap-6 text-sm">
+            <li className="rounded-xl border p-4">
+              <p className="font-medium mb-1">1. Enter details</p>
+              <p className="text-muted-foreground">
+                Provide subject, grade, dates, and the week’s competency.
+              </p>
+            </li>
+            <li className="rounded-xl border p-4">
+              <p className="font-medium mb-1">2. Generate</p>
+              <p className="text-muted-foreground">
+                We create a clean, learner‑friendly WeeLMat with tasks and outputs.
+              </p>
+            </li>
+            <li className="rounded-xl border p-4">
+              <p className="font-medium mb-1">3. Download & share</p>
+              <p className="text-muted-foreground">
+                Get A4‑ready DOCX/PDF for display, projection, or printing.
+              </p>
+            </li>
+          </ol>
         </div>
       </section>
     </main>
