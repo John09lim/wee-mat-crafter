@@ -4,7 +4,7 @@ const Header = () => {
   return <header className="bg-primary text-primary-foreground border-b-2 border-accent">
       <div className="container flex items-center gap-3 py-4 rounded-lg">
           <img
-            src="/Screenshot 2025-08-11 074334.png"
+            src="/weelmat-logo.png"
             alt="WeeLMat school logo"
             className="h-12 w-auto max-w-none rounded-md bg-primary-foreground/0 object-contain"
             loading="eager"

@@ -33,7 +33,7 @@ const Splash = () => {
     <main className="min-h-screen bg-primary text-primary-foreground flex items-center justify-center">
       <div className="flex flex-col items-center gap-6 animate-fade-in">
         <img
-          src="/Screenshot 2025-08-11 074334.png"
+          src="/weelmat-logo.png"
           alt="WeeLMat school logo"
           className="h-32 w-auto max-w-none rounded-xl shadow-md bg-primary-foreground/0 object-contain"
         />
