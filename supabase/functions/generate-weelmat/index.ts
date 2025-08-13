@@ -225,7 +225,7 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
 
     const aiJson = await generateOnce();
 
-    // Normalize and ensure references are populated; fallback to curated sources when needed
+    // Normalize and ensure all content is populated with fallbacks
     const days = ["mon","tue","wed","thu","fri"] as const;
     const norm = (v: any) => {
       if (!v) return "";
@@ -234,6 +234,24 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
       if (typeof v === "object") return Object.values(v).join(" • ");
       return String(v);
     };
+
+    // Ensure activities are populated with fallbacks
+    const activitiesFallback = [
+      "Review previous lesson and complete practice exercises. Submit written responses.",
+      "Participate in group discussions and complete assigned reading. Prepare summary notes.",
+      "Complete hands-on activities and collaborative tasks. Document learning outcomes.",
+      "Practice skills through interactive exercises. Complete assessment tasks.",
+      "Apply learned concepts in practical scenarios. Prepare for next week's topics."
+    ];
+
+    // Ensure competency is populated with fallbacks
+    const competencyFallback = [
+      "Introduce and explore the learning competency through guided instruction.",
+      "Develop understanding through practice and application activities.",
+      "Strengthen skills through varied exercises and group work.",
+      "Apply knowledge in different contexts and scenarios.",
+      "Consolidate learning and prepare for assessment."
+    ];
 
     const pickDailyRefs = (): string[] => {
       const out: string[] = [];
@@ -255,10 +273,28 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
     };
 
     const dailyFallback = pickDailyRefs();
+    
+    // Ensure references are populated
     const refsIn = aiJson?.references || {};
     aiJson.references = days.reduce((acc: any, d, i) => {
       const val = norm((refsIn as any)[d]);
       acc[d] = val && val.trim().length > 0 ? val : dailyFallback[i] || "";
+      return acc;
+    }, {});
+
+    // Ensure activities are populated
+    const activitiesIn = aiJson?.activities || {};
+    aiJson.activities = days.reduce((acc: any, d, i) => {
+      const val = norm((activitiesIn as any)[d]);
+      acc[d] = val && val.trim().length > 0 ? val : activitiesFallback[i] || "";
+      return acc;
+    }, {});
+
+    // Ensure competency is populated
+    const competencyIn = aiJson?.competency || {};
+    aiJson.competency = days.reduce((acc: any, d, i) => {
+      const val = norm((competencyIn as any)[d]);
+      acc[d] = val && val.trim().length > 0 ? val : competencyFallback[i] || "";
       return acc;
     }, {});
 
@@ -339,7 +375,7 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
         spacing: { after: 200 },
       });
 
-      // Calculate weekday dates for the header row
+      // Calculate weekday dates in MM-DD-YYYY format for the header row
       const calculateWeekdayDates = () => {
         if (!dateFrom || !dateTo) return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
         
@@ -362,9 +398,11 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
             
             // Check if the current day is within the date range
             if (currentDay >= startDate && currentDay <= endDate) {
-              const month = currentDay.getMonth() + 1;
-              const day = currentDay.getDate();
-              weekdays.push(`${dayNames[i]} ${month}/${day}`);
+              const month = String(currentDay.getMonth() + 1).padStart(2, '0');
+              const day = String(currentDay.getDate()).padStart(2, '0');
+              const year = currentDay.getFullYear();
+              // Format for DOCX: Day name on first line, date on second line
+              weekdays.push(`${dayNames[i]}\n${month}-${day}-${year}`);
             } else {
               weekdays.push(dayNames[i]);
             }
@@ -380,14 +418,28 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
       const dateHeaderRow = new TableRow({
         children: [
           new TableCell({ children: [new Paragraph("")], width: { size: 16, type: WidthType.PERCENTAGE } }),
-          ...weekdayDates.map((date) => new TableCell({ 
-            children: [new Paragraph({ 
-              children: [new TextRun({ text: date, bold: true })],
-              alignment: AlignmentType.CENTER,
-              spacing: { after: 100 } 
-            })], 
-            width: { size: 16, type: WidthType.PERCENTAGE } 
-          })),
+          ...weekdayDates.map((date) => {
+            // Split the date into day name and date parts
+            const parts = date.split('\n');
+            const dayName = parts[0] || date;
+            const dateStr = parts[1] || '';
+            
+            return new TableCell({ 
+              children: [
+                new Paragraph({ 
+                  children: [new TextRun({ text: dayName, bold: true })],
+                  alignment: AlignmentType.CENTER,
+                  spacing: { after: 50 }
+                }),
+                ...(dateStr ? [new Paragraph({ 
+                  children: [new TextRun({ text: dateStr, bold: true })],
+                  alignment: AlignmentType.CENTER,
+                  spacing: { after: 100 }
+                })] : [])
+              ], 
+              width: { size: 16, type: WidthType.PERCENTAGE } 
+            });
+          }),
         ],
       });
 

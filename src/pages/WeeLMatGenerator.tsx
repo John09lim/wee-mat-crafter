@@ -123,7 +123,7 @@ const WeeLMatGenerator = () => {
     return `weelmat-${safe(values?.subject)}-${safe(values?.gradeLevel)}-${safe(values?.section)}-${values?.dateFrom || ""}-${values?.dateTo || ""}.${ext}`;
   };
 
-  // Calculate Monday-Friday dates based on dateFrom
+  // Calculate Monday-Friday dates in MM-DD-YYYY format
   const calculateWeekdayDates = () => {
     if (!values?.dateFrom || !values?.dateTo) return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
     
@@ -146,9 +146,11 @@ const WeeLMatGenerator = () => {
         
         // Check if the current day is within the date range
         if (currentDay >= startDate && currentDay <= endDate) {
-          const month = currentDay.getMonth() + 1;
-          const day = currentDay.getDate();
-          weekdays.push(`${dayNames[i]} ${month}/${day}`);
+          const month = String(currentDay.getMonth() + 1).padStart(2, '0');
+          const day = String(currentDay.getDate()).padStart(2, '0');
+          const year = currentDay.getFullYear();
+          // Format as "Day\nMM-DD-YYYY"
+          weekdays.push(`${dayNames[i]}\n${month}-${day}-${year}`);
         } else {
           weekdays.push(dayNames[i]);
         }
@@ -169,30 +171,15 @@ const WeeLMatGenerator = () => {
         return;
       }
       
-      // If we have a matrixId, just navigate to my-account (matrix already exists)
+      // Always navigate to my-account since matrix is created by the edge function
       if (matrixId) {
-        toast("Saved to My Files.");
+        toast("File already saved to My Files.");
         navigate("/my-account");
         return;
       }
       
-      // Fallback: create new record if matrixId doesn't exist
-      const { error } = await supabase.from("weelmat_matrices").insert({
-        user_id: session.session?.user.id,
-        subject: values?.subject,
-        grade_level: values?.gradeLevel,
-        section: values?.section,
-        date_from: values?.dateFrom,
-        date_to: values?.dateTo,
-        competency: values?.competency,
-        code: values?.code,
-        custom_instructions: values?.customInstructions,
-        ai_json: aiJson,
-        docx_url: docxUrl,
-        pdf_url: pdfUrl,
-      });
-      if (error) throw error;
-      toast("Saved to My Files.");
+      // If no matrixId, there might be an issue but still try to navigate
+      toast("Redirecting to My Files...");
       navigate("/my-account");
     } catch (e: any) {
       toast(e.message || "Save failed");
@@ -227,7 +214,7 @@ const WeeLMatGenerator = () => {
                     <TableRow>
                       <TableCell className="text-xs min-w-[120px] font-semibold"></TableCell>
                       {calculateWeekdayDates().map((date, i) => (
-                        <TableCell key={i} className="text-xs min-w-[120px] font-semibold text-center">{date}</TableCell>
+                        <TableCell key={i} className="text-xs min-w-[120px] font-semibold text-center whitespace-pre-line">{date}</TableCell>
                       ))}
                     </TableRow>
                     <TableRow>
