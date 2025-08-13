@@ -35,11 +35,11 @@ const Index = () => {
 
         {/* Visual */}
         <div className="rounded-3xl border bg-card text-card-foreground p-3 shadow-sm animate-fade-in">
-          <div className="aspect-[4/3] w-full overflow-hidden rounded-2xl border bg-muted/30 flex items-center justify-center">
+          <div className="w-full overflow-hidden rounded-2xl border bg-muted/30">
             <img
               src="https://raw.githubusercontent.com/John09lim/wee-mat-crafter/main/public/Screenshot%202025-08-11%20074334.png"
               alt="WeeLMat preview image (GitHub)"
-              className="h-full w-full object-cover hover-scale"
+              className="w-full h-auto object-contain hover-scale"
               loading="lazy"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = "/Screenshot%202025-08-11%20074334.png";

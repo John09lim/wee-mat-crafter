@@ -33,9 +33,9 @@ const Splash = () => {
     <main className="min-h-screen bg-primary text-primary-foreground flex items-center justify-center">
       <div className="flex flex-col items-center gap-6 animate-fade-in">
         <img
-          src="/images/school-logo.png"
-          alt="School logo"
-          className="h-28 w-28 rounded-xl shadow-md bg-primary-foreground/0"
+          src="https://raw.githubusercontent.com/John09lim/wee-mat-crafter/main/public/Screenshot%202025-08-11%20074334.png"
+          alt="WeeLMat school logo"
+          className="h-28 w-auto rounded-xl shadow-md bg-primary-foreground/0 object-contain"
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).src = "/Screenshot%202025-08-11%20074334.png";
           }}
