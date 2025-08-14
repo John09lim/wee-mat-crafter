@@ -32,6 +32,13 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing Supabase environment variables");
 }
 
+// Debug: Log available API keys for troubleshooting
+console.log("Available API Keys:", {
+  hasDeepSeek: !!DEEPSEEK_API_KEY,
+  hasOpenRouter: !!OPENROUTER_API_KEY,
+  hasTavily: !!TAVILY_API_KEY
+});
+
 const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
 serve(async (req) => {
@@ -164,7 +171,11 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
     };
 
     async function callDeepSeek() {
-      if (!DEEPSEEK_API_KEY) return null;
+      if (!DEEPSEEK_API_KEY) {
+        console.log("❌ No DEEPSEEK_API_KEY found");
+        return null;
+      }
+      console.log("🤖 Calling DeepSeek API directly...");
       const res = await fetch("https://api.deepseek.com/chat/completions", {
         method: "POST",
         headers: {
@@ -180,7 +191,10 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
           temperature: 0.3,
         }),
       });
-      if (!res.ok) return null;
+      if (!res.ok) {
+        console.error("DeepSeek request failed:", res.status, await res.text());
+        return null;
+      }
       const json = await res.json();
       const text = json.choices?.[0]?.message?.content?.trim() || "{}";
       return text;
@@ -188,14 +202,17 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
 
     async function callOpenRouter() {
       if (!OPENROUTER_API_KEY) return null;
+      console.log("🔄 Calling OpenRouter with DeepSeek model...");
       const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
+          "HTTP-Referer": "https://weelmat.app",
+          "X-Title": "WeeLMat Generator",
         },
         body: JSON.stringify({
-          model: "openai/gpt-4o-mini",
+          model: "deepseek/deepseek-chat",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: `${JSON.stringify(userContent)}\nReturn JSON only.` },
@@ -203,7 +220,10 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
           temperature: 0.3,
         }),
       });
-      if (!res.ok) return null;
+      if (!res.ok) {
+        console.error("OpenRouter request failed:", res.status, await res.text());
+        return null;
+      }
       const json = await res.json();
       const text = json.choices?.[0]?.message?.content?.trim() || "{}";
       return text;
