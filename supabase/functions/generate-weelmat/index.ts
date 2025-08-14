@@ -24,8 +24,8 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") || Deno.env.get("OPENAI_API_KEYS");
 const TAVILY_API_KEY = Deno.env.get("TAVILY_API_KEY");
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -163,16 +163,16 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
       },
     };
 
-    async function callOpenAI() {
-      if (!OPENAI_API_KEY) return null;
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    async function callDeepSeek() {
+      if (!DEEPSEEK_API_KEY) return null;
+      const res = await fetch("https://api.deepseek.com/chat/completions", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          Authorization: `Bearer ${DEEPSEEK_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model: "deepseek-chat",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: `${JSON.stringify(userContent)}\nReturn JSON only.` },
@@ -210,14 +210,14 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
     }
 
     async function generateOnce() {
-      let raw = await callOpenAI();
+      let raw = await callDeepSeek();
       if (!raw) raw = await callOpenRouter();
-      if (!raw) throw new Error("No AI provider configured. Please set OPENAI_API_KEY or OPENROUTER_API_KEY.");
+      if (!raw) throw new Error("No AI provider configured. Please set DEEPSEEK_API_KEY or OPENROUTER_API_KEY.");
       try {
         return JSON.parse(raw);
       } catch {
         const reminder = `Return JSON only.`;
-        let retryRaw = await callOpenAI();
+        let retryRaw = await callDeepSeek();
         if (!retryRaw) retryRaw = await callOpenRouter();
         return JSON.parse(retryRaw || "{}");
       }
@@ -348,20 +348,11 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
       const refs = dayVals(aiJson?.references || {});
       const acts = dayVals(aiJson?.activities || {});
 
-      // Fetch logo for header
-      const logoUrl = "https://raw.githubusercontent.com/John09lim/wee-mat-crafter/main/public/Screenshot%202025-08-11%20074334.png";
-      let logoBytes: Uint8Array | null = null;
-      try {
-        const resp = await fetch(logoUrl);
-        const ab = await resp.arrayBuffer();
-        logoBytes = new Uint8Array(ab);
-      } catch (_) {
-        logoBytes = null;
-      }
+      // Note: Logo removed from DOCX output as requested
 
       const headerTitle = new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: "Weekly Learning Matrix (WeeLMat)", bold: true, size: 28 })],
+        children: [new TextRun({ text: "WEEKLY LEARNING MATRIX", bold: true, size: 28 })],
         spacing: { after: 120 },
       });
       const headerLine1 = new Paragraph({

@@ -164,25 +164,27 @@ const WeeLMatGenerator = () => {
 
   const handleSave = async () => {
     try {
-      const { data: session } = await supabase.auth.getSession();
-      const user = session.session?.user;
-      if (!user) {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast("Please log in to save your WeeLMat");
         navigate("/auth");
         return;
       }
-      
-      // Always navigate to my-account since matrix is created by the edge function
+
+      // The WeeLMat is already saved to the database during generation
+      // We just need to navigate to My Account to view it
       if (matrixId) {
-        toast("File already saved to My Files.");
+        toast("WeeLMat saved to your account!");
         navigate("/my-account");
-        return;
+      } else {
+        // Navigate anyway as the file should still be in the database
+        toast("Navigating to your saved files...");
+        navigate("/my-account");
       }
-      
-      // If no matrixId, there might be an issue but still try to navigate
-      toast("Redirecting to My Files...");
-      navigate("/my-account");
-    } catch (e: any) {
-      toast(e.message || "Save failed");
+    } catch (error) {
+      console.error('Error in handleSave:', error);
+      toast("There was an error saving your WeeLMat");
     }
   };
 

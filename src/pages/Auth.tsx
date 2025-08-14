@@ -62,21 +62,34 @@ const Auth = () => {
       }
 
       // Create auth user
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
       });
       if (signUpError) throw signUpError;
 
-      // Try to get session (instant if email confirmation is disabled)
-      const { data: { session } } = await supabase.auth.getSession();
+      // If user is created but not confirmed, try to sign them in immediately
+      if (signUpData.user && !signUpData.session) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        
+        if (!signInError && signInData.session?.user) {
+          await insertOrUpdateProfile(signInData.session.user.id);
+          toast(`Welcome, ${teacherName}!`);
+          navigate("/dashboard");
+          return;
+        }
+      }
 
-      if (session?.user) {
-        await insertOrUpdateProfile(session.user.id);
-        toast(`Welcome, ${teacherName}`);
+      // If we have a session from signup
+      if (signUpData.session?.user) {
+        await insertOrUpdateProfile(signUpData.session.user.id);
+        toast(`Welcome, ${teacherName}!`);
         navigate("/dashboard");
       } else {
-        // If email confirmation is enabled, user must login after confirming
+        // Fallback - should not happen with email confirmation disabled
         toast("Account created. Please log in to continue.");
         setMode("login");
       }
