@@ -187,6 +187,28 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
           )}
         </aside>
       </section>
+      
+      {/* Disclaimer Section */}
+      <section className="mt-12 p-6 bg-muted/30 rounded-lg border">
+        <h3 className="text-lg font-semibold mb-4 text-foreground">Important Disclaimer</h3>
+        <div className="space-y-3 text-sm text-muted-foreground">
+          <p>
+            <strong>1.</strong> This website is not officially endorsed by DepEd NIR Region. This website is to address and help the rising concerns of teachers in the creation of WeeLMat Matrix, thus giving a load of burden for teachers. If you use this site, this is at your own cost.
+          </p>
+          <p>
+            <strong>2.</strong> Tokens are very expensive for multiple users using the site. That's why it took longer time to make alternative ways to make it FREE of use for everyone.
+          </p>
+          <p>
+            <strong>3.</strong> AI outputs and links are suggestions. Please review, edit, and ensure alignment with your curriculum, division policies, and class context before use.
+          </p>
+          <p>
+            <strong>4.</strong> The site (domain, hosting, and launch) and the AI token credits were paid out-of-pocket by the creator so the tool is usable by everyone. The sole intention is to help teachers reduce workload.
+          </p>
+          <p>
+            <strong>5.</strong> The creator/developer of this site plans to be anonymous. This is not to make him known to everyone, only to help teachers.
+          </p>
+        </div>
+      </section>
     </main>
   );
 };
