@@ -330,12 +330,13 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
       return JSON.stringify(template);
     }
 
-    // Call the AI to generate the content with cost-optimized hierarchy
+    // Call the AI to generate the content with cost-optimized hierarchy (FREE/CHEAP FIRST!)
     async function generateOnce() {
       const providers = [
-        { name: "OpenAI GPT-3.5-Turbo", fn: callOpenAITurbo, cost: "$0.0015/1K tokens" },
         { name: "DeepSeek via OpenRouter", fn: callOpenRouter, cost: "FREE" },
-        { name: "Groq LLaMA 3.1 70B", fn: callGroq, cost: "very cheap" }
+        { name: "Direct DeepSeek API", fn: callDeepSeek, cost: "$0.0014/1K tokens" },
+        { name: "Template Generation", fn: () => generateTemplate(competency), cost: "FREE" },
+        { name: "OpenAI GPT-3.5-Turbo", fn: callOpenAITurbo, cost: "$0.0015/1K tokens" }
       ];
       
       for (const provider of providers) {
