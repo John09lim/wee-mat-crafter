@@ -1,7 +1,5 @@
-
 const LearnMore = () => {
-  return (
-    <main className="min-h-[calc(100vh-160px)] py-12 bg-gradient-to-b from-accent/20 via-secondary/10 to-transparent">
+  return <main className="min-h-[calc(100vh-160px)] py-12 bg-gradient-to-b from-accent/20 via-secondary/10 to-transparent">
       <section className="container space-y-10">
         <header className="text-center space-y-3 animate-fade-in">
           <h1 className="text-3xl md:text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-secondary to-accent">
@@ -85,7 +83,7 @@ const LearnMore = () => {
           <section className="rounded-2xl border bg-card p-6 shadow-sm">
             <h2 className="text-xl font-semibold mb-3">Mandate & Rationale</h2>
             <div className="prose prose-neutral dark:prose-invert max-w-none">
-              <p><strong>To:</strong> Schools Division Superintendents<br/>All Others Concerned</p>
+              <p><strong>To:</strong> Schools Division Superintendents<br />All Others Concerned</p>
               <p>
                 In support of DepEd Order No. 22, s. 2024 titled “Revised Guidelines on Class and Work Suspension in Schools
                 During Disasters and Emergencies” and in consonance with the Department’s effort to constantly ensure
@@ -106,13 +104,11 @@ const LearnMore = () => {
                 by designating division and district monitors to regularly oversee and evaluate its use in schools.
               </p>
               <p><strong>Immediate dissemination of and compliance with this Memorandum are desired.</strong></p>
-              <p><strong>RAMIR B. UYTICO</strong> EdD, CESO III<br/>Regional Director</p>
+              <p className="mx-0 my-[22px]"><strong>RAMIR B. UYTICO</strong> EdD, CESO III<br />Regional Director</p>
             </div>
           </section>
         </article>
       </section>
-    </main>
-  );
+    </main>;
 };
-
 export default LearnMore;
