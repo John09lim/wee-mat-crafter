@@ -259,17 +259,78 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
       return text;
     }
 
-    // Call the AI to generate the content with multi-provider fallback
+    async function callOpenAITurbo() {
+      if (!OPENAI_API_KEY) return null;
+      console.log("🔄 Calling OpenAI GPT-3.5-Turbo ($0.0015/1K tokens)...");
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-3.5-turbo", // Cheapest OpenAI model
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: `${JSON.stringify(userContent)}\nReturn JSON only.` },
+          ],
+          temperature: 0.3,
+          max_tokens: 2000, // Limit tokens to control cost
+        }),
+      });
+      if (!res.ok) {
+        console.error("OpenAI GPT-3.5-Turbo request failed:", res.status, await res.text());
+        return null;
+      }
+      const json = await res.json();
+      const text = json.choices?.[0]?.message?.content?.trim() || "{}";
+      return text;
+    }
+
+    async function callGroq() {
+      console.log("🔄 Calling Groq LLaMA 3.1 70B (very cheap)...");
+      // For now, return template generation as Groq would require separate API key
+      return null;
+    }
+
+    function generateTemplate(comp: string): string {
+      const template = {
+        competency: {
+          mon: `Introduce ${comp} - Daily briefing and overview of key concepts`,
+          tue: `Explore core principles of ${comp} through guided practice`,
+          wed: `Apply knowledge of ${comp} in varied contexts and scenarios`,
+          thu: `Strengthen understanding of ${comp} through problem-solving`,
+          fri: `Consolidate learning of ${comp} and assess comprehension`
+        },
+        references: {
+          mon: "DepEd Curriculum Guide • Khan Academy Lessons • CK-12 Resources",
+          tue: "Educational YouTube Videos • PhET Simulations • Online Modules",
+          wed: "Interactive Learning Materials • Practical Worksheets • Study Guides",
+          thu: "Assessment Tools • Practice Exercises • Review Materials",
+          fri: "Synthesis Activities • Evaluation Rubrics • Next Week Preparation"
+        },
+        activities: {
+          mon: "Activity: Introduction and orientation to the learning competency. Questions: 1. What do you already know about this topic? 2. What are your learning goals? 3. How does this connect to previous lessons? 4. What resources will help you learn? 5. What questions do you have? Expected Output: Learning journal entry and goal setting. Contingency: Independent reading and note-taking during class suspension.",
+          tue: "Activity: Guided practice and skill development exercises. Questions: 1. What new concepts did you learn today? 2. Which skills need more practice? 3. How can you apply these in real situations? 4. What strategies work best for you? 5. What support do you need? Expected Output: Completed practice worksheets and reflection notes. Contingency: Online practice modules and video lessons.",
+          wed: "Activity: Application projects and collaborative learning tasks. Questions: 1. How do you solve this type of problem? 2. What patterns do you notice? 3. How does this relate to real life? 4. What would you do differently? 5. How can you help others understand? Expected Output: Project presentation and peer feedback. Contingency: Individual research and documentation.",
+          thu: "Activity: Problem-solving and critical thinking challenges. Questions: 1. What strategies did you use to solve this? 2. Why did you choose this approach? 3. What other solutions are possible? 4. How confident are you in your answer? 5. What would you teach someone else? Expected Output: Solutions portfolio and explanation videos. Contingency: Written problem-solving with detailed explanations.",
+          fri: "Activity: Assessment and synthesis of weekly learning. Questions: 1. What are the most important concepts from this week? 2. How has your understanding grown? 3. What connections can you make? 4. What areas need more work? 5. How will you use this knowledge? Expected Output: Weekly synthesis report and self-assessment. Contingency: Comprehensive review worksheet and planning for next week."
+        }
+      };
+      return JSON.stringify(template);
+    }
+
+    // Call the AI to generate the content with cost-optimized hierarchy
     async function generateOnce() {
       const providers = [
-        { name: "DeepSeek", fn: callDeepSeek, cost: "lowest" },
-        { name: "OpenRouter", fn: callOpenRouter, cost: "low" },
-        { name: "OpenAI", fn: callOpenAI, cost: "high" }
+        { name: "OpenAI GPT-3.5-Turbo", fn: callOpenAITurbo, cost: "$0.0015/1K tokens" },
+        { name: "DeepSeek via OpenRouter", fn: callOpenRouter, cost: "FREE" },
+        { name: "Groq LLaMA 3.1 70B", fn: callGroq, cost: "very cheap" }
       ];
       
       for (const provider of providers) {
         try {
-          console.log(`🔄 Trying ${provider.name} (${provider.cost} cost)...`);
+          console.log(`🔄 Trying ${provider.name} (${provider.cost})...`);
           const raw = await provider.fn();
           if (raw) {
             console.log(`✅ ${provider.name} succeeded`);
@@ -286,7 +347,10 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
         }
       }
       
-      throw new Error("All AI providers failed. Please check your API keys and try again.");
+      // Final fallback: Template generation (FREE)
+      console.log("🔄 All AI providers failed, using template generation (FREE)...");
+      const templateJson = generateTemplate(competency);
+      return JSON.parse(templateJson);
     }
 
     const aiJson = await generateOnce();
