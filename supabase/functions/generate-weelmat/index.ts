@@ -310,11 +310,11 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
           fri: "Synthesis Activities • Evaluation Rubrics • Next Week Preparation"
         },
         activities: {
-          mon: "Activity: Introduction and orientation to the learning competency. Questions: 1. What do you already know about this topic? 2. What are your learning goals? 3. How does this connect to previous lessons? 4. What resources will help you learn? 5. What questions do you have? Expected Output: Learning journal entry and goal setting. Contingency: Independent reading and note-taking during class suspension.",
-          tue: "Activity: Guided practice and skill development exercises. Questions: 1. What new concepts did you learn today? 2. Which skills need more practice? 3. How can you apply these in real situations? 4. What strategies work best for you? 5. What support do you need? Expected Output: Completed practice worksheets and reflection notes. Contingency: Online practice modules and video lessons.",
-          wed: "Activity: Application projects and collaborative learning tasks. Questions: 1. How do you solve this type of problem? 2. What patterns do you notice? 3. How does this relate to real life? 4. What would you do differently? 5. How can you help others understand? Expected Output: Project presentation and peer feedback. Contingency: Individual research and documentation.",
-          thu: "Activity: Problem-solving and critical thinking challenges. Questions: 1. What strategies did you use to solve this? 2. Why did you choose this approach? 3. What other solutions are possible? 4. How confident are you in your answer? 5. What would you teach someone else? Expected Output: Solutions portfolio and explanation videos. Contingency: Written problem-solving with detailed explanations.",
-          fri: "Activity: Assessment and synthesis of weekly learning. Questions: 1. What are the most important concepts from this week? 2. How has your understanding grown? 3. What connections can you make? 4. What areas need more work? 5. How will you use this knowledge? Expected Output: Weekly synthesis report and self-assessment. Contingency: Comprehensive review worksheet and planning for next week."
+          mon: `Activity: Introduction and orientation to ${comp}. Assessment Questions: 1. (Identification) What is the main concept being studied? 2. (Multiple Choice) Which best describes this topic? A) Basic concept B) Advanced theory C) Practical skill D) All of the above 3. (True/False) This topic connects to previous lessons. 4. (Short Answer) List three things you want to learn. 5. (HOTS) How might this knowledge be useful in real life? Expected Output: Learning journal entry and goal setting. Contingency: Independent reading and note-taking during class suspension.`,
+          tue: `Activity: Guided practice and skill development for ${comp}. Assessment Questions: 1. (Identification) Name the key principles learned today. 2. (Multiple Choice) The best strategy for this concept is: A) Memorization B) Practice C) Discussion D) All methods 3. (True/False) Practice improves understanding. 4. (Short Answer) Describe your learning process. 5. (HOTS) Compare this method with alternatives you know. Expected Output: Completed practice worksheets and reflection notes. Contingency: Online practice modules and video lessons.`,
+          wed: `Activity: Application projects and collaborative learning for ${comp}. Assessment Questions: 1. (Identification) What real-world applications did you discover? 2. (Multiple Choice) This concept is most similar to: A) Daily activities B) School subjects C) Work skills D) Problem-solving 3. (True/False) Collaboration improves learning outcomes. 4. (Short Answer) Explain your project approach. 5. (HOTS) Evaluate the effectiveness of your solution and suggest improvements. Expected Output: Project presentation and peer feedback. Contingency: Individual research and documentation.`,
+          thu: `Activity: Problem-solving and critical thinking for ${comp}. Assessment Questions: 1. (Identification) What problem-solving strategies did you use? 2. (Multiple Choice) The most challenging part was: A) Understanding B) Planning C) Executing D) Evaluating 3. (True/False) Multiple solutions can be correct. 4. (Short Answer) Justify your chosen approach. 5. (HOTS) Create a new problem based on today's learning and solve it. Expected Output: Solutions portfolio and explanation videos. Contingency: Written problem-solving with detailed explanations.`,
+          fri: `Activity: Assessment and synthesis of weekly learning about ${comp}. Assessment Questions: 1. (Identification) List the main concepts mastered this week. 2. (Multiple Choice) Your learning progress this week was: A) Excellent B) Good C) Satisfactory D) Needs improvement 3. (True/False) You can teach others this topic. 4. (Short Answer) Summarize your key insights. 5. (HOTS) Design a learning plan for someone new to this topic. Expected Output: Weekly synthesis report and self-assessment. Contingency: Comprehensive review worksheet and planning for next week.`
         }
       };
       return JSON.stringify(template);
@@ -605,18 +605,16 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
                 margin: { top: 720, bottom: 720, left: 720, right: 720 },
               },
             },
-            headers: logoBytes
-              ? {
-                  default: new Header({
-                    children: [
-                      new Paragraph({
-                        alignment: AlignmentType.CENTER,
-                        children: [new ImageRun({ data: logoBytes, transformation: { width: 64, height: 64 } })],
-                      }),
-                    ],
+            headers: {
+              default: new Header({
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [new TextRun({ text: "Weekly Learning Matrix", bold: true, size: 24 })],
                   }),
-                }
-              : {},
+                ],
+              }),
+            },
             children: [headerTitle, headerLine1, headerLine2, new Paragraph(""), table],
           },
         ],
