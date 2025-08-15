@@ -26,6 +26,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const TAVILY_API_KEY = Deno.env.get("TAVILY_API_KEY");
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -36,6 +37,7 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 console.log("Available API Keys:", {
   hasDeepSeek: !!DEEPSEEK_API_KEY,
   hasOpenRouter: !!OPENROUTER_API_KEY,
+  hasOpenAI: !!OPENAI_API_KEY,
   hasTavily: !!TAVILY_API_KEY
 });
 
@@ -202,7 +204,7 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
 
     async function callOpenRouter() {
       if (!OPENROUTER_API_KEY) return null;
-      console.log("🔄 Calling OpenRouter with DeepSeek model...");
+      console.log("🔄 Calling OpenRouter with cheap model...");
       const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -212,7 +214,7 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
           "X-Title": "WeeLMat Generator",
         },
         body: JSON.stringify({
-          model: "deepseek/deepseek-chat",
+          model: "meta-llama/llama-3.1-8b-instruct:free", // Free model for cost efficiency
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: `${JSON.stringify(userContent)}\nReturn JSON only.` },
@@ -229,18 +231,62 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
       return text;
     }
 
-    async function generateOnce() {
-      let raw = await callDeepSeek();
-      if (!raw) raw = await callOpenRouter();
-      if (!raw) throw new Error("No AI provider configured. Please set DEEPSEEK_API_KEY or OPENROUTER_API_KEY.");
-      try {
-        return JSON.parse(raw);
-      } catch {
-        const reminder = `Return JSON only.`;
-        let retryRaw = await callDeepSeek();
-        if (!retryRaw) retryRaw = await callOpenRouter();
-        return JSON.parse(retryRaw || "{}");
+    async function callOpenAI() {
+      if (!OPENAI_API_KEY) return null;
+      console.log("🔄 Calling OpenAI (high cost - last resort)...");
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini", // Cheapest OpenAI model
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: `${JSON.stringify(userContent)}\nReturn JSON only.` },
+          ],
+          temperature: 0.3,
+          max_tokens: 2000, // Limit tokens to control cost
+        }),
+      });
+      if (!res.ok) {
+        console.error("OpenAI request failed:", res.status, await res.text());
+        return null;
       }
+      const json = await res.json();
+      const text = json.choices?.[0]?.message?.content?.trim() || "{}";
+      return text;
+    }
+
+    // Call the AI to generate the content with multi-provider fallback
+    async function generateOnce() {
+      const providers = [
+        { name: "DeepSeek", fn: callDeepSeek, cost: "lowest" },
+        { name: "OpenRouter", fn: callOpenRouter, cost: "low" },
+        { name: "OpenAI", fn: callOpenAI, cost: "high" }
+      ];
+      
+      for (const provider of providers) {
+        try {
+          console.log(`🔄 Trying ${provider.name} (${provider.cost} cost)...`);
+          const raw = await provider.fn();
+          if (raw) {
+            console.log(`✅ ${provider.name} succeeded`);
+            try {
+              return JSON.parse(raw);
+            } catch (parseError) {
+              console.error(`❌ ${provider.name} returned invalid JSON:`, parseError.message);
+              // Try next provider
+              continue;
+            }
+          }
+        } catch (error) {
+          console.error(`❌ ${provider.name} failed:`, error.message);
+        }
+      }
+      
+      throw new Error("All AI providers failed. Please check your API keys and try again.");
     }
 
     const aiJson = await generateOnce();
@@ -255,13 +301,13 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
       return String(v);
     };
 
-    // Ensure activities are populated with fallbacks
+    // Ensure activities are populated with fallbacks (enhanced with questions)
     const activitiesFallback = [
-      "Review previous lesson and complete practice exercises. Submit written responses.",
-      "Participate in group discussions and complete assigned reading. Prepare summary notes.",
-      "Complete hands-on activities and collaborative tasks. Document learning outcomes.",
-      "Practice skills through interactive exercises. Complete assessment tasks.",
-      "Apply learned concepts in practical scenarios. Prepare for next week's topics."
+      "Activity: Review previous lesson and complete practice exercises. Questions: 1. What are the key concepts from the previous lesson? 2. How do these concepts relate to today's topic? 3. Complete the practice exercises provided. 4. What challenges did you encounter? 5. How would you explain this to a classmate? Expected Output: Written responses and completed exercises.",
+      "Activity: Participate in group discussions and complete assigned reading. Questions: 1. What is the main idea of the assigned reading? 2. How does this connect to our current lesson? 3. What questions arise from the material? 4. Share your insights with the group. 5. What did you learn from your classmates? Expected Output: Summary notes and discussion participation.",
+      "Activity: Complete hands-on activities and collaborative tasks. Questions: 1. What steps did you follow in the activity? 2. What patterns or relationships did you observe? 3. How does this activity demonstrate the lesson concepts? 4. What would happen if you changed one variable? 5. How can you apply this in real life? Expected Output: Documented learning outcomes and reflection.",
+      "Activity: Practice skills through interactive exercises. Questions: 1. Which skills are you strengthening today? 2. What strategies help you solve these problems? 3. Where might you use these skills outside school? 4. What areas need more practice? 5. How has your understanding improved? Expected Output: Completed assessment tasks with self-evaluation.",
+      "Activity: Apply learned concepts in practical scenarios. Questions: 1. How do this week's concepts connect together? 2. What real-world applications can you identify? 3. What would you do differently next time? 4. How confident do you feel about the material? 5. What questions remain for next week? Expected Output: Application project and preparation notes."
     ];
 
     // Ensure competency is populated with fallbacks
