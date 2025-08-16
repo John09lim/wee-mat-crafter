@@ -171,17 +171,26 @@ COMPETENCY HANDLING RULES:
 - In Learning Activities/Tasks, create simple quiz questions based on this exact competency
 - Focus on real tasks and activities that learners can actually perform
 
-REQUIRED FORMAT for each day:
-"Instructions/Directions: [One concise paragraph of directions for the assessment task].
-Quiz: 1. [${subject}-specific question based on competency] 2. [${subject}-specific question] 3. [${subject}-specific question] 4. [${subject}-specific question] 5. [${subject}-specific question]
-Expected Output: [specific outputs]. Contingency: [brief plan for class suspension]."
+DAILY QUESTION STRUCTURE (MANDATORY):
+- Day 1 (Monday): IDENTIFICATION Questions
+  - Grades 1,2,3: Generate 5 identification questions
+  - Grades 4,5,6: Generate 8 identification questions  
+  - Grades 7,8,9,10: Generate 10 identification questions
+- Day 2 (Tuesday): MULTIPLE CHOICE Questions
+  - Same quantity as above based on grade level
+  - Provide REAL answer choices, not just "a, b, c, d"
+- Day 3 (Wednesday): TRUE OR FALSE Questions
+  - Same quantity as above based on grade level
+  - Use real statements based on the competency
+- Day 4 (Thursday): ESSAY Questions
+  - Same quantity as above based on grade level
+- Day 5 (Friday): MULTIPLE CHOICE Questions
+  - Same quantity as above based on grade level
+  - Provide REAL answer choices, not just "a, b, c, d"
 
-DAILY QUESTION TYPE ROTATION (for single competency):
-- MONDAY: Identification questions using ${subject} vocabulary
-- TUESDAY: Multiple Choice questions with ${subject} content (A, B, C, D options)  
-- WEDNESDAY: True or False questions about ${subject} concepts
-- THURSDAY: Matching or Short Response questions within ${subject}
-- FRIDAY: Essay/Short Answer or Performance Task questions for ${subject}
+REQUIRED FORMAT for each day:
+"Instructions/Directions: [One concise paragraph explaining the specific question type and task].
+Quiz: [Numbered list with exact quantity based on grade level, using REAL questions from the competency]."
 
 QUALITY GUARDS (self-check before responding):
 - If any cross-subject content detected → regenerate internally and fix
@@ -361,57 +370,43 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
     function getSubjectSpecificActivities(subject, competency, gradeLevel) {
       const activities = {};
       
-      // Subject-specific content templates
-      if (subject.toLowerCase().includes('english')) {
-        activities.mon = `Instructions/Directions: Identify specific elements, techniques, or components directly related to the competency in the given examples.
-Quiz: 1. Identify the main theme in this text passage. 2. Point out the narrative technique used in this excerpt. 3. Name the text structure evident in this paragraph. 4. Identify the author's purpose in this writing sample. 5. Recognize the target audience for this text based on language choices.
-Expected Output: Completed identification with English language arts terminology. Contingency: Independent reading with comprehension questions.`;
-        
-        activities.tue = `Instructions/Directions: Select the correct answer that demonstrates understanding of English language arts concepts.
-Quiz: 1. Which best describes the main idea of this passage? A) Fact B) Opinion C) Theme D) Setting 2. This text type is primarily: A) Narrative B) Expository C) Persuasive D) Descriptive 3. The author's tone can be described as: A) Formal B) Informal C) Academic D) Conversational 4. Which reading strategy would be most effective here? A) Skimming B) Scanning C) Close reading D) Speed reading 5. The intended audience appears to be: A) Children B) Teenagers C) Adults D) Specialists
-Expected Output: Multiple choice responses with textual evidence. Contingency: Online reading comprehension modules.`;
-        
-      } else if (subject.toLowerCase().includes('math')) {
-        activities.mon = `Instructions/Directions: Identify mathematical concepts, procedures, or relationships demonstrated in the given problems.
-Quiz: 1. Identify the operation needed to solve this problem. 2. Name the mathematical property shown in this equation. 3. Recognize the pattern in this number sequence. 4. Identify the geometric shape based on its properties. 5. Point out the mathematical relationship between these quantities.
-Expected Output: Mathematical terminology and concept identification. Contingency: Practice worksheets with step-by-step solutions.`;
-        
-        activities.tue = `Instructions/Directions: Choose the correct mathematical solution or concept that applies to each problem.
-Quiz: 1. What is the next number in this sequence? A) 15 B) 18 C) 21 D) 24 2. Which operation should be performed first? A) Addition B) Subtraction C) Multiplication D) Division 3. The answer to this problem is: A) 12 B) 15 C) 18 D) 21 4. This shape has how many sides? A) 3 B) 4 C) 5 D) 6 5. The mathematical rule here is: A) Add 3 B) Multiply by 2 C) Subtract 1 D) Divide by 4
-Expected Output: Correct mathematical solutions with reasoning. Contingency: Interactive math games and simulations.`;
-        
-      } else if (subject.toLowerCase().includes('science')) {
-        activities.mon = `Instructions/Directions: Identify scientific concepts, processes, or phenomena based on observations and data.
-Quiz: 1. Identify the scientific method step demonstrated here. 2. Name the type of energy shown in this example. 3. Classify this material based on its properties. 4. Identify the life process occurring in this scenario. 5. Recognize the scientific principle at work in this situation.
-Expected Output: Scientific vocabulary and process identification. Contingency: Science demonstration videos with observation sheets.`;
-        
-        activities.tue = `Instructions/Directions: Select the scientific explanation or concept that best answers each question.
-Quiz: 1. This process is called: A) Evaporation B) Condensation C) Precipitation D) Sublimation 2. The force acting here is: A) Gravity B) Friction C) Magnetism D) Pressure 3. This organism is classified as: A) Producer B) Consumer C) Decomposer D) Scavenger 4. The change observed is: A) Physical B) Chemical C) Biological D) Mechanical 5. This energy transformation involves: A) Heat to light B) Chemical to mechanical C) Electrical to sound D) Solar to chemical
-Expected Output: Scientific reasoning and evidence-based answers. Contingency: Virtual lab simulations and experiments.`;
-        
-      } else {
-        // Generic fallback that respects subject boundaries
-        activities.mon = `Instructions/Directions: Identify key concepts and elements specific to ${subject} as demonstrated in the lesson materials.
-Quiz: 1. Identify the main concept being demonstrated. 2. Name the specific process or technique shown. 3. Recognize the category or classification of this example. 4. Point out the key characteristic that defines this concept. 5. Identify the relationship between these elements.
-Expected Output: Subject-specific identification using ${subject} vocabulary. Contingency: Review materials with guided practice.`;
-        
-        activities.tue = `Instructions/Directions: Choose the answer that best demonstrates understanding of ${subject} concepts and principles.
-Quiz: 1. The best description of this concept is: A) Option 1 B) Option 2 C) Option 3 D) Option 4 2. This example represents: A) Category A B) Category B C) Category C D) Category D 3. The correct application would be: A) Method 1 B) Method 2 C) Method 3 D) Method 4 4. This principle is best demonstrated by: A) Example A B) Example B C) Example C D) Example D 5. The most appropriate response is: A) Choice 1 B) Choice 2 C) Choice 3 D) Choice 4
-Expected Output: Reasoned answers with ${subject}-specific explanations. Contingency: Subject-related practice activities.`;
-      }
+      // Determine question quantity based on grade level
+      const grade = parseInt(gradeLevel?.toString().replace(/\D/g, '') || '1');
+      const questionCount = (grade >= 1 && grade <= 3) ? 5 : (grade >= 4 && grade <= 6) ? 8 : 10;
       
-      // Common structure for remaining days (subject-neutral but grade-appropriate)
-      activities.wed = `Instructions/Directions: Evaluate statements about ${subject} concepts and justify your responses with evidence.
-Quiz: 1. True or False: [Statement about ${subject} concept]. Explain your reasoning. 2. True or False: [Another ${subject}-related statement]. Provide evidence. 3. True or False: [Third statement]. Support your answer. 4. True or False: [Fourth statement]. Give justification. 5. True or False: [Fifth statement]. Explain why.
-Expected Output: True/False answers with ${subject}-based reasoning. Contingency: Research activities with credible sources.`;
+      // Generate numbered question lists
+      const generateQuestions = (count: number, type: string) => {
+        const questions = [];
+        for (let i = 1; i <= count; i++) {
+          questions.push(`${i}. [${type} question based on competency]`);
+        }
+        return questions.join(' ');
+      };
       
-      activities.thu = `Instructions/Directions: Connect related concepts and provide explanations about relationships within ${subject}.
-Quiz: 1. Match this term with its definition in ${subject}. 2. Connect these related concepts and explain the relationship. 3. Pair the example with the correct ${subject} principle. 4. Link the cause with its effect in this ${subject} context. 5. Explain in 2-3 sentences how these ${subject} concepts work together.
-Expected Output: Accurate connections with explanatory reasoning. Contingency: Guided practice with concept mapping.`;
+      // Day 1: Identification Questions
+      activities.mon = `Instructions/Directions: Identify specific elements, concepts, or components directly related to the competency.
+Quiz: ${generateQuestions(questionCount, 'Identification')}
+Expected Output: Completed identification answers. Contingency: Review materials with guided practice.`;
       
-      activities.fri = `Instructions/Directions: Demonstrate comprehensive understanding through application and analysis of ${subject} concepts.
-Quiz: 1. Apply this ${subject} concept to solve a new problem or situation. 2. Analyze this example using ${subject} principles you've learned. 3. Create an original example that demonstrates this ${subject} concept. 4. Evaluate the effectiveness of this approach within ${subject}. 5. Synthesize your learning by explaining how you would teach this ${subject} concept to someone else.
-Expected Output: Original work showing mastery of ${subject} concepts. Contingency: Portfolio development with reflection components.`;
+      // Day 2: Multiple Choice Questions  
+      activities.tue = `Instructions/Directions: Select the correct answer that demonstrates understanding of the competency.
+Quiz: ${generateQuestions(questionCount, 'Multiple choice with real answer options')}
+Expected Output: Multiple choice responses with reasoning. Contingency: Practice exercises and review.`;
+      
+      // Day 3: True or False Questions
+      activities.wed = `Instructions/Directions: Evaluate statements about the competency concepts and determine if they are true or false.
+Quiz: ${generateQuestions(questionCount, 'True or False statement')}
+Expected Output: True/False answers with explanations. Contingency: Research activities with documentation.`;
+      
+      // Day 4: Essay Questions
+      activities.thu = `Instructions/Directions: Provide detailed written responses demonstrating understanding of the competency.
+Quiz: ${generateQuestions(questionCount, 'Essay')}
+Expected Output: Written responses with detailed explanations. Contingency: Guided writing practice.`;
+      
+      // Day 5: Multiple Choice Questions
+      activities.fri = `Instructions/Directions: Select the correct answers that demonstrate mastery of the competency concepts.
+Quiz: ${generateQuestions(questionCount, 'Multiple choice with real answer options')}
+Expected Output: Multiple choice responses showing competency mastery. Contingency: Comprehensive review and assessment.`;
       
       return activities;
     }
