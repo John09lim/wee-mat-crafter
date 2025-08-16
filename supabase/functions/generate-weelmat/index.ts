@@ -152,17 +152,25 @@ Respond strictly in ${effectiveLanguage}.
 Produce Monday–Friday entries for the Weekly Learning Matrix with three rows:
 - Row 2: COMPETENCY — restate/target the competency briefly for each day in student-friendly wording (Mon includes a concise 15-minute briefing).
 - Row 3: SUGGESTED LEARNING MATERIAL/REFERENCE — provide 2–3 specific items per day (exact titles + source/channel); prioritize DepEd resources, OER, and specific YouTube lesson titles, and vary sources across days.
-- Row 4: LEARNING ACTIVITIES/TASKS — substantial, achievable tasks aligned to the competency with SPECIFIC QUESTION TYPE ROTATION per day:
+- Row 4: LEARNING ACTIVITIES/TASKS — substantial, achievable assessment tasks aligned to the competency:
 
-CRITICAL DAILY QUESTION TYPE PATTERN:
-- MONDAY: Start with competency-aligned instruction + 5 IDENTIFICATION questions only
-- TUESDAY: Start with competency-aligned instruction + 5 MULTIPLE CHOICE questions only (A, B, C, D options)
-- WEDNESDAY: Start with competency-aligned instruction + 5 TRUE OR FALSE questions only
-- THURSDAY: Start with competency-aligned instruction + 5 IDENTIFICATION questions only  
-- FRIDAY: Start with competency-aligned instruction + 5 ESSAY/SHORT ANSWER questions only
+CRITICAL RULES:
+- Do NOT repeat or restate the competency phrase in the Learning Activities/Tasks
+- The competency already has its own row - focus only on the assessment task
+- Multiple competencies: assign different competencies to different days
+- Single competency: vary activity types each day (identification, MCQ, matching, short response, performance task)
 
-Each day must follow this format:
-"[Instructional direction aligned to competency]. Assessment Questions: 1. [Question] 2. [Question] 3. [Question] 4. [Question] 5. [Question] Expected Output: [specific outputs]. Contingency: [brief plan for class suspension]."
+REQUIRED FORMAT for each day:
+"Instructions/Directions: [One concise paragraph of directions for the assessment task].
+Quiz: 1. [Specific question based on competency] 2. [Specific question based on competency] 3. [Specific question based on competency] 4. [Specific question based on competency] 5. [Specific question based on competency]
+Expected Output: [specific outputs]. Contingency: [brief plan for class suspension]."
+
+DAILY QUESTION TYPE ROTATION (for single competency):
+- MONDAY: Identification questions
+- TUESDAY: Multiple Choice questions (A, B, C, D options)  
+- WEDNESDAY: True or False questions
+- THURSDAY: Matching or Short Response questions
+- FRIDAY: Essay/Short Answer or Performance Task questions
 Strict table mapping rules: Column 1 is labels only: “Competency”, “Suggested Learning Material/Reference”, “Learning Activities/Tasks”. Columns 2–6 are Monday to Friday (in that order). Output JSON only with keys competency, references, activities and days mon..fri.`;
 
     const userContent = {
@@ -320,11 +328,21 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
           fri: "Synthesis Activities • Evaluation Rubrics • Next Week Preparation"
         },
         activities: {
-          mon: `Begin practicing ${comp}. Assessment Questions (Identification): 1. Identify the main components of ${comp.toLowerCase()}. 2. What are the key characteristics you should look for? 3. Name the specific elements involved in ${comp.toLowerCase()}. 4. Identify examples of ${comp.toLowerCase()} from the lesson. 5. What tools or methods are used for ${comp.toLowerCase()}? Expected Output: Completed identification worksheet with examples. Contingency: Independent reading and practice exercises.`,
-          tue: `Continue developing skills in ${comp}. Assessment Questions (Multiple Choice): 1. Which best demonstrates ${comp.toLowerCase()}? A) Example A B) Example B C) Example C D) All examples 2. The most important aspect of ${comp.toLowerCase()} is: A) Accuracy B) Speed C) Understanding D) All of these 3. When practicing ${comp.toLowerCase()}, you should: A) Follow steps carefully B) Check your work C) Ask for help when needed D) All of the above 4. Which statement about ${comp.toLowerCase()} is correct? A) It requires practice B) It builds on previous learning C) It has real-world applications D) All statements are true 5. The best way to improve at ${comp.toLowerCase()} is: A) Regular practice B) Understanding concepts C) Getting feedback D) All methods combined. Expected Output: Multiple choice answers with explanations. Contingency: Online practice modules.`,
-          wed: `Apply understanding of ${comp} in different contexts. Assessment Questions (True or False): 1. ${comp} requires careful analysis and attention to detail. 2. You can master ${comp.toLowerCase()} without understanding the basics. 3. Regular practice improves your ability in ${comp.toLowerCase()}. 4. ${comp} connects to other subjects and real-life situations. 5. Understanding ${comp.toLowerCase()} helps with future learning. Expected Output: True/False responses with reasoning. Contingency: Research activities with documentation.`,
-          thu: `Demonstrate mastery of ${comp} through problem-solving. Assessment Questions (Identification): 1. Identify the steps needed to successfully complete ${comp.toLowerCase()}. 2. What strategies work best when approaching ${comp.toLowerCase()} problems? 3. Name the common mistakes to avoid in ${comp.toLowerCase()}. 4. Identify how ${comp.toLowerCase()} applies to real-world situations. 5. What indicators show you understand ${comp.toLowerCase()} correctly? Expected Output: Problem-solving strategies and examples. Contingency: Independent practice with detailed solutions.`,
-          fri: `Evaluate and reflect on your understanding of ${comp}. Assessment Questions (Essay/Short Answer): 1. Explain the key concepts you learned about ${comp.toLowerCase()} this week. 2. How would you teach ${comp.toLowerCase()} to someone who has never learned it before? 3. Describe a real-world situation where you would use ${comp.toLowerCase()}. 4. What was the most challenging part of learning ${comp.toLowerCase()} and how did you overcome it? 5. How does understanding ${comp.toLowerCase()} help you in other subjects or activities? Expected Output: Reflection essay and teaching plan. Contingency: Comprehensive review and self-assessment.`
+          mon: `Instructions/Directions: Complete the identification assessment based on today's lesson materials and demonstrations.
+Quiz: 1. Identify the main characteristic shown in the example. 2. What specific element can you recognize from the demonstration? 3. Name the key feature highlighted in the lesson. 4. Identify the pattern observed in the given sample. 5. What tool or method was demonstrated for this task?
+Expected Output: Completed identification worksheet with accurate answers. Contingency: Independent reading exercises with guided questions.`,
+          tue: `Instructions/Directions: Answer the multiple choice questions to demonstrate your understanding of the lesson concepts.
+Quiz: 1. Which option best represents the correct approach? A) Method A B) Method B C) Method C D) Method D 2. The most effective strategy is: A) First option B) Second option C) Third option D) Fourth option 3. When solving this type of problem, you should: A) Start with basics B) Check each step C) Review your work D) All of the above 4. Which statement is most accurate? A) Statement A B) Statement B C) Statement C D) Statement D 5. The best example of this concept is: A) Example A B) Example B C) Example C D) Example D
+Expected Output: Multiple choice answers with brief explanations for each choice. Contingency: Online practice modules with immediate feedback.`,
+          wed: `Instructions/Directions: Determine whether each statement is true or false based on the lesson content and provide reasoning.
+Quiz: 1. The demonstrated method always produces accurate results. 2. This concept can be applied in multiple subject areas. 3. Regular practice is essential for mastering this skill. 4. The examples shown represent the only correct approaches. 5. Understanding this topic helps with future learning objectives.
+Expected Output: True/False responses with supporting explanations. Contingency: Research activities with documented findings.`,
+          thu: `Instructions/Directions: Complete the matching exercise and provide short responses to demonstrate comprehension.
+Quiz: 1. Match the term with its correct definition from the lesson. 2. Connect each example to its appropriate category. 3. Pair the strategy with its best application. 4. Link the concept to its real-world use. 5. Describe in 2-3 sentences how this applies to your daily experience.
+Expected Output: Completed matching exercises and short written responses. Contingency: Independent practice with detailed answer keys.`,
+          fri: `Instructions/Directions: Write thoughtful responses that demonstrate your understanding and ability to apply the week's learning.
+Quiz: 1. Explain the main concept learned this week in your own words. 2. Describe how you would teach this to a classmate who missed the lessons. 3. Give an example of how this knowledge applies outside of school. 4. What questions do you still have about this topic? 5. Create your own example or problem related to this week's learning.
+Expected Output: Written responses showing deep understanding and personal connections. Contingency: Comprehensive review activities with reflection prompts.`
         }
       };
       return JSON.stringify(template);
