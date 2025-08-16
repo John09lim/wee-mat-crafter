@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import WeeLMatPreview from "@/components/WeeLMatPreview";
 
 interface MatrixRow {
   id: string;
@@ -13,6 +14,7 @@ interface MatrixRow {
   created_at: string;
   docx_url: string | null;
   pdf_url: string | null;
+  ai_json: any;
 }
 
 const MyAccount = () => {
@@ -48,7 +50,7 @@ const MyAccount = () => {
       }
       const { data, error } = await supabase
         .from("weelmat_matrices")
-        .select("id, subject, grade_level, section, date_from, date_to, created_at, docx_url, pdf_url")
+        .select("id, subject, grade_level, section, date_from, date_to, created_at, docx_url, pdf_url, ai_json")
         .order("created_at", { ascending: false });
       if (!error && data) setRows(data as MatrixRow[]);
       setLoading(false);
@@ -88,10 +90,16 @@ const MyAccount = () => {
           <div className="grid gap-4">
             {rows.map((r) => (
               <article key={r.id} className="rounded-xl border bg-card p-5 text-card-foreground flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                <div>
-                  <h2 className="font-medium">{r.subject} {r.grade_level} {new Date(r.created_at).toLocaleDateString()}</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Section: {r.section} • Covered Dates: {r.date_from} – {r.date_to} • Created {new Date(r.created_at).toLocaleString()}
+                <div className="flex-1">
+                  <WeeLMatPreview matrix={r}>
+                    <button className="text-left hover:text-primary transition-colors">
+                      <h2 className="font-medium text-lg hover:underline cursor-pointer">
+                        {r.subject} {r.grade_level} - Section {r.section}
+                      </h2>
+                    </button>
+                  </WeeLMatPreview>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Covered Dates: {r.date_from} – {r.date_to} • Created {new Date(r.created_at).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="flex gap-3">
