@@ -151,9 +151,9 @@ serve(async (req) => {
 Respond strictly in ${effectiveLanguage}.
 Subject Area: ${subject} | Grade Level: ${gradeLevel}
 Produce Monday–Friday entries for the Weekly Learning Matrix with three rows:
-- Row 2: COMPETENCY — restate/target the competency briefly for each day in student-friendly wording (Mon includes a concise 15-minute briefing).
+- Row 2: COMPETENCY — Use EXACTLY what the user provided: "${competency}". Do NOT add, modify, or generate any new competency content. Simply distribute this exact competency across the week as-is.
 - Row 3: SUGGESTED LEARNING MATERIAL/REFERENCE — provide 2–3 specific items per day (exact titles + source/channel); prioritize DepEd resources, OER, and specific YouTube lesson titles, and vary sources across days.
-- Row 4: LEARNING ACTIVITIES/TASKS — substantial, achievable assessment tasks aligned to the competency:
+- Row 4: LEARNING ACTIVITIES/TASKS — Create real, practical tasks and activities for learners. Make quiz questions simple and directly based on the given competency.
 
 SUBJECT-LOCK REQUIREMENTS (CRITICAL):
 All Learning Activities/Tasks must belong ONLY to: ${subject}
@@ -164,12 +164,12 @@ All Learning Activities/Tasks must belong ONLY to: ${subject}
 - If Subject ≠ MAPEH/EPP/EsP → NO content from those domains
 - Stay 100% within ${subject} domain using only ${subject}-appropriate vocabulary and concepts
 
-COMPETENCY-LOCK RULES:
-- Do NOT repeat or restate the competency phrase in the Learning Activities/Tasks
-- Every question must directly assess: ${competency}
-- The competency already has its own row - focus only on the assessment task
-- Multiple competencies: assign different competencies to different days
-- Single competency: vary activity types each day (identification, MCQ, matching, short response, performance task)
+COMPETENCY HANDLING RULES:
+- Use EXACTLY the competency text provided by the user: "${competency}"
+- Do NOT generate, modify, add to, or rewrite the competency
+- Simply distribute the exact user input across Monday-Friday
+- In Learning Activities/Tasks, create simple quiz questions based on this exact competency
+- Focus on real tasks and activities that learners can actually perform
 
 REQUIRED FORMAT for each day:
 "Instructions/Directions: [One concise paragraph of directions for the assessment task].
@@ -339,11 +339,11 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
     function generateTemplate(comp: string): string {
       const template = {
         competency: {
-          mon: `Introduce ${comp} - Daily briefing and overview of key concepts`,
-          tue: `Explore core principles of ${comp} through guided practice`,
-          wed: `Apply knowledge of ${comp} in varied contexts and scenarios`,
-          thu: `Strengthen understanding of ${comp} through problem-solving`,
-          fri: `Consolidate learning of ${comp} and assess comprehension`
+          mon: comp,
+          tue: comp,
+          wed: comp,
+          thu: comp,
+          fri: comp
         },
         references: {
           mon: "DepEd Curriculum Guide • Khan Academy Lessons • CK-12 Resources",
