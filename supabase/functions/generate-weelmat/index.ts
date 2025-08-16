@@ -238,7 +238,7 @@ serve(async (req) => {
 Respond strictly in ${effectiveLanguage}.
 Subject Area: ${subject} | Grade Level: ${gradeLevel}
 Produce Monday–Friday entries for the Weekly Learning Matrix with three rows:
-- Row 2: COMPETENCY — Use EXACTLY what the user provided: "${competency}". Do NOT add, modify, or generate any new competency content. Simply distribute this exact competency across the week as-is.
+- Row 2: COMPETENCY — Use the provided daily competency targets as complete sentences for each day
 - Row 3: SUGGESTED LEARNING MATERIAL/REFERENCE — provide 2–3 specific items per day (exact titles + source/channel); prioritize DepEd resources, OER, and specific YouTube lesson titles, and vary sources across days.
 - Row 4: LEARNING ACTIVITIES/TASKS — Create real, practical tasks and activities for learners. Make quiz questions simple and directly based on the given competency.
 
@@ -252,10 +252,9 @@ All Learning Activities/Tasks must belong ONLY to: ${subject}
 - Stay 100% within ${subject} domain using only ${subject}-appropriate vocabulary and concepts
 
 COMPETENCY HANDLING RULES:
-- Use EXACTLY the competency text provided by the user: "${competency}"
-- Do NOT generate, modify, add to, or rewrite the competency
-- Simply distribute the exact user input across Monday-Friday
-- In Learning Activities/Tasks, create simple quiz questions based on this exact competency
+- Use the daily competency targets provided: Monday="${dailyCompetencyTargets[0]}", Tuesday="${dailyCompetencyTargets[1]}", Wednesday="${dailyCompetencyTargets[2]}", Thursday="${dailyCompetencyTargets[3]}", Friday="${dailyCompetencyTargets[4]}"
+- Each day should have a complete, well-formed competency statement
+- In Learning Activities/Tasks, create simple quiz questions based on these competencies
 - Focus on real tasks and activities that learners can actually perform
 
 DAILY QUESTION STRUCTURE (MANDATORY):
@@ -277,7 +276,10 @@ DAILY QUESTION STRUCTURE (MANDATORY):
 
 REQUIRED FORMAT for each day:
 "Instructions/Directions: [One concise paragraph explaining the specific question type and task].
-Quiz: [Numbered list with exact quantity based on grade level, using REAL questions from the competency]."
+
+Quiz: [Numbered list with exact quantity based on grade level, using REAL questions from the competency].
+
+Each numbered question should be separated by a blank line for proper formatting."
 
 QUALITY GUARDS (self-check before responding):
 - If any cross-subject content detected → regenerate internally and fix
@@ -318,7 +320,12 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
       }
       console.log("🤖 Calling DeepSeek API for Learning Activities generation...");
       
-      const activitiesPrompt = `Generate REAL Learning Activities/Tasks for ${subject} Grade ${gradeLevel} based on competency: "${competency}".
+      const activitiesPrompt = `Generate REAL Learning Activities/Tasks for ${subject} Grade ${gradeLevel} based on daily competencies:
+Monday: "${dailyCompetencyTargets[0]}"
+Tuesday: "${dailyCompetencyTargets[1]}"
+Wednesday: "${dailyCompetencyTargets[2]}"
+Thursday: "${dailyCompetencyTargets[3]}"
+Friday: "${dailyCompetencyTargets[4]}"
 
 DAILY REQUIREMENTS:
 - Monday: ${getQuestionCount(gradeLevel)} IDENTIFICATION questions  
@@ -389,7 +396,7 @@ Return JSON format:
         
         console.log("✅ DeepSeek activities validated - no placeholders detected");
         
-            return JSON.stringify({
+        return JSON.stringify({
               competency: {
                 mon: dailyCompetencyTargets[0],
                 tue: dailyCompetencyTargets[1],
@@ -1000,7 +1007,42 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
         new TableRow({
           children: [
             labelCell(label),
-            ...vals.map((v) => new TableCell({ children: [new Paragraph({ text: v, spacing: { after: 100 } })], width: { size: 16, type: WidthType.PERCENTAGE } })),
+            ...vals.map((v) => {
+              // Split content by questions and add proper spacing
+              const lines = v.split('\n');
+              const paragraphs = [];
+              let currentParagraph = '';
+              
+              for (const line of lines) {
+                if (line.match(/^\d+\./)) {
+                  // If we have accumulated text, create a paragraph
+                  if (currentParagraph.trim()) {
+                    paragraphs.push(new Paragraph({ text: currentParagraph.trim(), spacing: { after: 100 } }));
+                    currentParagraph = '';
+                  }
+                  // Start new paragraph with the numbered question
+                  currentParagraph = line;
+                } else {
+                  // Add to current paragraph
+                  currentParagraph += (currentParagraph ? '\n' : '') + line;
+                }
+              }
+              
+              // Add the last paragraph
+              if (currentParagraph.trim()) {
+                paragraphs.push(new Paragraph({ text: currentParagraph.trim(), spacing: { after: 100 } }));
+              }
+              
+              // If no paragraphs were created, create a single paragraph
+              if (paragraphs.length === 0) {
+                paragraphs.push(new Paragraph({ text: v, spacing: { after: 100 } }));
+              }
+              
+              return new TableCell({ 
+                children: paragraphs, 
+                width: { size: 16, type: WidthType.PERCENTAGE } 
+              });
+            }),
           ],
         });
 

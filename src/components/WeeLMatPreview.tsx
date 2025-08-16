@@ -98,8 +98,11 @@ const WeeLMatPreview = ({ matrix, children }: WeeLMatPreviewProps) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {days.map((day, index) => {
-                    const dayData = matrix.ai_json[day.toLowerCase()];
+                {days.map((day, index) => {
+                    const dayKey = day.toLowerCase().slice(0, 3); // mon, tue, wed, thu, fri
+                    const competency = matrix.ai_json?.competency?.[dayKey] || 'No competency data';
+                    const activities = matrix.ai_json?.activities?.[dayKey] || 'No activities data';
+                    const references = matrix.ai_json?.references?.[dayKey] || 'No references data';
                     const dateStr = weekdayDates[index] || day;
                     
                     return (
@@ -112,46 +115,22 @@ const WeeLMatPreview = ({ matrix, children }: WeeLMatPreviewProps) => {
                         </TableCell>
                         <TableCell className="max-w-48">
                           <div className="text-sm whitespace-pre-wrap">
-                            {dayData?.competency || 'Loading...'}
+                            {competency}
                           </div>
                         </TableCell>
                         <TableCell className="max-w-64">
-                          <div className="text-sm">
-                            {Array.isArray(dayData?.activities) ? (
-                              <ul className="list-disc list-inside space-y-1">
-                                {dayData.activities.map((activity: string, i: number) => (
-                                  <li key={i} className="text-xs">{activity}</li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <span className="text-xs">{dayData?.activities || 'Loading...'}</span>
-                            )}
+                          <div className="text-sm whitespace-pre-wrap">
+                            {activities}
                           </div>
                         </TableCell>
                         <TableCell className="max-w-48">
                           <div className="text-sm">
-                            {Array.isArray(dayData?.assessment) ? (
-                              <ul className="list-disc list-inside space-y-1">
-                                {dayData.assessment.map((item: string, i: number) => (
-                                  <li key={i} className="text-xs">{item}</li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <span className="text-xs">{dayData?.assessment || 'Loading...'}</span>
-                            )}
+                            <span className="text-xs">Assessment included in activities</span>
                           </div>
                         </TableCell>
                         <TableCell className="max-w-48">
-                          <div className="text-sm">
-                            {Array.isArray(dayData?.references) ? (
-                              <ul className="list-disc list-inside space-y-1">
-                                {dayData.references.map((ref: string, i: number) => (
-                                  <li key={i} className="text-xs">{ref}</li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <span className="text-xs">{dayData?.references || 'Loading...'}</span>
-                            )}
+                          <div className="text-sm whitespace-pre-wrap">
+                            {references}
                           </div>
                         </TableCell>
                       </TableRow>
