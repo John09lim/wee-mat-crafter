@@ -690,14 +690,17 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
       return String(v);
     };
 
-    // Ensure activities are populated with fallbacks (enhanced with specific questions)
-    const activitiesFallback = [
-      "Practice fundamental skills. Assessment Questions (Identification): 1. Identify the main elements of today's topic. 2. What are the key characteristics to remember? 3. Name the steps involved in this process. 4. Identify examples from your everyday experience. 5. What tools or methods are most helpful? Expected Output: Identification worksheet with examples. Contingency: Independent reading and practice.",
-      "Develop deeper understanding through practice. Assessment Questions (Multiple Choice): 1. Which example best demonstrates the concept? A) Option A B) Option B C) Option C D) All options 2. The most important factor is: A) Accuracy B) Understanding C) Practice D) All factors 3. When approaching this topic, you should: A) Take your time B) Check your work C) Ask for help D) All approaches 4. This concept is most useful for: A) Academic work B) Daily life C) Future learning D) All applications 5. The best learning strategy is: A) Practice B) Discussion C) Reflection D) All strategies. Expected Output: Multiple choice responses with reasoning. Contingency: Online modules and exercises.",
-      "Apply knowledge in different situations. Assessment Questions (True or False): 1. Regular practice improves understanding of this concept. 2. This topic only applies to academic situations. 3. Understanding the basics is essential for advanced work. 4. This concept connects to other subjects and real life. 5. Mastering this skill helps with future learning. Expected Output: True/False answers with explanations. Contingency: Research activities and documentation.",
-      "Demonstrate mastery through problem-solving. Assessment Questions (Identification): 1. Identify the most effective problem-solving strategies. 2. What are the common challenges and how to overcome them? 3. Name three ways this applies to real situations. 4. Identify indicators of successful understanding. 5. What additional skills support this learning? Expected Output: Problem-solving portfolio with examples. Contingency: Independent practice with solutions.",
-      "Synthesize and evaluate learning. Assessment Questions (Essay/Short Answer): 1. Summarize the most important concepts from this week. 2. How would you explain this topic to someone new to it? 3. Describe a practical application of what you learned. 4. What was most challenging and how did you handle it? 5. How does this knowledge connect to other subjects? Expected Output: Reflection essay and connection map. Contingency: Comprehensive review and self-assessment."
-    ];
+    // Generate real activities using the existing function instead of placeholders
+    const getRealActivitiesFallback = () => {
+      const realActivities = getSubjectSpecificActivities(subject, competency, gradeLevel);
+      return [
+        realActivities.mon,
+        realActivities.tue,
+        realActivities.wed,
+        realActivities.thu,
+        realActivities.fri
+      ];
+    };
 
     // Ensure competency is populated with fallbacks
     const competencyFallback = [
@@ -737,11 +740,13 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
       return acc;
     }, {});
 
-    // Ensure activities are populated
+    // Ensure activities are populated - use real activities instead of placeholders
     const activitiesIn = aiJson?.activities || {};
+    const realActivitiesFallback = getRealActivitiesFallback();
     aiJson.activities = days.reduce((acc: any, d, i) => {
       const val = norm((activitiesIn as any)[d]);
-      acc[d] = val && val.trim().length > 0 ? val : activitiesFallback[i] || "";
+      // Only use fallback if AI generation completely failed AND content is empty
+      acc[d] = val && val.trim().length > 0 ? val : realActivitiesFallback[i] || "";
       return acc;
     }, {});
 
