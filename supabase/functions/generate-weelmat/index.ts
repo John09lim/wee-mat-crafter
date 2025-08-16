@@ -229,7 +229,34 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
         console.log("❌ No DEEPSEEK_API_KEY found");
         return null;
       }
-      console.log("🤖 Calling DeepSeek API directly...");
+      console.log("🤖 Calling DeepSeek API for Learning Activities generation...");
+      
+      const activitiesPrompt = `Generate REAL Learning Activities/Tasks for ${subject} Grade ${gradeLevel} based on competency: "${competency}".
+
+DAILY REQUIREMENTS:
+- Monday: ${getQuestionCount(gradeLevel)} IDENTIFICATION questions  
+- Tuesday: ${getQuestionCount(gradeLevel)} MULTIPLE CHOICE questions (with real answer choices)
+- Wednesday: ${getQuestionCount(gradeLevel)} TRUE OR FALSE statements
+- Thursday: ${getQuestionCount(gradeLevel)} ESSAY questions
+- Friday: ${getQuestionCount(gradeLevel)} MULTIPLE CHOICE questions (with real answer choices)
+
+CRITICAL RULES:
+- NO placeholders like [Identification question], [Option A/B/C/D], [True/False statement]
+- Generate ACTUAL questions based on the exact competency provided
+- Multiple choice must have real answer options, not generic letters
+- True/False must have complete statements
+- Questions must be appropriate for Grade ${gradeLevel} ${subject}
+- Use ${effectiveLanguage} language throughout
+
+Return JSON format:
+{
+  "mon": "Instructions/Directions: [explanation]. Quiz: 1. [real question] 2. [real question]...",
+  "tue": "Instructions/Directions: [explanation]. Quiz: 1. [real multiple choice with options] 2. [real multiple choice with options]...",
+  "wed": "Instructions/Directions: [explanation]. Quiz: 1. [real statement] 2. [real statement]...",
+  "thu": "Instructions/Directions: [explanation]. Quiz: 1. [real essay question] 2. [real essay question]...",
+  "fri": "Instructions/Directions: [explanation]. Quiz: 1. [real multiple choice with options] 2. [real multiple choice with options]..."
+}`;
+
       const res = await fetch("https://api.deepseek.com/chat/completions", {
         method: "POST",
         headers: {
@@ -239,8 +266,8 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
         body: JSON.stringify({
           model: "deepseek-chat",
           messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: `${JSON.stringify(userContent)}\nReturn JSON only.` },
+            { role: "system", content: "You are an expert educator who creates real quiz questions. No placeholders allowed. Generate actual, specific questions." },
+            { role: "user", content: activitiesPrompt },
           ],
           temperature: 0.3,
         }),
@@ -250,8 +277,40 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
         return null;
       }
       const json = await res.json();
-      const text = json.choices?.[0]?.message?.content?.trim() || "{}";
-      return text;
+      const content = json.choices?.[0]?.message?.content?.trim() || "{}";
+      
+      // Parse and validate the activities response
+      try {
+        const activities = JSON.parse(content);
+        
+        // Check for placeholders and regenerate if found
+        const hasPlaceholders = JSON.stringify(activities).match(/\[(.*?)\]|\boption [a-d]\b|\bcategory [a-d]\b|\bexample [a-d]\b/i);
+        if (hasPlaceholders) {
+          console.log("⚠️ Placeholders detected in DeepSeek response, will try OpenAI");
+          return null;
+        }
+        
+        return JSON.stringify({
+          competency: {
+            mon: competency,
+            tue: competency,
+            wed: competency,
+            thu: competency,
+            fri: competency
+          },
+          references: {
+            mon: "DepEd Curriculum Guide • Khan Academy Lessons • CK-12 Resources",
+            tue: "Educational YouTube Videos • PhET Simulations • Online Modules",
+            wed: "Interactive Learning Materials • Practical Worksheets • Study Guides",
+            thu: "Assessment Tools • Practice Exercises • Review Materials",
+            fri: "Synthesis Activities • Evaluation Rubrics • Next Week Preparation"
+          },
+          activities
+        });
+      } catch (e) {
+        console.error("Failed to parse DeepSeek activities response:", e);
+        return null;
+      }
     }
 
     async function callOpenRouter() {
@@ -285,7 +344,34 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
 
     async function callOpenAI() {
       if (!OPENAI_API_KEY) return null;
-      console.log("🔄 Calling OpenAI (high cost - last resort)...");
+      console.log("🔄 Calling OpenAI for Learning Activities generation...");
+      
+      const activitiesPrompt = `Generate REAL Learning Activities/Tasks for ${subject} Grade ${gradeLevel} based on competency: "${competency}".
+
+DAILY REQUIREMENTS:
+- Monday: ${getQuestionCount(gradeLevel)} IDENTIFICATION questions  
+- Tuesday: ${getQuestionCount(gradeLevel)} MULTIPLE CHOICE questions (with real answer choices)
+- Wednesday: ${getQuestionCount(gradeLevel)} TRUE OR FALSE statements
+- Thursday: ${getQuestionCount(gradeLevel)} ESSAY questions
+- Friday: ${getQuestionCount(gradeLevel)} MULTIPLE CHOICE questions (with real answer choices)
+
+CRITICAL RULES:
+- NO placeholders like [Identification question], [Option A/B/C/D], [True/False statement]
+- Generate ACTUAL questions based on the exact competency provided
+- Multiple choice must have real answer options, not generic letters
+- True/False must have complete statements
+- Questions must be appropriate for Grade ${gradeLevel} ${subject}
+- Use ${effectiveLanguage} language throughout
+
+Return JSON format:
+{
+  "mon": "Instructions/Directions: [explanation]. Quiz: 1. [real question] 2. [real question]...",
+  "tue": "Instructions/Directions: [explanation]. Quiz: 1. [real multiple choice with options] 2. [real multiple choice with options]...",
+  "wed": "Instructions/Directions: [explanation]. Quiz: 1. [real statement] 2. [real statement]...",
+  "thu": "Instructions/Directions: [explanation]. Quiz: 1. [real essay question] 2. [real essay question]...",
+  "fri": "Instructions/Directions: [explanation]. Quiz: 1. [real multiple choice with options] 2. [real multiple choice with options]..."
+}`;
+
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -293,13 +379,13 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-4o-mini", // Cheapest OpenAI model
+          model: "gpt-4o-mini",
           messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: `${JSON.stringify(userContent)}\nReturn JSON only.` },
+            { role: "system", content: "You are an expert educator who creates real quiz questions. No placeholders allowed. Generate actual, specific questions." },
+            { role: "user", content: activitiesPrompt },
           ],
           temperature: 0.3,
-          max_tokens: 2000, // Limit tokens to control cost
+          max_tokens: 2000,
         }),
       });
       if (!res.ok) {
@@ -307,8 +393,40 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
         return null;
       }
       const json = await res.json();
-      const text = json.choices?.[0]?.message?.content?.trim() || "{}";
-      return text;
+      const content = json.choices?.[0]?.message?.content?.trim() || "{}";
+      
+      // Parse and validate the activities response
+      try {
+        const activities = JSON.parse(content);
+        
+        // Check for placeholders and regenerate if found
+        const hasPlaceholders = JSON.stringify(activities).match(/\[(.*?)\]|\boption [a-d]\b|\bcategory [a-d]\b|\bexample [a-d]\b/i);
+        if (hasPlaceholders) {
+          console.log("⚠️ Placeholders detected in OpenAI response, using fallback");
+          return null;
+        }
+        
+        return JSON.stringify({
+          competency: {
+            mon: competency,
+            tue: competency,
+            wed: competency,
+            thu: competency,
+            fri: competency
+          },
+          references: {
+            mon: "DepEd Curriculum Guide • Khan Academy Lessons • CK-12 Resources",
+            tue: "Educational YouTube Videos • PhET Simulations • Online Modules",
+            wed: "Interactive Learning Materials • Practical Worksheets • Study Guides",
+            thu: "Assessment Tools • Practice Exercises • Review Materials",
+            fri: "Synthesis Activities • Evaluation Rubrics • Next Week Preparation"
+          },
+          activities
+        });
+      } catch (e) {
+        console.error("Failed to parse OpenAI activities response:", e);
+        return null;
+      }
     }
 
     async function callOpenAITurbo() {
@@ -343,6 +461,12 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
       console.log("🔄 Calling Groq LLaMA 3.1 70B (very cheap)...");
       // For now, return template generation as Groq would require separate API key
       return null;
+    }
+
+    // Helper function to get question count based on grade level
+    function getQuestionCount(gradeLevel: string): number {
+      const grade = parseInt(gradeLevel?.toString().replace(/\D/g, '') || '1');
+      return (grade >= 1 && grade <= 3) ? 5 : (grade >= 4 && grade <= 6) ? 8 : 10;
     }
 
     function generateTemplate(comp: string): string {
@@ -414,10 +538,10 @@ Expected Output: Multiple choice responses showing competency mastery. Contingen
     // Call the AI to generate the content with cost-optimized hierarchy (FREE/CHEAP FIRST!)
     async function generateOnce() {
       const providers = [
-        { name: "DeepSeek via OpenRouter", fn: callOpenRouter, cost: "FREE" },
         { name: "Direct DeepSeek API", fn: callDeepSeek, cost: "$0.0014/1K tokens" },
+        { name: "OpenAI GPT-4o-mini", fn: callOpenAI, cost: "$0.0015/1K tokens" },
         { name: "Template Generation", fn: () => generateTemplate(competency), cost: "FREE" },
-        { name: "OpenAI GPT-3.5-Turbo", fn: callOpenAITurbo, cost: "$0.0015/1K tokens" }
+        { name: "DeepSeek via OpenRouter", fn: callOpenRouter, cost: "FREE" }
       ];
       
       for (const provider of providers) {
