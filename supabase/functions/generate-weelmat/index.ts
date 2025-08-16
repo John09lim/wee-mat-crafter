@@ -281,14 +281,26 @@ Return JSON format:
       
       // Parse and validate the activities response
       try {
-        const activities = JSON.parse(content);
+        // Clean markdown if present
+        let cleanContent = content.trim();
+        if (cleanContent.startsWith('```json')) {
+          cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        } else if (cleanContent.startsWith('```')) {
+          cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+        }
         
-        // Check for placeholders and regenerate if found
-        const hasPlaceholders = JSON.stringify(activities).match(/\[(.*?)\]|\boption [a-d]\b|\bcategory [a-d]\b|\bexample [a-d]\b/i);
-        if (hasPlaceholders) {
-          console.log("⚠️ Placeholders detected in DeepSeek response, will try OpenAI");
+        console.log("📝 Cleaned DeepSeek response:", cleanContent.substring(0, 200) + "...");
+        const activities = JSON.parse(cleanContent);
+        
+        // Improved placeholder detection - only flag real placeholders
+        const activitiesStr = JSON.stringify(activities);
+        const strongPlaceholders = activitiesStr.match(/\bA\)\s*Option\s*[ABC]?\s*B\)\s*Option\s*[ABC]?|what is 4 × 2|\[placeholder\]|\[text\]|option.*option.*option/gi);
+        if (strongPlaceholders) {
+          console.log("⚠️ Strong placeholders detected in DeepSeek response:", strongPlaceholders);
           return null;
         }
+        
+        console.log("✅ DeepSeek activities validated - no placeholders detected");
         
         return JSON.stringify({
           competency: {
@@ -636,11 +648,12 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
 
     // Call the AI to generate content with improved error handling
     async function generateOnce() {
+      // Prioritize DeepSeek since user has valid API key
       const providers = [
+        { name: "Direct DeepSeek API", fn: callDeepSeek, cost: "$0.0014/1K tokens - USER HAS CREDITS" },
         { name: "OpenAI GPT-5", fn: callOpenAI, cost: "Premium" },
-        { name: "Direct DeepSeek API", fn: callDeepSeek, cost: "$0.0014/1K tokens" },
         { name: "DeepSeek via OpenRouter", fn: callOpenRouter, cost: "FREE" },
-        { name: "Real Sample Generation", fn: () => generateTemplate(competency), cost: "FREE" }
+        { name: "Subject-Specific Template", fn: () => generateTemplate(competency), cost: "FREE" }
       ];
       
       for (const provider of providers) {
@@ -652,14 +665,16 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
             try {
               const parsed = JSON.parse(raw);
               
-              // Final validation for any escaped placeholders
+              // More precise final validation for placeholders
               const jsonString = JSON.stringify(parsed);
-              const finalPlaceholderCheck = jsonString.match(/\[.*?\]|\boption [a-d]\b|\bcategory [a-d]\b|\bexample [a-d]\b/gi);
+              const strongPlaceholders = jsonString.match(/\bA\)\s*Option\s*[ABC]?\s*B\)\s*Option\s*[ABC]?|what is 4 × 2|\[placeholder\]|\[content\]|option.*option.*option/gi);
               
-              if (finalPlaceholderCheck) {
-                console.log(`⚠️ ${provider.name} still contains placeholders:`, finalPlaceholderCheck);
+              if (strongPlaceholders) {
+                console.log(`⚠️ ${provider.name} contains strong placeholders:`, strongPlaceholders);
                 continue; // Try next provider
               }
+              
+              console.log(`✅ ${provider.name} validation passed - content looks real and specific`);
               
               return parsed;
             } catch (parseError) {
@@ -672,8 +687,8 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
         }
       }
       
-      // If all providers fail, return real sample content
-      console.log("🔄 All AI providers failed, using real sample content...");
+      // If all providers fail, return subject-specific template
+      console.log("🔄 All AI providers failed, using subject-specific template for", subject, gradeLevel);
       const templateJson = generateTemplate(competency);
       return JSON.parse(templateJson);
     }
