@@ -134,7 +134,92 @@ serve(async (req) => {
       ];
     }
 
-    // Step 2: AI generation via OpenAI or OpenRouter
+    // Step 2: Parse and process competencies for daily targets
+    function parseCompetencies(competencyInput: string): string[] {
+      if (!competencyInput?.trim()) return [];
+      
+      // Split by newlines or semicolons and clean up
+      const competencies = competencyInput
+        .split(/[\n;]+/)
+        .map(comp => comp.trim())
+        .filter(comp => comp.length > 0);
+      
+      return competencies;
+    }
+
+    function createDailyTargets(competencies: string[], effectiveLanguage: string): string[] {
+      if (competencies.length === 0) {
+        return [
+          "Introduce and explore the learning competency through guided instruction.",
+          "Develop understanding through practice and application activities.", 
+          "Strengthen skills through varied exercises and group work.",
+          "Apply knowledge in different contexts and scenarios.",
+          "Consolidate learning and prepare for assessment."
+        ];
+      }
+
+      const dailyTargets: string[] = [];
+      
+      // If we have exactly 5 or more competencies, use first 5
+      if (competencies.length >= 5) {
+        for (let i = 0; i < 5; i++) {
+          dailyTargets.push(makeStudentFriendly(competencies[i], effectiveLanguage));
+        }
+      }
+      // If we have fewer than 5, distribute them across the week
+      else {
+        for (let i = 0; i < 5; i++) {
+          const compIndex = i % competencies.length;
+          const dayPrefix = competencies.length === 1 ? getDayPrefix(i) : "";
+          dailyTargets.push(dayPrefix + makeStudentFriendly(competencies[compIndex], effectiveLanguage));
+        }
+      }
+      
+      return dailyTargets;
+    }
+
+    function makeStudentFriendly(competency: string, language: string): string {
+      // Convert formal competency statements to student-friendly targets
+      let friendly = competency;
+      
+      // Remove formal prefixes and make more accessible
+      friendly = friendly.replace(/^(The learner|Students will|Learners can)/i, "");
+      friendly = friendly.replace(/^(demonstrates|analyzes|evaluates|creates)/i, (match) => {
+        return match.toLowerCase().replace(/s$/, "");
+      });
+      
+      // Make it more actionable and student-focused
+      if (!friendly.match(/^(identify|understand|practice|apply|create|explore|analyze|demonstrate)/i)) {
+        if (language === "Filipino") {
+          friendly = "Matutuhan ang " + friendly.toLowerCase();
+        } else {
+          friendly = "Learn to " + friendly.toLowerCase();
+        }
+      }
+      
+      // Ensure it starts with capital letter
+      friendly = friendly.charAt(0).toUpperCase() + friendly.slice(1);
+      
+      // Clean up any remaining formatting issues
+      friendly = friendly.replace(/\s+/g, " ").trim();
+      
+      return friendly;
+    }
+
+    function getDayPrefix(dayIndex: number): string {
+      const prefixes = [
+        "Introduction: ",
+        "Development: ", 
+        "Practice: ",
+        "Application: ",
+        "Assessment: "
+      ];
+      return prefixes[dayIndex] || "";
+    }
+
+    // Parse competencies and create daily targets
+    const parsedCompetencies = parseCompetencies(competency);
+    
     // Determine effective language (user override > subject rule)
     const subjLower = (subject || "").toLowerCase();
     const reqLower = (language || "").toLowerCase();
@@ -145,6 +230,8 @@ serve(async (req) => {
       : (subjLower.includes("filipino") || subjLower.includes("araling panlipunan") || subjLower === "ap" || subjLower.includes(" ap"))
       ? "Filipino"
       : "English";
+
+    const dailyCompetencyTargets = createDailyTargets(parsedCompetencies, effectiveLanguage);
 
     // System prompt with strict requirements (references must be populated)
     const systemPrompt = `You are the WeeLMat Lesson Matrix Writer for DepEd Negros Island Region.
@@ -302,14 +389,14 @@ Return JSON format:
         
         console.log("✅ DeepSeek activities validated - no placeholders detected");
         
-        return JSON.stringify({
-          competency: {
-            mon: competency,
-            tue: competency,
-            wed: competency,
-            thu: competency,
-            fri: competency
-          },
+            return JSON.stringify({
+              competency: {
+                mon: dailyCompetencyTargets[0],
+                tue: dailyCompetencyTargets[1],
+                wed: dailyCompetencyTargets[2],
+                thu: dailyCompetencyTargets[3],
+                fri: dailyCompetencyTargets[4]
+              },
           references: {
             mon: "DepEd Curriculum Guide • Khan Academy Lessons • CK-12 Resources",
             tue: "Educational YouTube Videos • PhET Simulations • Online Modules",
@@ -460,11 +547,11 @@ Return JSON format:
             console.log("✅ OpenAI generated real questions successfully");
             return JSON.stringify({
               competency: {
-                mon: competency,
-                tue: competency,
-                wed: competency,
-                thu: competency,
-                fri: competency
+                mon: dailyCompetencyTargets[0],
+                tue: dailyCompetencyTargets[1],
+                wed: dailyCompetencyTargets[2],
+                thu: dailyCompetencyTargets[3],
+                fri: dailyCompetencyTargets[4]
               },
               references: {
                 mon: "DepEd Curriculum Guide • Khan Academy Lessons • CK-12 Resources",
@@ -533,11 +620,11 @@ Return JSON format:
     function generateTemplate(comp: string): string {
       const template = {
         competency: {
-          mon: comp,
-          tue: comp,
-          wed: comp,
-          thu: comp,
-          fri: comp
+          mon: dailyCompetencyTargets[0],
+          tue: dailyCompetencyTargets[1],
+          wed: dailyCompetencyTargets[2],
+          thu: dailyCompetencyTargets[3],
+          fri: dailyCompetencyTargets[4]
         },
         references: {
           mon: "DepEd Curriculum Guide • Khan Academy Lessons • CK-12 Resources",
@@ -717,14 +804,8 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
       ];
     };
 
-    // Ensure competency is populated with fallbacks
-    const competencyFallback = [
-      "Introduce and explore the learning competency through guided instruction.",
-      "Develop understanding through practice and application activities.",
-      "Strengthen skills through varied exercises and group work.",
-      "Apply knowledge in different contexts and scenarios.",
-      "Consolidate learning and prepare for assessment."
-    ];
+    // Use the daily competency targets as fallbacks instead of generic text
+    const competencyFallback = dailyCompetencyTargets;
 
     const pickDailyRefs = (): string[] => {
       const out: string[] = [];
