@@ -171,6 +171,17 @@ DAILY QUESTION TYPE ROTATION (for single competency):
 - WEDNESDAY: True or False questions
 - THURSDAY: Matching or Short Response questions
 - FRIDAY: Essay/Short Answer or Performance Task questions
+
+QUALITY REQUIREMENTS FOR LEARNING ACTIVITIES:
+- NO generic placeholders: Reject "Method A/B/C", "Statement A-D", "Example A-D", "the concept/method/strategy"
+- Use domain vocabulary: Include ≥3 subject-specific terms per day (e.g., "simile, metaphor, hyperbole" for English; "numerator, denominator, equivalent" for Math)
+- Content-specific questions: Each item must assess actual competency skills with concrete examples
+- Require reasoning: At least 1 question per day must ask for explanation/justification (not pure recall)
+
+HARD GUARDS:
+- If any placeholder detected → regenerate
+- If missing domain terms → regenerate  
+- If generic "concept/method" language → regenerate
 Strict table mapping rules: Column 1 is labels only: “Competency”, “Suggested Learning Material/Reference”, “Learning Activities/Tasks”. Columns 2–6 are Monday to Friday (in that order). Output JSON only with keys competency, references, activities and days mon..fri.`;
 
     const userContent = {
@@ -328,21 +339,21 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
           fri: "Synthesis Activities • Evaluation Rubrics • Next Week Preparation"
         },
         activities: {
-          mon: `Instructions/Directions: Complete the identification assessment based on today's lesson materials and demonstrations.
-Quiz: 1. Identify the main characteristic shown in the example. 2. What specific element can you recognize from the demonstration? 3. Name the key feature highlighted in the lesson. 4. Identify the pattern observed in the given sample. 5. What tool or method was demonstrated for this task?
-Expected Output: Completed identification worksheet with accurate answers. Contingency: Independent reading exercises with guided questions.`,
-          tue: `Instructions/Directions: Answer the multiple choice questions to demonstrate your understanding of the lesson concepts.
-Quiz: 1. Which option best represents the correct approach? A) Method A B) Method B C) Method C D) Method D 2. The most effective strategy is: A) First option B) Second option C) Third option D) Fourth option 3. When solving this type of problem, you should: A) Start with basics B) Check each step C) Review your work D) All of the above 4. Which statement is most accurate? A) Statement A B) Statement B C) Statement C D) Statement D 5. The best example of this concept is: A) Example A B) Example B C) Example C D) Example D
-Expected Output: Multiple choice answers with brief explanations for each choice. Contingency: Online practice modules with immediate feedback.`,
-          wed: `Instructions/Directions: Determine whether each statement is true or false based on the lesson content and provide reasoning.
-Quiz: 1. The demonstrated method always produces accurate results. 2. This concept can be applied in multiple subject areas. 3. Regular practice is essential for mastering this skill. 4. The examples shown represent the only correct approaches. 5. Understanding this topic helps with future learning objectives.
-Expected Output: True/False responses with supporting explanations. Contingency: Research activities with documented findings.`,
-          thu: `Instructions/Directions: Complete the matching exercise and provide short responses to demonstrate comprehension.
-Quiz: 1. Match the term with its correct definition from the lesson. 2. Connect each example to its appropriate category. 3. Pair the strategy with its best application. 4. Link the concept to its real-world use. 5. Describe in 2-3 sentences how this applies to your daily experience.
-Expected Output: Completed matching exercises and short written responses. Contingency: Independent practice with detailed answer keys.`,
-          fri: `Instructions/Directions: Write thoughtful responses that demonstrate your understanding and ability to apply the week's learning.
-Quiz: 1. Explain the main concept learned this week in your own words. 2. Describe how you would teach this to a classmate who missed the lessons. 3. Give an example of how this knowledge applies outside of school. 4. What questions do you still have about this topic? 5. Create your own example or problem related to this week's learning.
-Expected Output: Written responses showing deep understanding and personal connections. Contingency: Comprehensive review activities with reflection prompts.`
+          mon: `Instructions/Directions: Identify specific literary devices, mathematical operations, or scientific processes from concrete examples provided in today's lesson.
+Quiz: 1. Identify the figurative language used in this sentence: "The stars danced in the midnight sky." 2. Name the mathematical operation needed to solve: 3/4 + 2/8 = ? 3. Classify this organism based on its characteristics: has fur, produces milk, warm-blooded. 4. Identify the type of energy transformation when a ball rolls down a hill. 5. Name the historical period when the Philippines was under Spanish colonization.
+Expected Output: Completed identification worksheet with accurate subject-specific terms. Contingency: Independent reading exercises with guided questions.`,
+          tue: `Instructions/Directions: Select the correct answer that demonstrates understanding of subject-specific concepts and vocabulary.
+Quiz: 1. Which literary device gives human qualities to non-human things? A) Simile B) Metaphor C) Personification D) Alliteration 2. What is the equivalent fraction of 2/4? A) 1/2 B) 3/6 C) 4/8 D) All of the above 3. Which part of the plant conducts photosynthesis? A) Roots B) Stem C) Leaves D) Flowers 4. The Philippines is located in which continent? A) Asia B) Europe C) Africa D) Australia 5. What force pulls objects toward Earth's center? A) Magnetism B) Friction C) Gravity D) Inertia
+Expected Output: Multiple choice answers with explanations using domain vocabulary. Contingency: Online practice modules with immediate feedback.`,
+          wed: `Instructions/Directions: Evaluate statements using subject knowledge and provide justification for your true/false responses.
+Quiz: 1. A metaphor uses "like" or "as" to make comparisons. 2. The fraction 3/4 is greater than 7/8. 3. All mammals give birth to live babies. 4. The Earth revolves around the Sun in exactly 365 days. 5. Jose Rizal wrote "Noli Me Tangere" during Spanish colonial period.
+Expected Output: True/False responses with supporting explanations using subject terminology. Contingency: Research activities with documented findings.`,
+          thu: `Instructions/Directions: Match terms with definitions and provide short responses explaining the connections between concepts.
+Quiz: 1. Match: Alliteration with "repetition of initial consonant sounds." 2. Connect these equivalent fractions: 1/2, 2/4, 3/6, 4/8. 3. Pair each animal with its habitat: polar bear/Arctic, camel/desert, dolphin/ocean. 4. Link the invention with its inventor: telephone/Alexander Graham Bell. 5. Explain in 2-3 sentences how photosynthesis helps both plants and animals survive.
+Expected Output: Completed matching exercises and short explanatory responses. Contingency: Independent practice with detailed answer keys.`,
+          fri: `Instructions/Directions: Demonstrate deep understanding through analytical writing and practical application of weekly concepts.
+Quiz: 1. Write a short paragraph using at least three different literary devices (simile, metaphor, personification). 2. Create and solve a word problem involving addition of fractions with different denominators. 3. Design a simple experiment to test which materials conduct electricity. 4. Compose a timeline showing five major events in Philippine history with dates. 5. Explain how you would teach the concept of ecosystems to a younger student using examples from your local environment.
+Expected Output: Original creative work demonstrating mastery of subject concepts. Contingency: Comprehensive review activities with reflection prompts.`
         }
       };
       return JSON.stringify(template);
