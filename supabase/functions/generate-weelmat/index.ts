@@ -138,53 +138,7 @@ serve(async (req) => {
       ];
     }
 
-    // Step 2: Get daily competencies from user input
-    function getDailyCompetencies(
-      mondayCompetency: string,
-      tuesdayCompetency: string,
-      wednesdayCompetency: string,
-      thursdayCompetency: string,
-      fridayCompetency: string
-    ): string[] {
-      return [
-        mondayCompetency.trim(),
-        tuesdayCompetency.trim(),
-        wednesdayCompetency.trim(),
-        thursdayCompetency.trim(),
-        fridayCompetency.trim()
-      ];
-    }
-
-    function createDailyTargets(competencies: string[], effectiveLanguage: string): string[] {
-      if (competencies.length === 0) {
-        return [
-          "Introduce and explore the learning competency through guided instruction.",
-          "Develop understanding through practice and application activities.", 
-          "Strengthen skills through varied exercises and group work.",
-          "Apply knowledge in different contexts and scenarios.",
-          "Consolidate learning and prepare for assessment."
-        ];
-      }
-
-      const dailyTargets: string[] = [];
-      
-      // If we have exactly 5 or more competencies, use first 5
-      if (competencies.length >= 5) {
-        for (let i = 0; i < 5; i++) {
-          dailyTargets.push(makeStudentFriendly(competencies[i], effectiveLanguage));
-        }
-      }
-      // If we have fewer than 5, distribute them across the week
-      else {
-        for (let i = 0; i < 5; i++) {
-          const compIndex = i % competencies.length;
-          const dayPrefix = competencies.length === 1 ? getDayPrefix(i) : "";
-          dailyTargets.push(dayPrefix + makeStudentFriendly(competencies[compIndex], effectiveLanguage));
-        }
-      }
-      
-      return dailyTargets;
-    }
+    // Removed unused functions - now using direct user input
 
     function makeStudentFriendly(competency: string, language: string): string {
       // Convert formal competency statements to student-friendly targets
@@ -811,15 +765,6 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
       return String(v);
     };
 
-    // Get daily competencies from user input
-    const dailyCompetencies = getDailyCompetencies(
-      mondayCompetency,
-      tuesdayCompetency,
-      wednesdayCompetency,
-      thursdayCompetency,
-      fridayCompetency
-    );
-
     // Generate real activities using the existing function instead of placeholders
     const getRealActivitiesFallback = () => {
       const realActivities = getSubjectSpecificActivities(subject, mondayCompetency, gradeLevel);
@@ -832,8 +777,7 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
       ];
     };
 
-    // Use the daily competencies as provided by user
-    const competencyFallback = dailyCompetencies;
+    // Use the daily competencies as provided by user (already defined above as object)
 
     const pickDailyRefs = (): string[] => {
       const out: string[] = [];
@@ -878,7 +822,14 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
     const competencyIn = aiJson?.competency || {};
     aiJson.competency = days.reduce((acc: any, d, i) => {
       const val = norm((competencyIn as any)[d]);
-      acc[d] = val && val.trim().length > 0 ? val : competencyFallback[i] || "";
+      const fallbackMapping = [
+        dailyCompetencies.Monday,
+        dailyCompetencies.Tuesday, 
+        dailyCompetencies.Wednesday,
+        dailyCompetencies.Thursday,
+        dailyCompetencies.Friday
+      ];
+      acc[d] = val && val.trim().length > 0 ? val : fallbackMapping[i] || "";
       return acc;
     }, {});
 
