@@ -86,6 +86,11 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
     wednesdayQuestionCount: 10,
     thursdayQuestionCount: 10,
     fridayQuestionCount: 10,
+    mondayExamType: "Multiple Choice",
+    tuesdayExamType: "Multiple Choice",
+    wednesdayExamType: "Multiple Choice",
+    thursdayExamType: "Multiple Choice",
+    fridayExamType: "Multiple Choice",
   }
 });
 
@@ -94,16 +99,51 @@ const [customCounts, setCustomCounts] = useState<Record<string, number>>({});
 const watchedValues = watch();
 
   const isFormComplete = (values: Partial<FormValues>) => {
+    if (!values.subject?.trim() || !values.gradeLevel || !values.section?.trim() || 
+        !values.dateFrom || !values.dateTo || !values.language) {
+      return false;
+    }
+    
     const days = ["monday", "tuesday", "wednesday", "thursday", "friday"];
-    return days.every(day => 
-      values[`${day}Competency` as keyof FormValues] &&
-      values[`${day}ExamType` as keyof FormValues] &&
-      values[`${day}QuestionCount` as keyof FormValues]
-    );
+    const isComplete = days.every(day => {
+      const competency = values[`${day}Competency` as keyof FormValues] as string;
+      const examType = values[`${day}ExamType` as keyof FormValues];
+      const questionCount = values[`${day}QuestionCount` as keyof FormValues] as number;
+      
+      return competency?.trim() && examType && questionCount && 
+             typeof questionCount === 'number' && questionCount >= 3 && questionCount <= 20;
+    });
+    
+    return isComplete;
   };
 
   const onSubmit = async (values: FormValues) => {
+    console.log("Dashboard form submission - Raw form values:", values);
+    
+    // Enhanced validation logging
+    const days = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+    const validationResults = days.map(day => ({
+      day,
+      competency: values[`${day}Competency` as keyof FormValues],
+      examType: values[`${day}ExamType` as keyof FormValues],
+      questionCount: values[`${day}QuestionCount` as keyof FormValues],
+      complete: !!(values[`${day}Competency` as keyof FormValues] && 
+                   values[`${day}ExamType` as keyof FormValues] && 
+                   values[`${day}QuestionCount` as keyof FormValues])
+    }));
+    
+    console.log("Dashboard validation results:", validationResults);
+    
+    const incompleteFields = validationResults.filter(r => !r.complete);
+    if (incompleteFields.length > 0) {
+      console.error("Form submission blocked - incomplete fields:", incompleteFields);
+      alert(`Please complete the following days: ${incompleteFields.map(f => f.day).join(', ')}`);
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
+    console.log("Navigating to WeeLMatGenerator with validated values:", values);
     navigate("/weelmatgenerator", { state: values });
   }
 

@@ -79,9 +79,12 @@ const WeeLMatGenerator = () => {
 
   useEffect(() => {
     if (!values) {
+      console.error("WeeLMatGenerator: No form values provided, redirecting to dashboard");
       navigate("/dashboard");
       return;
     }
+
+    console.log("WeeLMatGenerator: Received form values:", values);
 
     let timers: number[] = [];
     // Minimum 15-second loading with staged progression
@@ -95,18 +98,35 @@ const WeeLMatGenerator = () => {
         const access_token = sessionData.session?.access_token;
         if (!access_token) throw new Error("Not authenticated");
 
+        console.log("WeeLMatGenerator: Calling edge function with:", values);
+
         const { data, error } = await supabase.functions.invoke("generate-weelmat", {
           headers: { Authorization: `Bearer ${access_token}` },
           body: values,
         });
-        if (error) throw error;
+
+        console.log("WeeLMatGenerator: Edge function response:", { data, error });
+
+        if (error) {
+          console.error("WeeLMatGenerator: Edge function error:", error);
+          throw new Error(error.message || "Edge function returned an error");
+        }
+
+        if (!data) {
+          console.error("WeeLMatGenerator: No data in response");
+          throw new Error("No data received from edge function");
+        }
+
+        console.log("WeeLMatGenerator: Success! Received data:", data);
 
         setDocxUrl(data?.docx_url || null);
         setPdfUrl(data?.pdf_url || null);
         setAiJson(data?.ai_json || null);
-        setMatrixId(data?.matrixId || null);
+        setMatrixId(data?.matrix_id || null);
       } catch (err: any) {
-        toast(err.message || "Generation failed");
+        console.error("WeeLMatGenerator: Error details:", err);
+        const errorMessage = err.message || "Generation failed";
+        toast(`Error: ${errorMessage}. Please check that all form fields are complete and try again.`);
       } finally {
         setLoading(false);
       }
