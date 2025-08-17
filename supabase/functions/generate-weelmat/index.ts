@@ -90,22 +90,34 @@ serve(async (req) => {
     const examTypes = [mondayExamType, tuesdayExamType, wednesdayExamType, thursdayExamType, fridayExamType];
     const questionCounts = [mondayQuestionCount, tuesdayQuestionCount, wednesdayQuestionCount, thursdayQuestionCount, fridayQuestionCount];
 
-    if (competencies.some(c => !c?.trim())) {
-      return new Response(JSON.stringify({ error: "All daily competencies are required" }), {
+    // Enhanced validation with detailed error messages
+    const missingCompetencies = competencies.map((c, i) => c?.trim() ? null : days[i]).filter(Boolean);
+    if (missingCompetencies.length > 0) {
+      return new Response(JSON.stringify({ 
+        error: `Missing competencies for: ${missingCompetencies.join(', ')}. Please complete all daily competencies.`
+      }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if (examTypes.some(e => !e)) {
-      return new Response(JSON.stringify({ error: "All daily exam types are required" }), {
+    const missingExamTypes = examTypes.map((e, i) => e ? null : days[i]).filter(Boolean);
+    if (missingExamTypes.length > 0) {
+      return new Response(JSON.stringify({ 
+        error: `Missing exam types for: ${missingExamTypes.join(', ')}. Please select exam types for all days.`
+      }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if (questionCounts.some(q => !q || q < 3 || q > 20)) {
-      return new Response(JSON.stringify({ error: "All question counts must be between 3 and 20" }), {
+    const invalidQuestionCounts = questionCounts.map((q, i) => 
+      (!q || q < 3 || q > 20) ? `${days[i]} (${q || 'missing'})` : null
+    ).filter(Boolean);
+    if (invalidQuestionCounts.length > 0) {
+      return new Response(JSON.stringify({ 
+        error: `Invalid question counts for: ${invalidQuestionCounts.join(', ')}. Each day must have 3-20 questions.`
+      }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

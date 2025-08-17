@@ -219,6 +219,21 @@ const WeeLMatGenerator = () => {
           </Button>
         </header>
         <div className="p-6 space-y-5">
+          {/* Instructions Panel - Collapsible */}
+          <div className="rounded-xl border bg-muted/30 p-4">
+            <details className="group">
+              <summary className="cursor-pointer font-semibold text-sm text-muted-foreground hover:text-foreground transition-colors">
+                📋 Instructions & Tips (click to expand)
+              </summary>
+              <div className="mt-3 text-sm text-muted-foreground space-y-2 group-open:animate-fade-in">
+                <p><strong>About WeeLMat:</strong> This tool generates a Weekly Learning Matrix following DepEd guidelines for curriculum planning.</p>
+                <p><strong>Using the preview:</strong> Review the competencies (your exact inputs) and generated learning activities before downloading.</p>
+                <p><strong>DOCX format:</strong> Compatible with Microsoft Word and Google Docs for easy editing and sharing.</p>
+                <p><strong>Important:</strong> This is an unofficial tool. Generated content should be reviewed by educators before classroom use.</p>
+              </div>
+            </details>
+          </div>
+          
           <div className="rounded-xl border bg-background p-4">
             <div className="text-center space-y-1 mb-4">
               <p className="font-semibold">Weekly Learning Matrix (WeeLMat)</p>
