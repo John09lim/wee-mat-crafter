@@ -12,11 +12,7 @@ type FormValues = {
   section: string;
   dateFrom: string;
   dateTo: string;
-  mondayCompetency: string;
-  tuesdayCompetency: string;
-  wednesdayCompetency: string;
-  thursdayCompetency: string;
-  fridayCompetency: string;
+  competency: string;
   code?: string;
   customInstructions?: string;
   language?: string;

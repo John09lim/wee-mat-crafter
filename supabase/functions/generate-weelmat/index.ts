@@ -57,11 +57,7 @@ serve(async (req) => {
       section,
       dateFrom,
       dateTo,
-      mondayCompetency,
-      tuesdayCompetency,
-      wednesdayCompetency,
-      thursdayCompetency,
-      fridayCompetency,
+      competency,
       code,
       customInstructions,
       language,
@@ -90,7 +86,7 @@ serve(async (req) => {
 
     // Step 1: Search (Tavily if available)
     let curatedSources: Array<{ title: string; url: string; note: string }> = [];
-    const searchQuery = `${subject} ${gradeLevel} ${mondayCompetency}`.slice(0, 256);
+    const searchQuery = `${subject} ${gradeLevel} ${competency}`.slice(0, 256);
 
     if (TAVILY_API_KEY) {
       try {
@@ -138,56 +134,7 @@ serve(async (req) => {
       ];
     }
 
-    // Removed unused functions - now using direct user input
-
-    function makeStudentFriendly(competency: string, language: string): string {
-      // Convert formal competency statements to student-friendly targets
-      let friendly = competency;
-      
-      // Remove formal prefixes and make more accessible
-      friendly = friendly.replace(/^(The learner|Students will|Learners can)/i, "");
-      friendly = friendly.replace(/^(demonstrates|analyzes|evaluates|creates)/i, (match) => {
-        return match.toLowerCase().replace(/s$/, "");
-      });
-      
-      // Make it more actionable and student-focused
-      if (!friendly.match(/^(identify|understand|practice|apply|create|explore|analyze|demonstrate)/i)) {
-        if (language === "Filipino") {
-          friendly = "Matutuhan ang " + friendly.toLowerCase();
-        } else {
-          friendly = "Learn to " + friendly.toLowerCase();
-        }
-      }
-      
-      // Ensure it starts with capital letter
-      friendly = friendly.charAt(0).toUpperCase() + friendly.slice(1);
-      
-      // Clean up any remaining formatting issues
-      friendly = friendly.replace(/\s+/g, " ").trim();
-      
-      return friendly;
-    }
-
-    function getDayPrefix(dayIndex: number): string {
-      const prefixes = [
-        "Introduction: ",
-        "Development: ", 
-        "Practice: ",
-        "Application: ",
-        "Assessment: "
-      ];
-      return prefixes[dayIndex] || "";
-    }
-
-    // Use daily competencies directly from user input
-    const dailyCompetencies = {
-      Monday: mondayCompetency || '',
-      Tuesday: tuesdayCompetency || '',
-      Wednesday: wednesdayCompetency || '',
-      Thursday: thursdayCompetency || '',
-      Friday: fridayCompetency || ''
-    };
-    
+    // Step 2: AI generation via OpenAI or OpenRouter
     // Determine effective language (user override > subject rule)
     const subjLower = (subject || "").toLowerCase();
     const reqLower = (language || "").toLowerCase();
@@ -204,7 +151,7 @@ serve(async (req) => {
 Respond strictly in ${effectiveLanguage}.
 Subject Area: ${subject} | Grade Level: ${gradeLevel}
 Produce Monday–Friday entries for the Weekly Learning Matrix with three rows:
-- Row 2: COMPETENCY — Use the provided daily competency targets as complete sentences for each day
+- Row 2: COMPETENCY — Use EXACTLY what the user provided: "${competency}". Do NOT add, modify, or generate any new competency content. Simply distribute this exact competency across the week as-is.
 - Row 3: SUGGESTED LEARNING MATERIAL/REFERENCE — provide 2–3 specific items per day (exact titles + source/channel); prioritize DepEd resources, OER, and specific YouTube lesson titles, and vary sources across days.
 - Row 4: LEARNING ACTIVITIES/TASKS — Create real, practical tasks and activities for learners. Make quiz questions simple and directly based on the given competency.
 
@@ -218,9 +165,10 @@ All Learning Activities/Tasks must belong ONLY to: ${subject}
 - Stay 100% within ${subject} domain using only ${subject}-appropriate vocabulary and concepts
 
 COMPETENCY HANDLING RULES:
-- Use the exact daily competencies provided: Monday="${dailyCompetencies.Monday}", Tuesday="${dailyCompetencies.Tuesday}", Wednesday="${dailyCompetencies.Wednesday}", Thursday="${dailyCompetencies.Thursday}", Friday="${dailyCompetencies.Friday}"
-- Each day should have a complete, well-formed competency statement
-- In Learning Activities/Tasks, create simple quiz questions based on these competencies
+- Use EXACTLY the competency text provided by the user: "${competency}"
+- Do NOT generate, modify, add to, or rewrite the competency
+- Simply distribute the exact user input across Monday-Friday
+- In Learning Activities/Tasks, create simple quiz questions based on this exact competency
 - Focus on real tasks and activities that learners can actually perform
 
 DAILY QUESTION STRUCTURE (MANDATORY):
@@ -242,10 +190,7 @@ DAILY QUESTION STRUCTURE (MANDATORY):
 
 REQUIRED FORMAT for each day:
 "Instructions/Directions: [One concise paragraph explaining the specific question type and task].
-
-Quiz: [Numbered list with exact quantity based on grade level, using REAL questions from the competency].
-
-Each numbered question should be separated by a blank line for proper formatting."
+Quiz: [Numbered list with exact quantity based on grade level, using REAL questions from the competency]."
 
 QUALITY GUARDS (self-check before responding):
 - If any cross-subject content detected → regenerate internally and fix
@@ -286,12 +231,7 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
       }
       console.log("🤖 Calling DeepSeek API for Learning Activities generation...");
       
-      const activitiesPrompt = `Generate REAL Learning Activities/Tasks for ${subject} Grade ${gradeLevel} based on daily competencies:
-Monday: "${dailyCompetencies.Monday}"
-Tuesday: "${dailyCompetencies.Tuesday}"
-Wednesday: "${dailyCompetencies.Wednesday}"
-Thursday: "${dailyCompetencies.Thursday}"
-Friday: "${dailyCompetencies.Friday}"
+      const activitiesPrompt = `Generate REAL Learning Activities/Tasks for ${subject} Grade ${gradeLevel} based on competency: "${competency}".
 
 DAILY REQUIREMENTS:
 - Monday: ${getQuestionCount(gradeLevel)} IDENTIFICATION questions  
@@ -363,13 +303,13 @@ Return JSON format:
         console.log("✅ DeepSeek activities validated - no placeholders detected");
         
         return JSON.stringify({
-              competency: {
-                mon: dailyCompetencies.Monday,
-                tue: dailyCompetencies.Tuesday,
-                wed: dailyCompetencies.Wednesday,
-                thu: dailyCompetencies.Thursday,
-                fri: dailyCompetencies.Friday
-              },
+          competency: {
+            mon: competency,
+            tue: competency,
+            wed: competency,
+            thu: competency,
+            fri: competency
+          },
           references: {
             mon: "DepEd Curriculum Guide • Khan Academy Lessons • CK-12 Resources",
             tue: "Educational YouTube Videos • PhET Simulations • Online Modules",
@@ -520,11 +460,11 @@ Return JSON format:
             console.log("✅ OpenAI generated real questions successfully");
             return JSON.stringify({
               competency: {
-                mon: dailyCompetencies.Monday,
-                tue: dailyCompetencies.Tuesday,
-                wed: dailyCompetencies.Wednesday,
-                thu: dailyCompetencies.Thursday,
-                fri: dailyCompetencies.Friday
+                mon: competency,
+                tue: competency,
+                wed: competency,
+                thu: competency,
+                fri: competency
               },
               references: {
                 mon: "DepEd Curriculum Guide • Khan Academy Lessons • CK-12 Resources",
@@ -593,11 +533,11 @@ Return JSON format:
     function generateTemplate(comp: string): string {
       const template = {
         competency: {
-          mon: dailyCompetencies.Monday,
-          tue: dailyCompetencies.Tuesday,
-          wed: dailyCompetencies.Wednesday,
-          thu: dailyCompetencies.Thursday,
-          fri: dailyCompetencies.Friday
+          mon: comp,
+          tue: comp,
+          wed: comp,
+          thu: comp,
+          fri: comp
         },
         references: {
           mon: "DepEd Curriculum Guide • Khan Academy Lessons • CK-12 Resources",
@@ -713,7 +653,7 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
         { name: "Direct DeepSeek API", fn: callDeepSeek, cost: "$0.0014/1K tokens - USER HAS CREDITS" },
         { name: "OpenAI GPT-5", fn: callOpenAI, cost: "Premium" },
         { name: "DeepSeek via OpenRouter", fn: callOpenRouter, cost: "FREE" },
-        { name: "Subject-Specific Template", fn: () => generateTemplate(mondayCompetency), cost: "FREE" }
+        { name: "Subject-Specific Template", fn: () => generateTemplate(competency), cost: "FREE" }
       ];
       
       for (const provider of providers) {
@@ -749,7 +689,7 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
       
       // If all providers fail, return subject-specific template
       console.log("🔄 All AI providers failed, using subject-specific template for", subject, gradeLevel);
-      const templateJson = generateTemplate(mondayCompetency);
+      const templateJson = generateTemplate(competency);
       return JSON.parse(templateJson);
     }
 
@@ -767,7 +707,7 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
 
     // Generate real activities using the existing function instead of placeholders
     const getRealActivitiesFallback = () => {
-      const realActivities = getSubjectSpecificActivities(subject, mondayCompetency, gradeLevel);
+      const realActivities = getSubjectSpecificActivities(subject, competency, gradeLevel);
       return [
         realActivities.mon,
         realActivities.tue,
@@ -777,7 +717,14 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
       ];
     };
 
-    // Use the daily competencies as provided by user (already defined above as object)
+    // Ensure competency is populated with fallbacks
+    const competencyFallback = [
+      "Introduce and explore the learning competency through guided instruction.",
+      "Develop understanding through practice and application activities.",
+      "Strengthen skills through varied exercises and group work.",
+      "Apply knowledge in different contexts and scenarios.",
+      "Consolidate learning and prepare for assessment."
+    ];
 
     const pickDailyRefs = (): string[] => {
       const out: string[] = [];
@@ -822,14 +769,7 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
     const competencyIn = aiJson?.competency || {};
     aiJson.competency = days.reduce((acc: any, d, i) => {
       const val = norm((competencyIn as any)[d]);
-      const fallbackMapping = [
-        dailyCompetencies.Monday,
-        dailyCompetencies.Tuesday, 
-        dailyCompetencies.Wednesday,
-        dailyCompetencies.Thursday,
-        dailyCompetencies.Friday
-      ];
-      acc[d] = val && val.trim().length > 0 ? val : fallbackMapping[i] || "";
+      acc[d] = val && val.trim().length > 0 ? val : competencyFallback[i] || "";
       return acc;
     }, {});
 
@@ -844,13 +784,7 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
         section,
         date_from: dateFrom,
         date_to: dateTo,
-        competency: JSON.stringify({
-          mon: mondayCompetency,
-          tue: tuesdayCompetency,
-          wed: wednesdayCompetency,
-          thu: thursdayCompetency,
-          fri: fridayCompetency
-        }),
+        competency,
         code,
         custom_instructions: customInstructions,
         ai_json: aiJson,
@@ -985,42 +919,7 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
         new TableRow({
           children: [
             labelCell(label),
-            ...vals.map((v) => {
-              // Split content by questions and add proper spacing
-              const lines = v.split('\n');
-              const paragraphs = [];
-              let currentParagraph = '';
-              
-              for (const line of lines) {
-                if (line.match(/^\d+\./)) {
-                  // If we have accumulated text, create a paragraph
-                  if (currentParagraph.trim()) {
-                    paragraphs.push(new Paragraph({ text: currentParagraph.trim(), spacing: { after: 100 } }));
-                    currentParagraph = '';
-                  }
-                  // Start new paragraph with the numbered question
-                  currentParagraph = line;
-                } else {
-                  // Add to current paragraph
-                  currentParagraph += (currentParagraph ? '\n' : '') + line;
-                }
-              }
-              
-              // Add the last paragraph
-              if (currentParagraph.trim()) {
-                paragraphs.push(new Paragraph({ text: currentParagraph.trim(), spacing: { after: 100 } }));
-              }
-              
-              // If no paragraphs were created, create a single paragraph
-              if (paragraphs.length === 0) {
-                paragraphs.push(new Paragraph({ text: v, spacing: { after: 100 } }));
-              }
-              
-              return new TableCell({ 
-                children: paragraphs, 
-                width: { size: 16, type: WidthType.PERCENTAGE } 
-              });
-            }),
+            ...vals.map((v) => new TableCell({ children: [new Paragraph({ text: v, spacing: { after: 100 } })], width: { size: 16, type: WidthType.PERCENTAGE } })),
           ],
         });
 
