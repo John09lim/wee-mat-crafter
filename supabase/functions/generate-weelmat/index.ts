@@ -225,8 +225,14 @@ serve(async (req) => {
       return prefixes[dayIndex] || "";
     }
 
-    // Parse competencies and create daily targets
-    const parsedCompetencies = parseCompetencies(competency);
+    // Use daily competencies directly from user input
+    const dailyCompetencies = {
+      Monday: mondayCompetency || '',
+      Tuesday: tuesdayCompetency || '',
+      Wednesday: wednesdayCompetency || '',
+      Thursday: thursdayCompetency || '',
+      Friday: fridayCompetency || ''
+    };
     
     // Determine effective language (user override > subject rule)
     const subjLower = (subject || "").toLowerCase();
@@ -238,8 +244,6 @@ serve(async (req) => {
       : (subjLower.includes("filipino") || subjLower.includes("araling panlipunan") || subjLower === "ap" || subjLower.includes(" ap"))
       ? "Filipino"
       : "English";
-
-    const dailyCompetencyTargets = createDailyTargets(parsedCompetencies, effectiveLanguage);
 
     // System prompt with strict requirements (references must be populated)
     const systemPrompt = `You are the WeeLMat Lesson Matrix Writer for DepEd Negros Island Region.
@@ -260,7 +264,7 @@ All Learning Activities/Tasks must belong ONLY to: ${subject}
 - Stay 100% within ${subject} domain using only ${subject}-appropriate vocabulary and concepts
 
 COMPETENCY HANDLING RULES:
-- Use the daily competency targets provided: Monday="${dailyCompetencyTargets[0]}", Tuesday="${dailyCompetencyTargets[1]}", Wednesday="${dailyCompetencyTargets[2]}", Thursday="${dailyCompetencyTargets[3]}", Friday="${dailyCompetencyTargets[4]}"
+- Use the exact daily competencies provided: Monday="${dailyCompetencies.Monday}", Tuesday="${dailyCompetencies.Tuesday}", Wednesday="${dailyCompetencies.Wednesday}", Thursday="${dailyCompetencies.Thursday}", Friday="${dailyCompetencies.Friday}"
 - Each day should have a complete, well-formed competency statement
 - In Learning Activities/Tasks, create simple quiz questions based on these competencies
 - Focus on real tasks and activities that learners can actually perform
@@ -329,11 +333,11 @@ Strict table mapping rules: Column 1 is labels only: “Competency”, “Sugges
       console.log("🤖 Calling DeepSeek API for Learning Activities generation...");
       
       const activitiesPrompt = `Generate REAL Learning Activities/Tasks for ${subject} Grade ${gradeLevel} based on daily competencies:
-Monday: "${dailyCompetencyTargets[0]}"
-Tuesday: "${dailyCompetencyTargets[1]}"
-Wednesday: "${dailyCompetencyTargets[2]}"
-Thursday: "${dailyCompetencyTargets[3]}"
-Friday: "${dailyCompetencyTargets[4]}"
+Monday: "${dailyCompetencies.Monday}"
+Tuesday: "${dailyCompetencies.Tuesday}"
+Wednesday: "${dailyCompetencies.Wednesday}"
+Thursday: "${dailyCompetencies.Thursday}"
+Friday: "${dailyCompetencies.Friday}"
 
 DAILY REQUIREMENTS:
 - Monday: ${getQuestionCount(gradeLevel)} IDENTIFICATION questions  
@@ -406,11 +410,11 @@ Return JSON format:
         
         return JSON.stringify({
               competency: {
-                mon: dailyCompetencyTargets[0],
-                tue: dailyCompetencyTargets[1],
-                wed: dailyCompetencyTargets[2],
-                thu: dailyCompetencyTargets[3],
-                fri: dailyCompetencyTargets[4]
+                mon: dailyCompetencies.Monday,
+                tue: dailyCompetencies.Tuesday,
+                wed: dailyCompetencies.Wednesday,
+                thu: dailyCompetencies.Thursday,
+                fri: dailyCompetencies.Friday
               },
           references: {
             mon: "DepEd Curriculum Guide • Khan Academy Lessons • CK-12 Resources",
@@ -562,11 +566,11 @@ Return JSON format:
             console.log("✅ OpenAI generated real questions successfully");
             return JSON.stringify({
               competency: {
-                mon: dailyCompetencyTargets[0],
-                tue: dailyCompetencyTargets[1],
-                wed: dailyCompetencyTargets[2],
-                thu: dailyCompetencyTargets[3],
-                fri: dailyCompetencyTargets[4]
+                mon: dailyCompetencies.Monday,
+                tue: dailyCompetencies.Tuesday,
+                wed: dailyCompetencies.Wednesday,
+                thu: dailyCompetencies.Thursday,
+                fri: dailyCompetencies.Friday
               },
               references: {
                 mon: "DepEd Curriculum Guide • Khan Academy Lessons • CK-12 Resources",
@@ -635,11 +639,11 @@ Return JSON format:
     function generateTemplate(comp: string): string {
       const template = {
         competency: {
-          mon: dailyCompetencyTargets[0],
-          tue: dailyCompetencyTargets[1],
-          wed: dailyCompetencyTargets[2],
-          thu: dailyCompetencyTargets[3],
-          fri: dailyCompetencyTargets[4]
+          mon: dailyCompetencies.Monday,
+          tue: dailyCompetencies.Tuesday,
+          wed: dailyCompetencies.Wednesday,
+          thu: dailyCompetencies.Thursday,
+          fri: dailyCompetencies.Friday
         },
         references: {
           mon: "DepEd Curriculum Guide • Khan Academy Lessons • CK-12 Resources",
