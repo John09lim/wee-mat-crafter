@@ -51,6 +51,10 @@ serve(async (req) => {
   try {
     const authHeader = req.headers.get("Authorization");
     const jwt = authHeader?.split(" ")[1];
+    const requestBody = await req.json();
+    
+    console.log("Edge function received request:", JSON.stringify(requestBody, null, 2));
+    
     const {
       subject,
       gradeLevel,
@@ -75,7 +79,71 @@ serve(async (req) => {
       code,
       customInstructions,
       language,
-    } = await req.json();
+    } = requestBody;
+
+    // Enhanced validation with detailed logging
+    const requiredFields = [
+      { name: 'subject', value: subject },
+      { name: 'gradeLevel', value: gradeLevel },
+      { name: 'section', value: section },
+      { name: 'dateFrom', value: dateFrom },
+      { name: 'dateTo', value: dateTo },
+    ];
+
+    const dailyFields = [
+      { day: 'Monday', competency: mondayCompetency, examType: mondayExamType, questionCount: mondayQuestionCount },
+      { day: 'Tuesday', competency: tuesdayCompetency, examType: tuesdayExamType, questionCount: tuesdayQuestionCount },
+      { day: 'Wednesday', competency: wednesdayCompetency, examType: wednesdayExamType, questionCount: wednesdayQuestionCount },
+      { day: 'Thursday', competency: thursdayCompetency, examType: thursdayExamType, questionCount: thursdayQuestionCount },
+      { day: 'Friday', competency: fridayCompetency, examType: fridayExamType, questionCount: fridayQuestionCount },
+    ];
+
+    console.log("Validating required fields:", requiredFields);
+    console.log("Validating daily fields:", dailyFields);
+
+    // Validate required fields
+    const missingFields = requiredFields.filter(field => !field.value?.toString().trim());
+    if (missingFields.length > 0) {
+      console.error("Missing required fields:", missingFields.map(f => f.name));
+      return new Response(
+        JSON.stringify({
+          error: `Missing required fields: ${missingFields.map(f => f.name).join(', ')}`,
+          details: missingFields
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate daily fields
+    const incompleteDays = dailyFields.filter(day => 
+      !day.competency?.toString().trim() || 
+      !day.examType?.toString().trim() || 
+      !day.questionCount ||
+      typeof day.questionCount !== 'number' ||
+      day.questionCount < 3 || 
+      day.questionCount > 20
+    );
+
+    if (incompleteDays.length > 0) {
+      console.error("Incomplete daily fields:", incompleteDays);
+      return new Response(
+        JSON.stringify({
+          error: `Incomplete data for days: ${incompleteDays.map(d => d.day).join(', ')}`,
+          details: incompleteDays.map(day => ({
+            day: day.day,
+            issues: [
+              !day.competency?.toString().trim() ? 'missing competency' : null,
+              !day.examType?.toString().trim() ? 'missing exam type' : null,
+              !day.questionCount ? 'missing question count' : null,
+              (typeof day.questionCount !== 'number' || day.questionCount < 3 || day.questionCount > 20) ? 'invalid question count (must be 3-20)' : null
+            ].filter(Boolean)
+          }))
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("Validation passed - all required fields present");
 
     if (!jwt) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -485,6 +553,7 @@ Requirements:
     };
 
     // Step 3: Save to database
+    console.log("Saving matrix data to database...");
     const { data: matrixData, error: insertError } = await supabase
       .from("weelmat_matrices")
       .insert({
@@ -495,7 +564,6 @@ Requirements:
         date_from: dateFrom,
         date_to: dateTo,
         competency: `Mon: ${dailyPlan.Monday.competency}; Tue: ${dailyPlan.Tuesday.competency}; Wed: ${dailyPlan.Wednesday.competency}; Thu: ${dailyPlan.Thursday.competency}; Fri: ${dailyPlan.Friday.competency}`,
-        exam_details: `Mon: ${dailyPlan.Monday.examType} (${dailyPlan.Monday.questionCount}Q); Tue: ${dailyPlan.Tuesday.examType} (${dailyPlan.Tuesday.questionCount}Q); Wed: ${dailyPlan.Wednesday.examType} (${dailyPlan.Wednesday.questionCount}Q); Thu: ${dailyPlan.Thursday.examType} (${dailyPlan.Thursday.questionCount}Q); Fri: ${dailyPlan.Friday.examType} (${dailyPlan.Friday.questionCount}Q)`,
         code: code || null,
         custom_instructions: customInstructions || null,
         ai_json: aiJson,
@@ -505,8 +573,10 @@ Requirements:
 
     if (insertError) {
       console.error("Database insert error:", insertError);
-      throw new Error("Failed to save matrix data");
+      throw new Error(`Failed to save matrix data: ${insertError.message}`);
     }
+
+    console.log("Matrix data saved successfully:", matrixData);
 
     const matrixId = matrixData?.id;
 
