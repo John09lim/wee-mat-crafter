@@ -12,7 +12,11 @@ type FormValues = {
   section: string;
   dateFrom: string;
   dateTo: string;
-  competency: string;
+  mondayCompetency: string;
+  tuesdayCompetency: string;
+  wednesdayCompetency: string;
+  thursdayCompetency: string;
+  fridayCompetency: string;
   code?: string;
   customInstructions?: string;
   language?: string;
@@ -28,9 +32,10 @@ const WeeLMatGenerator = () => {
 
   const steps = useMemo(
     () => [
-      "Searching trusted references…",
-      "Drafting Monday–Friday plan…",
-      "Building your DOCX & PDF…",
+      "Planning daily competencies…",
+      "Selecting trusted references…", 
+      "Drafting learning activities…",
+      "Finalizing DOCX & PDF…",
     ],
     []
   );
@@ -69,9 +74,10 @@ const WeeLMatGenerator = () => {
     }
 
     let timers: number[] = [];
-    // staged UI progression independent of backend
-    timers.push(window.setTimeout(() => setStepIndex(1), 1200));
-    timers.push(window.setTimeout(() => setStepIndex(2), 2600));
+    // Minimum 15-second loading with staged progression
+    timers.push(window.setTimeout(() => setStepIndex(1), 3000));
+    timers.push(window.setTimeout(() => setStepIndex(2), 6000));
+    timers.push(window.setTimeout(() => setStepIndex(3), 9000));
 
     (async () => {
       try {
@@ -221,9 +227,11 @@ const WeeLMatGenerator = () => {
                     </TableRow>
                     <TableRow>
                       <TableCell className="font-semibold text-xs min-w-[120px]">Competency</TableCell>
-                      {["mon","tue","wed","thu","fri"].map((d) => (
-                        <TableCell key={d} className="text-xs min-w-[120px] break-words">{aiJson?.competency?.[d] || ""}</TableCell>
-                      ))}
+                      <TableCell className="text-xs min-w-[120px] break-words">{values?.mondayCompetency || ""}</TableCell>
+                      <TableCell className="text-xs min-w-[120px] break-words">{values?.tuesdayCompetency || ""}</TableCell>
+                      <TableCell className="text-xs min-w-[120px] break-words">{values?.wednesdayCompetency || ""}</TableCell>
+                      <TableCell className="text-xs min-w-[120px] break-words">{values?.thursdayCompetency || ""}</TableCell>
+                      <TableCell className="text-xs min-w-[120px] break-words">{values?.fridayCompetency || ""}</TableCell>
                     </TableRow>
                     <TableRow>
                       <TableCell className="font-semibold text-xs min-w-[120px]">Suggested Learning Material/Reference</TableCell>
@@ -283,7 +291,7 @@ const WeeLMatGenerator = () => {
                 </div>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">This may take ~10–20 seconds.</p>
+            <p className="text-xs text-muted-foreground">This may take ~15–30 seconds for quality results.</p>
           </div>
         ) : (
           <Success />

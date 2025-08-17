@@ -17,7 +17,11 @@ const schema = z.object({
   section: z.string().min(1, "Section is required"),
   dateFrom: z.string().min(1, "From date is required"),
   dateTo: z.string().min(1, "To date is required"),
-  competency: z.string().min(1, "Competency is required"),
+  mondayCompetency: z.string().min(1, "Monday competency is required").transform(s => s.trim()),
+  tuesdayCompetency: z.string().min(1, "Tuesday competency is required").transform(s => s.trim()),
+  wednesdayCompetency: z.string().min(1, "Wednesday competency is required").transform(s => s.trim()),
+  thursdayCompetency: z.string().min(1, "Thursday competency is required").transform(s => s.trim()),
+  fridayCompetency: z.string().min(1, "Friday competency is required").transform(s => s.trim()),
   code: z.string().optional().or(z.literal("")),
   customInstructions: z.string().optional().or(z.literal("")),
   language: z.enum(["English","Filipino"]).default("English"),
@@ -43,9 +47,10 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const steps = useMemo(() => [
-    "Searching trusted references…",
-    "Drafting Monday–Friday plan…",
-    "Building your DOCX & PDF…",
+    "Planning daily competencies…",
+    "Selecting trusted references…",
+    "Drafting learning activities…",
+    "Finalizing DOCX & PDF…",
   ], []);
 
   useEffect(() => {
@@ -68,7 +73,6 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
 
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
-    // Redirect to generator page with form values; the generator will run the process
     navigate("/weelmatgenerator", { state: values });
   }
 
@@ -134,9 +138,35 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
               </div>
 
               <div>
-                <Label>Competency</Label>
-                <Textarea rows={4} placeholder="Teacher’s exact phrasing" {...register("competency")} />
-                {errors.competency && <p className="text-destructive text-sm mt-1">{errors.competency.message}</p>}
+                <Label className="text-base font-medium">Daily Competencies</Label>
+                <p className="text-sm text-muted-foreground mb-4">Enter the exact competency for each day. These will appear exactly as typed in your WeeLMat.</p>
+                <div className="grid gap-4">
+                  <div>
+                    <Label htmlFor="mondayCompetency">Monday Competency</Label>
+                    <Textarea rows={2} placeholder="Enter Monday's competency exactly as you want it to appear" {...register("mondayCompetency")} />
+                    {errors.mondayCompetency && <p className="text-destructive text-sm mt-1">{errors.mondayCompetency.message}</p>}
+                  </div>
+                  <div>
+                    <Label htmlFor="tuesdayCompetency">Tuesday Competency</Label>
+                    <Textarea rows={2} placeholder="Enter Tuesday's competency exactly as you want it to appear" {...register("tuesdayCompetency")} />
+                    {errors.tuesdayCompetency && <p className="text-destructive text-sm mt-1">{errors.tuesdayCompetency.message}</p>}
+                  </div>
+                  <div>
+                    <Label htmlFor="wednesdayCompetency">Wednesday Competency</Label>
+                    <Textarea rows={2} placeholder="Enter Wednesday's competency exactly as you want it to appear" {...register("wednesdayCompetency")} />
+                    {errors.wednesdayCompetency && <p className="text-destructive text-sm mt-1">{errors.wednesdayCompetency.message}</p>}
+                  </div>
+                  <div>
+                    <Label htmlFor="thursdayCompetency">Thursday Competency</Label>
+                    <Textarea rows={2} placeholder="Enter Thursday's competency exactly as you want it to appear" {...register("thursdayCompetency")} />
+                    {errors.thursdayCompetency && <p className="text-destructive text-sm mt-1">{errors.thursdayCompetency.message}</p>}
+                  </div>
+                  <div>
+                    <Label htmlFor="fridayCompetency">Friday Competency</Label>
+                    <Textarea rows={2} placeholder="Enter Friday's competency exactly as you want it to appear" {...register("fridayCompetency")} />
+                    {errors.fridayCompetency && <p className="text-destructive text-sm mt-1">{errors.fridayCompetency.message}</p>}
+                  </div>
+                </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
@@ -146,7 +176,7 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
                 </div>
                 <div>
                   <Label>Custom Instructions (optional)</Label>
-                  <Textarea rows={3} placeholder="Context, language, differentiation, constraints…" {...register("customInstructions")} />
+                  <Textarea rows={4} placeholder="Additional context, language preferences, differentiation needs, specific constraints or requirements…" {...register("customInstructions")} />
                 </div>
               </div>
 
@@ -188,7 +218,6 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
         </aside>
       </section>
       
-      {/* Disclaimer Section */}
       <section className="mt-12 p-6 bg-muted/30 rounded-lg border">
         <h3 className="text-lg font-semibold mb-4 text-foreground">Important Disclaimer</h3>
         <div className="space-y-3 text-sm text-muted-foreground">
