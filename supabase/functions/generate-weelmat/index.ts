@@ -57,7 +57,11 @@ serve(async (req) => {
       section,
       dateFrom,
       dateTo,
-      competency,
+      mondayCompetency,
+      tuesdayCompetency,
+      wednesdayCompetency,
+      thursdayCompetency,
+      fridayCompetency,
       code,
       customInstructions,
       language,
@@ -86,7 +90,7 @@ serve(async (req) => {
 
     // Step 1: Search (Tavily if available)
     let curatedSources: Array<{ title: string; url: string; note: string }> = [];
-    const searchQuery = `${subject} ${gradeLevel} ${competency}`.slice(0, 256);
+    const searchQuery = `${subject} ${gradeLevel} ${mondayCompetency}`.slice(0, 256);
 
     if (TAVILY_API_KEY) {
       try {
@@ -134,17 +138,21 @@ serve(async (req) => {
       ];
     }
 
-    // Step 2: Parse and process competencies for daily targets
-    function parseCompetencies(competencyInput: string): string[] {
-      if (!competencyInput?.trim()) return [];
-      
-      // Split by newlines or semicolons and clean up
-      const competencies = competencyInput
-        .split(/[\n;]+/)
-        .map(comp => comp.trim())
-        .filter(comp => comp.length > 0);
-      
-      return competencies;
+    // Step 2: Get daily competencies from user input
+    function getDailyCompetencies(
+      mondayCompetency: string,
+      tuesdayCompetency: string,
+      wednesdayCompetency: string,
+      thursdayCompetency: string,
+      fridayCompetency: string
+    ): string[] {
+      return [
+        mondayCompetency.trim(),
+        tuesdayCompetency.trim(),
+        wednesdayCompetency.trim(),
+        thursdayCompetency.trim(),
+        fridayCompetency.trim()
+      ];
     }
 
     function createDailyTargets(competencies: string[], effectiveLanguage: string): string[] {
@@ -747,7 +755,7 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
         { name: "Direct DeepSeek API", fn: callDeepSeek, cost: "$0.0014/1K tokens - USER HAS CREDITS" },
         { name: "OpenAI GPT-5", fn: callOpenAI, cost: "Premium" },
         { name: "DeepSeek via OpenRouter", fn: callOpenRouter, cost: "FREE" },
-        { name: "Subject-Specific Template", fn: () => generateTemplate(competency), cost: "FREE" }
+        { name: "Subject-Specific Template", fn: () => generateTemplate(mondayCompetency), cost: "FREE" }
       ];
       
       for (const provider of providers) {
@@ -783,7 +791,7 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
       
       // If all providers fail, return subject-specific template
       console.log("🔄 All AI providers failed, using subject-specific template for", subject, gradeLevel);
-      const templateJson = generateTemplate(competency);
+      const templateJson = generateTemplate(mondayCompetency);
       return JSON.parse(templateJson);
     }
 
@@ -799,9 +807,18 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
       return String(v);
     };
 
+    // Get daily competencies from user input
+    const dailyCompetencies = getDailyCompetencies(
+      mondayCompetency,
+      tuesdayCompetency,
+      wednesdayCompetency,
+      thursdayCompetency,
+      fridayCompetency
+    );
+
     // Generate real activities using the existing function instead of placeholders
     const getRealActivitiesFallback = () => {
-      const realActivities = getSubjectSpecificActivities(subject, competency, gradeLevel);
+      const realActivities = getSubjectSpecificActivities(subject, mondayCompetency, gradeLevel);
       return [
         realActivities.mon,
         realActivities.tue,
@@ -811,8 +828,8 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
       ];
     };
 
-    // Use the daily competency targets as fallbacks instead of generic text
-    const competencyFallback = dailyCompetencyTargets;
+    // Use the daily competencies as provided by user
+    const competencyFallback = dailyCompetencies;
 
     const pickDailyRefs = (): string[] => {
       const out: string[] = [];
@@ -872,7 +889,13 @@ Expected Output: Multiple choice responses showing mastery. Contingency: Compreh
         section,
         date_from: dateFrom,
         date_to: dateTo,
-        competency,
+        competency: JSON.stringify({
+          mon: mondayCompetency,
+          tue: tuesdayCompetency,
+          wed: wednesdayCompetency,
+          thu: thursdayCompetency,
+          fri: fridayCompetency
+        }),
         code,
         custom_instructions: customInstructions,
         ai_json: aiJson,

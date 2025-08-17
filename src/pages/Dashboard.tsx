@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/sonner";
 
 const schema = z.object({
@@ -17,7 +18,11 @@ const schema = z.object({
   section: z.string().min(1, "Section is required"),
   dateFrom: z.string().min(1, "From date is required"),
   dateTo: z.string().min(1, "To date is required"),
-  competency: z.string().min(1, "Competency is required"),
+  mondayCompetency: z.string().min(1, "Monday competency is required"),
+  tuesdayCompetency: z.string().min(1, "Tuesday competency is required"),
+  wednesdayCompetency: z.string().min(1, "Wednesday competency is required"),
+  thursdayCompetency: z.string().min(1, "Thursday competency is required"),
+  fridayCompetency: z.string().min(1, "Friday competency is required"),
   code: z.string().optional().or(z.literal("")),
   customInstructions: z.string().optional().or(z.literal("")),
   language: z.enum(["English","Filipino"]).default("English"),
@@ -63,6 +68,11 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
   defaultValues: {
     gradeLevel: "",
     language: "English",
+    mondayCompetency: "",
+    tuesdayCompetency: "",
+    wednesdayCompetency: "",
+    thursdayCompetency: "",
+    fridayCompetency: "",
   }
 });
 
@@ -134,9 +144,41 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
               </div>
 
               <div>
-                <Label>Competency</Label>
-                <Textarea rows={4} placeholder="Teacher’s exact phrasing" {...register("competency")} />
-                {errors.competency && <p className="text-destructive text-sm mt-1">{errors.competency.message}</p>}
+                <Label>Daily Competencies</Label>
+                <Tabs defaultValue="monday" className="w-full">
+                  <TabsList className="grid w-full grid-cols-5">
+                    <TabsTrigger value="monday">Monday</TabsTrigger>
+                    <TabsTrigger value="tuesday">Tuesday</TabsTrigger>
+                    <TabsTrigger value="wednesday">Wednesday</TabsTrigger>
+                    <TabsTrigger value="thursday">Thursday</TabsTrigger>
+                    <TabsTrigger value="friday">Friday</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="monday" className="mt-4">
+                    <Label>Monday Competency</Label>
+                    <Textarea rows={4} placeholder="Monday's specific competency..." {...register("mondayCompetency")} />
+                    {errors.mondayCompetency && <p className="text-destructive text-sm mt-1">{errors.mondayCompetency.message}</p>}
+                  </TabsContent>
+                  <TabsContent value="tuesday" className="mt-4">
+                    <Label>Tuesday Competency</Label>
+                    <Textarea rows={4} placeholder="Tuesday's specific competency..." {...register("tuesdayCompetency")} />
+                    {errors.tuesdayCompetency && <p className="text-destructive text-sm mt-1">{errors.tuesdayCompetency.message}</p>}
+                  </TabsContent>
+                  <TabsContent value="wednesday" className="mt-4">
+                    <Label>Wednesday Competency</Label>
+                    <Textarea rows={4} placeholder="Wednesday's specific competency..." {...register("wednesdayCompetency")} />
+                    {errors.wednesdayCompetency && <p className="text-destructive text-sm mt-1">{errors.wednesdayCompetency.message}</p>}
+                  </TabsContent>
+                  <TabsContent value="thursday" className="mt-4">
+                    <Label>Thursday Competency</Label>
+                    <Textarea rows={4} placeholder="Thursday's specific competency..." {...register("thursdayCompetency")} />
+                    {errors.thursdayCompetency && <p className="text-destructive text-sm mt-1">{errors.thursdayCompetency.message}</p>}
+                  </TabsContent>
+                  <TabsContent value="friday" className="mt-4">
+                    <Label>Friday Competency</Label>
+                    <Textarea rows={4} placeholder="Friday's specific competency..." {...register("fridayCompetency")} />
+                    {errors.fridayCompetency && <p className="text-destructive text-sm mt-1">{errors.fridayCompetency.message}</p>}
+                  </TabsContent>
+                </Tabs>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
@@ -146,7 +188,7 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
                 </div>
                 <div>
                   <Label>Custom Instructions (optional)</Label>
-                  <Textarea rows={3} placeholder="Context, language, differentiation, constraints…" {...register("customInstructions")} />
+                  <Textarea rows={6} placeholder="Context, language, differentiation, constraints, specific teaching strategies, assessment notes..." {...register("customInstructions")} />
                 </div>
               </div>
 
