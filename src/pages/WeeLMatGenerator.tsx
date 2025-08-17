@@ -17,6 +17,16 @@ type FormValues = {
   wednesdayCompetency: string;
   thursdayCompetency: string;
   fridayCompetency: string;
+  mondayExamType: string;
+  tuesdayExamType: string;
+  wednesdayExamType: string;
+  thursdayExamType: string;
+  fridayExamType: string;
+  mondayQuestionCount: number;
+  tuesdayQuestionCount: number;
+  wednesdayQuestionCount: number;
+  thursdayQuestionCount: number;
+  fridayQuestionCount: number;
   code?: string;
   customInstructions?: string;
   language?: string;
@@ -32,10 +42,10 @@ const WeeLMatGenerator = () => {
 
   const steps = useMemo(
     () => [
-      "Planning daily competencies…",
+      "Planning daily assessments…",
       "Selecting trusted references…", 
       "Drafting learning activities…",
-      "Finalizing DOCX & PDF…",
+      "Building DOCX…",
     ],
     []
   );

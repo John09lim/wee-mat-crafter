@@ -11,6 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 
+const examTypes = ["Identification", "Matching Type", "True/False", "Multiple Choice", "Essay", "Performance Task", "Other"] as const;
+const questionCounts = [5, 10, 15] as const;
+
 const schema = z.object({
   subject: z.string().min(1, "Subject is required"),
   gradeLevel: z.string().min(1, "Grade is required"),
@@ -22,6 +25,16 @@ const schema = z.object({
   wednesdayCompetency: z.string().min(1, "Wednesday competency is required").transform(s => s.trim()),
   thursdayCompetency: z.string().min(1, "Thursday competency is required").transform(s => s.trim()),
   fridayCompetency: z.string().min(1, "Friday competency is required").transform(s => s.trim()),
+  mondayExamType: z.enum(examTypes, { required_error: "Monday exam type is required" }),
+  tuesdayExamType: z.enum(examTypes, { required_error: "Tuesday exam type is required" }),
+  wednesdayExamType: z.enum(examTypes, { required_error: "Wednesday exam type is required" }),
+  thursdayExamType: z.enum(examTypes, { required_error: "Thursday exam type is required" }),
+  fridayExamType: z.enum(examTypes, { required_error: "Friday exam type is required" }),
+  mondayQuestionCount: z.number().min(3, "Minimum 3 questions").max(20, "Maximum 20 questions"),
+  tuesdayQuestionCount: z.number().min(3, "Minimum 3 questions").max(20, "Maximum 20 questions"),
+  wednesdayQuestionCount: z.number().min(3, "Minimum 3 questions").max(20, "Maximum 20 questions"),
+  thursdayQuestionCount: z.number().min(3, "Minimum 3 questions").max(20, "Maximum 20 questions"),
+  fridayQuestionCount: z.number().min(3, "Minimum 3 questions").max(20, "Maximum 20 questions"),
   code: z.string().optional().or(z.literal("")),
   customInstructions: z.string().optional().or(z.literal("")),
   language: z.enum(["English","Filipino"]).default("English"),
@@ -68,8 +81,26 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
   defaultValues: {
     gradeLevel: "",
     language: "English",
+    mondayQuestionCount: 10,
+    tuesdayQuestionCount: 10,
+    wednesdayQuestionCount: 10,
+    thursdayQuestionCount: 10,
+    fridayQuestionCount: 10,
   }
 });
+
+const [customCounts, setCustomCounts] = useState<Record<string, number>>({});
+
+const watchedValues = watch();
+
+  const isFormComplete = (values: Partial<FormValues>) => {
+    const days = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+    return days.every(day => 
+      values[`${day}Competency` as keyof FormValues] &&
+      values[`${day}ExamType` as keyof FormValues] &&
+      values[`${day}QuestionCount` as keyof FormValues]
+    );
+  };
 
   const onSubmit = async (values: FormValues) => {
     setLoading(true);
@@ -138,34 +169,109 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
               </div>
 
               <div>
-                <Label className="text-base font-medium">Daily Competencies</Label>
-                <p className="text-sm text-muted-foreground mb-4">Enter the exact competency for each day. These will appear exactly as typed in your WeeLMat.</p>
-                <div className="grid gap-4">
-                  <div>
-                    <Label htmlFor="mondayCompetency">Monday Competency</Label>
-                    <Textarea rows={2} placeholder="Enter Monday's competency exactly as you want it to appear" {...register("mondayCompetency")} />
-                    {errors.mondayCompetency && <p className="text-destructive text-sm mt-1">{errors.mondayCompetency.message}</p>}
-                  </div>
-                  <div>
-                    <Label htmlFor="tuesdayCompetency">Tuesday Competency</Label>
-                    <Textarea rows={2} placeholder="Enter Tuesday's competency exactly as you want it to appear" {...register("tuesdayCompetency")} />
-                    {errors.tuesdayCompetency && <p className="text-destructive text-sm mt-1">{errors.tuesdayCompetency.message}</p>}
-                  </div>
-                  <div>
-                    <Label htmlFor="wednesdayCompetency">Wednesday Competency</Label>
-                    <Textarea rows={2} placeholder="Enter Wednesday's competency exactly as you want it to appear" {...register("wednesdayCompetency")} />
-                    {errors.wednesdayCompetency && <p className="text-destructive text-sm mt-1">{errors.wednesdayCompetency.message}</p>}
-                  </div>
-                  <div>
-                    <Label htmlFor="thursdayCompetency">Thursday Competency</Label>
-                    <Textarea rows={2} placeholder="Enter Thursday's competency exactly as you want it to appear" {...register("thursdayCompetency")} />
-                    {errors.thursdayCompetency && <p className="text-destructive text-sm mt-1">{errors.thursdayCompetency.message}</p>}
-                  </div>
-                  <div>
-                    <Label htmlFor="fridayCompetency">Friday Competency</Label>
-                    <Textarea rows={2} placeholder="Enter Friday's competency exactly as you want it to appear" {...register("fridayCompetency")} />
-                    {errors.fridayCompetency && <p className="text-destructive text-sm mt-1">{errors.fridayCompetency.message}</p>}
-                  </div>
+                <Label className="text-base font-medium">Daily Learning Plan Setup</Label>
+                <p className="text-sm text-muted-foreground mb-4">Configure competency, exam type, and question count for each day. All fields are required.</p>
+                <div className="grid gap-6">
+                  {[
+                    { day: "Monday", prefix: "monday" },
+                    { day: "Tuesday", prefix: "tuesday" },
+                    { day: "Wednesday", prefix: "wednesday" },
+                    { day: "Thursday", prefix: "thursday" },
+                    { day: "Friday", prefix: "friday" }
+                  ].map(({ day, prefix }) => (
+                    <div key={day} className="border rounded-lg p-4 space-y-4">
+                      <h3 className="font-medium text-lg text-primary">{day}</h3>
+                      
+                      {/* Competency */}
+                      <div>
+                        <Label htmlFor={`${prefix}Competency`}>Competency</Label>
+                        <Textarea 
+                          rows={2} 
+                          placeholder={`Enter ${day}'s competency exactly as you want it to appear`} 
+                          {...register(`${prefix}Competency` as any)} 
+                        />
+                        {errors[`${prefix}Competency` as keyof typeof errors] && (
+                          <p className="text-destructive text-sm mt-1">
+                            {errors[`${prefix}Competency` as keyof typeof errors]?.message}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Exam Type */}
+                      <div>
+                        <Label>Exam Type</Label>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                          {examTypes.map((type) => (
+                            <Button
+                              key={type}
+                              type="button"
+                              variant={watchedValues[`${prefix}ExamType` as keyof FormValues] === type ? "default" : "outline"}
+                              size="sm"
+                              className="text-xs h-8"
+                              onClick={() => setValue(`${prefix}ExamType` as any, type)}
+                            >
+                              {type}
+                            </Button>
+                          ))}
+                        </div>
+                        {errors[`${prefix}ExamType` as keyof typeof errors] && (
+                          <p className="text-destructive text-sm mt-1">
+                            {errors[`${prefix}ExamType` as keyof typeof errors]?.message}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Question Count */}
+                      <div>
+                        <Label>Question Count</Label>
+                        <div className="flex items-center gap-2 mt-2">
+                          {questionCounts.map((count) => (
+                            <Button
+                              key={count}
+                              type="button"
+                              variant={watchedValues[`${prefix}QuestionCount` as keyof FormValues] === count ? "default" : "outline"}
+                              size="sm"
+                              className="text-xs h-8 w-12"
+                              onClick={() => setValue(`${prefix}QuestionCount` as any, count)}
+                            >
+                              {count}
+                            </Button>
+                          ))}
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant={!questionCounts.includes(watchedValues[`${prefix}QuestionCount` as keyof FormValues] as any) ? "default" : "outline"}
+                              size="sm"
+                              className="text-xs h-8"
+                              onClick={() => {
+                                const customValue = customCounts[prefix] || 10;
+                                setValue(`${prefix}QuestionCount` as any, customValue);
+                              }}
+                            >
+                              Custom
+                            </Button>
+                            <Input
+                              type="number"
+                              min={3}
+                              max={20}
+                              className="w-16 h-8 text-xs"
+                              value={customCounts[prefix] || watchedValues[`${prefix}QuestionCount` as keyof FormValues] || 10}
+                              onChange={(e) => {
+                                const val = parseInt(e.target.value) || 10;
+                                setCustomCounts(prev => ({ ...prev, [prefix]: val }));
+                                setValue(`${prefix}QuestionCount` as any, val);
+                              }}
+                            />
+                          </div>
+                        </div>
+                        {errors[`${prefix}QuestionCount` as keyof typeof errors] && (
+                          <p className="text-destructive text-sm mt-1">
+                            {errors[`${prefix}QuestionCount` as keyof typeof errors]?.message}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -176,13 +282,29 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
                 </div>
                 <div>
                   <Label>Custom Instructions (optional)</Label>
-                  <Textarea rows={4} placeholder="Additional context, language preferences, differentiation needs, specific constraints or requirements…" {...register("customInstructions")} />
+                  <Textarea rows={6} placeholder="Additional context, specific assessment criteria, differentiation needs, classroom management considerations, or other requirements for the learning activities…" {...register("customInstructions")} />
                 </div>
               </div>
 
               <div className="flex items-center gap-3">
-                <Button type="submit" disabled={loading}>{loading?"Generating…":"Generate WeeLMat (DOCX)"}</Button>
-                <Button type="button" variant="outline" onClick={() => reset()} disabled={loading}>Reset</Button>
+                <Button 
+                  type="submit" 
+                  disabled={loading || !isFormComplete(watchedValues)}
+                  className="relative"
+                >
+                  {loading ? "Generating…" : "Generate WeeLMat (DOCX)"}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => {
+                  reset();
+                  setCustomCounts({});
+                }} disabled={loading}>
+                  Reset
+                </Button>
+                {!isFormComplete(watchedValues) && (
+                  <p className="text-sm text-muted-foreground">
+                    Complete all daily configurations to generate
+                  </p>
+                )}
               </div>
             </form>
           </div>

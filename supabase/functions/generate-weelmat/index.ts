@@ -62,6 +62,16 @@ serve(async (req) => {
       wednesdayCompetency,
       thursdayCompetency,
       fridayCompetency,
+      mondayExamType,
+      tuesdayExamType,
+      wednesdayExamType,
+      thursdayExamType,
+      fridayExamType,
+      mondayQuestionCount,
+      tuesdayQuestionCount,
+      wednesdayQuestionCount,
+      thursdayQuestionCount,
+      fridayQuestionCount,
       code,
       customInstructions,
       language,
@@ -74,10 +84,28 @@ serve(async (req) => {
       });
     }
 
-    // Validate all daily competencies are provided
-    if (!mondayCompetency?.trim() || !tuesdayCompetency?.trim() || !wednesdayCompetency?.trim() || 
-        !thursdayCompetency?.trim() || !fridayCompetency?.trim()) {
+    // Validate all daily inputs are provided
+    const days = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+    const competencies = [mondayCompetency, tuesdayCompetency, wednesdayCompetency, thursdayCompetency, fridayCompetency];
+    const examTypes = [mondayExamType, tuesdayExamType, wednesdayExamType, thursdayExamType, fridayExamType];
+    const questionCounts = [mondayQuestionCount, tuesdayQuestionCount, wednesdayQuestionCount, thursdayQuestionCount, fridayQuestionCount];
+
+    if (competencies.some(c => !c?.trim())) {
       return new Response(JSON.stringify({ error: "All daily competencies are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (examTypes.some(e => !e)) {
+      return new Response(JSON.stringify({ error: "All daily exam types are required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (questionCounts.some(q => !q || q < 3 || q > 20)) {
+      return new Response(JSON.stringify({ error: "All question counts must be between 3 and 20" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -97,13 +125,33 @@ serve(async (req) => {
       });
     }
 
-    // Store exact user competencies (read-only for AI)
-    const dailyCompetencies = {
-      Monday: mondayCompetency.trim(),
-      Tuesday: tuesdayCompetency.trim(),
-      Wednesday: wednesdayCompetency.trim(),
-      Thursday: thursdayCompetency.trim(),
-      Friday: fridayCompetency.trim(),
+    // Store exact user inputs (read-only for AI)
+    const dailyPlan = {
+      Monday: {
+        competency: mondayCompetency.trim(),
+        examType: mondayExamType,
+        questionCount: mondayQuestionCount,
+      },
+      Tuesday: {
+        competency: tuesdayCompetency.trim(),
+        examType: tuesdayExamType,
+        questionCount: tuesdayQuestionCount,
+      },
+      Wednesday: {
+        competency: wednesdayCompetency.trim(),
+        examType: wednesdayExamType,
+        questionCount: wednesdayQuestionCount,
+      },
+      Thursday: {
+        competency: thursdayCompetency.trim(),
+        examType: thursdayExamType,
+        questionCount: thursdayQuestionCount,
+      },
+      Friday: {
+        competency: fridayCompetency.trim(),
+        examType: fridayExamType,
+        questionCount: fridayQuestionCount,
+      },
     };
 
     // Step 1: Search (Tavily if available)
@@ -145,21 +193,21 @@ serve(async (req) => {
     // Generate effective language
     const effectiveLanguage = language || "English";
 
-    // Create comprehensive system prompt for AI
+    // Create comprehensive system prompt for AI focused on Row 4 generation
     const systemPrompt = `You are an expert DepEd Philippines curriculum specialist creating Weekly Learning Matrix content.
 
 CRITICAL INSTRUCTIONS:
 1. NEVER modify or change the competency text provided for each day
 2. Generate ONLY References (Row 3) and Learning Activities/Tasks (Row 4) for each day
-3. Use each day's specific competency to create relevant content for that day
+3. For Row 4, create exactly ${dailyPlan.Monday.questionCount} ${dailyPlan.Monday.examType} questions for Monday, ${dailyPlan.Tuesday.questionCount} ${dailyPlan.Tuesday.examType} questions for Tuesday, etc.
 4. Return ONLY a JSON object with this exact structure - no explanations
 
-Daily Competencies (DO NOT MODIFY THESE):
-- Monday: "${dailyCompetencies.Monday}"
-- Tuesday: "${dailyCompetencies.Tuesday}"
-- Wednesday: "${dailyCompetencies.Wednesday}"
-- Thursday: "${dailyCompetencies.Thursday}"
-- Friday: "${dailyCompetencies.Friday}"
+Daily Learning Plan (DO NOT MODIFY COMPETENCIES):
+- Monday: "${dailyPlan.Monday.competency}" | Exam: ${dailyPlan.Monday.examType} | Questions: ${dailyPlan.Monday.questionCount}
+- Tuesday: "${dailyPlan.Tuesday.competency}" | Exam: ${dailyPlan.Tuesday.examType} | Questions: ${dailyPlan.Tuesday.questionCount}
+- Wednesday: "${dailyPlan.Wednesday.competency}" | Exam: ${dailyPlan.Wednesday.examType} | Questions: ${dailyPlan.Wednesday.questionCount}
+- Thursday: "${dailyPlan.Thursday.competency}" | Exam: ${dailyPlan.Thursday.examType} | Questions: ${dailyPlan.Thursday.questionCount}
+- Friday: "${dailyPlan.Friday.competency}" | Exam: ${dailyPlan.Friday.examType} | Questions: ${dailyPlan.Friday.questionCount}
 
 Context:
 - Subject: ${subject}
@@ -173,39 +221,58 @@ ${customInstructions ? `- Additional Instructions: ${customInstructions}` : ""}
 Available References:
 ${curatedSources.map(s => `• ${s.title}: ${s.url} (${s.note})`).join('\n') || 'General DepEd curriculum resources'}
 
+EXAM TYPE FORMATTING RULES (Row 4):
+- Identification: Concrete prompts expecting specific terms/phrases
+- Matching Type: Two labeled lists (A and B) with clear pairs
+- True/False: Declarative statements about the competency; avoid placeholders
+- Multiple Choice: Stem + A–D realistic options; mark the correct answer
+- Essay: Distinct prompts with focus/criteria
+- Performance Task: Scenario + expected product + short criteria/rubric
+- Other: Short-response items tied to the competency
+
+ROW 4 FORMAT PER DAY:
+Instructions/Directions: [One concise paragraph tied to the competency and exam type]
+
+Quiz:
+1. [First question based on exam type]
+2. [Second question based on exam type]
+...
+N. [Nth question where N = question_count]
+
+Expected Output: [Optional brief description]
+Contingency: [Optional backup plan]
+
 Return EXACTLY this JSON structure with NO additional text:
 {
   "competency": {
-    "mon": "${dailyCompetencies.Monday}",
-    "tue": "${dailyCompetencies.Tuesday}",
-    "wed": "${dailyCompetencies.Wednesday}", 
-    "thu": "${dailyCompetencies.Thursday}",
-    "fri": "${dailyCompetencies.Friday}"
+    "mon": "${dailyPlan.Monday.competency}",
+    "tue": "${dailyPlan.Tuesday.competency}",
+    "wed": "${dailyPlan.Wednesday.competency}", 
+    "thu": "${dailyPlan.Thursday.competency}",
+    "fri": "${dailyPlan.Friday.competency}"
   },
   "references": {
-    "mon": "Specific references for Monday's competency",
-    "tue": "Specific references for Tuesday's competency",
-    "wed": "Specific references for Wednesday's competency",
-    "thu": "Specific references for Thursday's competency",
-    "fri": "Specific references for Friday's competency"
+    "mon": "Specific DepEd-aligned references for Monday's competency",
+    "tue": "Specific DepEd-aligned references for Tuesday's competency",
+    "wed": "Specific DepEd-aligned references for Wednesday's competency",
+    "thu": "Specific DepEd-aligned references for Thursday's competency",
+    "fri": "Specific DepEd-aligned references for Friday's competency"
   },
   "activities": {
-    "mon": "Specific learning activities for Monday's competency",
-    "tue": "Specific learning activities for Tuesday's competency", 
-    "wed": "Specific learning activities for Wednesday's competency",
-    "thu": "Specific learning activities for Thursday's competency",
-    "fri": "Specific learning activities for Friday's competency"
+    "mon": "Learning Activities/Tasks for Monday formatted as described above",
+    "tue": "Learning Activities/Tasks for Tuesday formatted as described above", 
+    "wed": "Learning Activities/Tasks for Wednesday formatted as described above",
+    "thu": "Learning Activities/Tasks for Thursday formatted as described above",
+    "fri": "Learning Activities/Tasks for Friday formatted as described above"
   }
 }
 
 Requirements:
-- Each day's references must align with that specific day's competency
-- Each day's activities must align with that specific day's competency
-- References should include DepEd-aligned materials, textbooks, online resources
-- Activities should be grade-appropriate, engaging, and curriculum-aligned
 - Use ${effectiveLanguage} language throughout
-- Keep responses concise but comprehensive
-- Focus on practical, implementable activities`;
+- No placeholders like [statement] or generic terms
+- Real, domain-specific content based on subject and grade level
+- Exact question count per day as specified
+- Professional exam formatting with proper structure`;
 
     // Step 2: AI Generation with prioritized API calls
     let aiJson: any = null;
@@ -341,41 +408,68 @@ Requirements:
       }
     }
 
-    // If all AI APIs fail, create a template with exact user competencies
+    // If all AI APIs fail, create a template with exact user inputs
     if (!aiJson) {
       console.log("All AI APIs failed, using template");
+      const generateTemplateActivities = (day: string, plan: any) => {
+        const count = plan.questionCount;
+        const type = plan.examType;
+        let questions = "";
+        
+        for (let i = 1; i <= count; i++) {
+          switch (type) {
+            case "Multiple Choice":
+              questions += `${i}. What is the main concept in ${plan.competency.split(' ').slice(0, 3).join(' ')}?\n   A. Option A\n   B. Option B\n   C. Option C\n   D. Option D\n\n`;
+              break;
+            case "True/False":
+              questions += `${i}. ${plan.competency.split('.')[0]} is an important learning objective. (True/False)\n\n`;
+              break;
+            case "Identification":
+              questions += `${i}. Identify the key term that relates to: ${plan.competency.split(' ').slice(0, 5).join(' ')}\n\n`;
+              break;
+            case "Essay":
+              questions += `${i}. Explain how you would apply the competency: ${plan.competency.slice(0, 100)}...\n\n`;
+              break;
+            default:
+              questions += `${i}. Create a task related to: ${plan.competency.split(' ').slice(0, 5).join(' ')}\n\n`;
+          }
+        }
+        
+        return `Instructions/Directions: Complete the following ${type.toLowerCase()} assessment based on ${day}'s competency.\n\nQuiz:\n${questions}Expected Output: Completed assessment demonstrating understanding of the competency.\nContingency: Review materials and attempt again if needed.`;
+      };
+
       aiJson = {
         competency: {
-          mon: dailyCompetencies.Monday,
-          tue: dailyCompetencies.Tuesday,
-          wed: dailyCompetencies.Wednesday,
-          thu: dailyCompetencies.Thursday,
-          fri: dailyCompetencies.Friday,
+          mon: dailyPlan.Monday.competency,
+          tue: dailyPlan.Tuesday.competency,
+          wed: dailyPlan.Wednesday.competency,
+          thu: dailyPlan.Thursday.competency,
+          fri: dailyPlan.Friday.competency,
         },
         references: {
-          mon: `${subject} textbook, DepEd learning materials, relevant online resources`,
-          tue: `${subject} textbook, DepEd learning materials, relevant online resources`,
-          wed: `${subject} textbook, DepEd learning materials, relevant online resources`,
-          thu: `${subject} textbook, DepEd learning materials, relevant online resources`,
-          fri: `${subject} textbook, DepEd learning materials, relevant online resources`,
+          mon: `${subject} textbook, DepEd learning materials, K-12 curriculum guides`,
+          tue: `${subject} textbook, DepEd learning materials, K-12 curriculum guides`,
+          wed: `${subject} textbook, DepEd learning materials, K-12 curriculum guides`,
+          thu: `${subject} textbook, DepEd learning materials, K-12 curriculum guides`,
+          fri: `${subject} textbook, DepEd learning materials, K-12 curriculum guides`,
         },
         activities: {
-          mon: `Interactive activities, group work, and assessment aligned with Monday's competency`,
-          tue: `Interactive activities, group work, and assessment aligned with Tuesday's competency`,
-          wed: `Interactive activities, group work, and assessment aligned with Wednesday's competency`,
-          thu: `Interactive activities, group work, and assessment aligned with Thursday's competency`,
-          fri: `Interactive activities, group work, and assessment aligned with Friday's competency`,
+          mon: generateTemplateActivities("Monday", dailyPlan.Monday),
+          tue: generateTemplateActivities("Tuesday", dailyPlan.Tuesday),
+          wed: generateTemplateActivities("Wednesday", dailyPlan.Wednesday),
+          thu: generateTemplateActivities("Thursday", dailyPlan.Thursday),
+          fri: generateTemplateActivities("Friday", dailyPlan.Friday),
         },
       };
     }
 
     // Ensure competencies match exactly what user provided (never trust AI for this)
     aiJson.competency = {
-      mon: dailyCompetencies.Monday,
-      tue: dailyCompetencies.Tuesday,
-      wed: dailyCompetencies.Wednesday,
-      thu: dailyCompetencies.Thursday,
-      fri: dailyCompetencies.Friday,
+      mon: dailyPlan.Monday.competency,
+      tue: dailyPlan.Tuesday.competency,
+      wed: dailyPlan.Wednesday.competency,
+      thu: dailyPlan.Thursday.competency,
+      fri: dailyPlan.Friday.competency,
     };
 
     // Step 3: Save to database
@@ -388,7 +482,8 @@ Requirements:
         section,
         date_from: dateFrom,
         date_to: dateTo,
-        competency: `Mon: ${dailyCompetencies.Monday}; Tue: ${dailyCompetencies.Tuesday}; Wed: ${dailyCompetencies.Wednesday}; Thu: ${dailyCompetencies.Thursday}; Fri: ${dailyCompetencies.Friday}`,
+        competency: `Mon: ${dailyPlan.Monday.competency}; Tue: ${dailyPlan.Tuesday.competency}; Wed: ${dailyPlan.Wednesday.competency}; Thu: ${dailyPlan.Thursday.competency}; Fri: ${dailyPlan.Friday.competency}`,
+        exam_details: `Mon: ${dailyPlan.Monday.examType} (${dailyPlan.Monday.questionCount}Q); Tue: ${dailyPlan.Tuesday.examType} (${dailyPlan.Tuesday.questionCount}Q); Wed: ${dailyPlan.Wednesday.examType} (${dailyPlan.Wednesday.questionCount}Q); Thu: ${dailyPlan.Thursday.examType} (${dailyPlan.Thursday.questionCount}Q); Fri: ${dailyPlan.Friday.examType} (${dailyPlan.Friday.questionCount}Q)`,
         code: code || null,
         custom_instructions: customInstructions || null,
         ai_json: aiJson,
@@ -493,23 +588,23 @@ Requirements:
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: dailyCompetencies.Monday, size: 14 })] })],
+                    children: [new Paragraph({ children: [new TextRun({ text: dailyPlan.Monday.competency, size: 14 })] })],
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: dailyCompetencies.Tuesday, size: 14 })] })],
+                    children: [new Paragraph({ children: [new TextRun({ text: dailyPlan.Tuesday.competency, size: 14 })] })],
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: dailyCompetencies.Wednesday, size: 14 })] })],
+                    children: [new Paragraph({ children: [new TextRun({ text: dailyPlan.Wednesday.competency, size: 14 })] })],
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: dailyCompetencies.Thursday, size: 14 })] })],
+                    children: [new Paragraph({ children: [new TextRun({ text: dailyPlan.Thursday.competency, size: 14 })] })],
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: dailyCompetencies.Friday, size: 14 })] })],
+                    children: [new Paragraph({ children: [new TextRun({ text: dailyPlan.Friday.competency, size: 14 })] })],
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                 ],
