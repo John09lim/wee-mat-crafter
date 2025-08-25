@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
+import { PasscodeDialog } from "@/components/PasscodeDialog";
 
 const examTypes = ["Identification", "Matching Type", "True/False", "Multiple Choice", "Essay", "Performance Task", "Other"] as const;
 const questionCounts = [5, 10, 15] as const;
@@ -59,6 +60,8 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const [showPasscodeDialog, setShowPasscodeDialog] = useState(false);
+  const [passcodeVerified, setPasscodeVerified] = useState(false);
   const steps = useMemo(() => [
     "Planning daily competencies…",
     "Selecting trusted references…",
@@ -75,6 +78,21 @@ const Dashboard = () => {
     });
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  useEffect(() => {
+    // Check if passcode is already verified
+    const isVerified = localStorage.getItem("dashboard_passcode_verified") === "true";
+    if (isVerified) {
+      setPasscodeVerified(true);
+    } else {
+      setShowPasscodeDialog(true);
+    }
+  }, []);
+
+  const handlePasscodeVerified = () => {
+    setPasscodeVerified(true);
+    setShowPasscodeDialog(false);
+  };
 
 const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<FormValues>({
   resolver: zodResolver(schema),
@@ -150,8 +168,15 @@ const watchedValues = watch();
   const [result, setResult] = useState<{subject:string;grade:string;section:string;dates:string;docx?:string;pdf?:string}|null>(null);
 
   return (
-    <main className="min-h-[calc(100vh-160px)] py-12 bg-background">
-      <section className="container grid lg:grid-cols-3 gap-8">
+    <>
+      <PasscodeDialog 
+        open={showPasscodeDialog} 
+        onPasscodeVerified={handlePasscodeVerified}
+      />
+      
+      {passcodeVerified && (
+        <main className="min-h-[calc(100vh-160px)] py-12 bg-background">
+          <section className="container grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           <div className="rounded-2xl border bg-card p-6 shadow-sm">
             <h1 className="text-2xl font-semibold mb-4">Create a Weekly Learning Matrix</h1>
@@ -400,7 +425,9 @@ const watchedValues = watch();
           </p>
         </div>
       </section>
-    </main>
+        </main>
+      )}
+    </>
   );
 };
 
