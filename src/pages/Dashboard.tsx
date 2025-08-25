@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/components/ui/sonner";
 import { PasscodeDialog } from "@/components/PasscodeDialog";
 
-const examTypes = ["Identification", "Matching Type", "True/False", "Multiple Choice", "Essay", "Performance Task", "Other"] as const;
+const examTypes = ["Identification", "Matching Type", "True/False", "Multiple Choice", "Essay", "Performance Task", "HOLIDAY"] as const;
 const questionCounts = [5, 10, 15] as const;
 
 const schema = z.object({
@@ -127,6 +127,11 @@ const watchedValues = watch();
       const competency = values[`${day}Competency` as keyof FormValues] as string;
       const examType = values[`${day}ExamType` as keyof FormValues];
       const questionCount = values[`${day}QuestionCount` as keyof FormValues] as number;
+      
+      // For HOLIDAY, only check that examType is set and competency is "HOLIDAY"
+      if (examType === "HOLIDAY") {
+        return competency?.trim() === "HOLIDAY" && questionCount;
+      }
       
       return competency?.trim() && examType && questionCount && 
              typeof questionCount === 'number' && questionCount >= 3 && questionCount <= 20;
@@ -273,7 +278,13 @@ const watchedValues = watch();
                               variant={watchedValues[`${prefix}ExamType` as keyof FormValues] === type ? "default" : "outline"}
                               size="sm"
                               className="text-xs h-8"
-                              onClick={() => setValue(`${prefix}ExamType` as any, type)}
+                              onClick={() => {
+                                setValue(`${prefix}ExamType` as any, type);
+                                // Auto-populate competency when HOLIDAY is selected
+                                if (type === "HOLIDAY") {
+                                  setValue(`${prefix}Competency` as any, "HOLIDAY");
+                                }
+                              }}
                             >
                               {type}
                             </Button>
@@ -302,32 +313,6 @@ const watchedValues = watch();
                               {count}
                             </Button>
                           ))}
-                          <div className="flex items-center gap-2">
-                            <Button
-                              type="button"
-                              variant={!questionCounts.includes(watchedValues[`${prefix}QuestionCount` as keyof FormValues] as any) ? "default" : "outline"}
-                              size="sm"
-                              className="text-xs h-8"
-                              onClick={() => {
-                                const customValue = customCounts[prefix] || 10;
-                                setValue(`${prefix}QuestionCount` as any, customValue);
-                              }}
-                            >
-                              Custom
-                            </Button>
-                            <Input
-                              type="number"
-                              min={3}
-                              max={20}
-                              className="w-16 h-8 text-xs"
-                              value={customCounts[prefix] || watchedValues[`${prefix}QuestionCount` as keyof FormValues] || 10}
-                              onChange={(e) => {
-                                const val = parseInt(e.target.value) || 10;
-                                setCustomCounts(prev => ({ ...prev, [prefix]: val }));
-                                setValue(`${prefix}QuestionCount` as any, val);
-                              }}
-                            />
-                          </div>
                         </div>
                         {errors[`${prefix}QuestionCount` as keyof typeof errors] && (
                           <p className="text-destructive text-sm mt-1">

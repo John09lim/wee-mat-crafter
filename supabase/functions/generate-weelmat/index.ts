@@ -114,15 +114,24 @@ serve(async (req) => {
       );
     }
 
-    // Validate daily fields
-    const incompleteDays = dailyFields.filter(day => 
-      !day.competency?.toString().trim() || 
-      !day.examType?.toString().trim() || 
-      !day.questionCount ||
-      typeof day.questionCount !== 'number' ||
-      day.questionCount < 3 || 
-      day.questionCount > 20
-    );
+    // Validate daily fields (allow HOLIDAY as special case)
+    const incompleteDays = dailyFields.filter(day => {
+      // For HOLIDAY exam type, only require examType and that competency is "HOLIDAY"
+      if (day.examType === "HOLIDAY") {
+        return !day.competency?.toString().trim() || 
+               day.competency?.toString().trim() !== "HOLIDAY" ||
+               !day.questionCount ||
+               typeof day.questionCount !== 'number';
+      }
+      
+      // For other exam types, use normal validation
+      return !day.competency?.toString().trim() || 
+             !day.examType?.toString().trim() || 
+             !day.questionCount ||
+             typeof day.questionCount !== 'number' ||
+             day.questionCount < 3 || 
+             day.questionCount > 20;
+    });
 
     if (incompleteDays.length > 0) {
       console.error("Incomplete daily fields:", incompleteDays);
@@ -158,8 +167,14 @@ serve(async (req) => {
     const examTypes = [mondayExamType, tuesdayExamType, wednesdayExamType, thursdayExamType, fridayExamType];
     const questionCounts = [mondayQuestionCount, tuesdayQuestionCount, wednesdayQuestionCount, thursdayQuestionCount, fridayQuestionCount];
 
-    // Enhanced validation with detailed error messages
-    const missingCompetencies = competencies.map((c, i) => c?.trim() ? null : days[i]).filter(Boolean);
+    // Enhanced validation with detailed error messages (allow HOLIDAY)
+    const missingCompetencies = competencies.map((c, i) => {
+      const examType = examTypes[i];
+      if (examType === "HOLIDAY") {
+        return (c?.trim() === "HOLIDAY") ? null : days[i];
+      }
+      return c?.trim() ? null : days[i];
+    }).filter(Boolean);
     if (missingCompetencies.length > 0) {
       return new Response(JSON.stringify({ 
         error: `Missing competencies for: ${missingCompetencies.join(', ')}. Please complete all daily competencies.`
@@ -179,9 +194,15 @@ serve(async (req) => {
       });
     }
 
-    const invalidQuestionCounts = questionCounts.map((q, i) => 
-      (!q || q < 3 || q > 20) ? `${days[i]} (${q || 'missing'})` : null
-    ).filter(Boolean);
+    const invalidQuestionCounts = questionCounts.map((q, i) => {
+      const examType = examTypes[i];
+      // For HOLIDAY, just check if questionCount exists
+      if (examType === "HOLIDAY") {
+        return (!q) ? `${days[i]} (${q || 'missing'})` : null;
+      }
+      // For other types, check normal range
+      return (!q || q < 3 || q > 20) ? `${days[i]} (${q || 'missing'})` : null;
+    }).filter(Boolean);
     if (invalidQuestionCounts.length > 0) {
       return new Response(JSON.stringify({ 
         error: `Invalid question counts for: ${invalidQuestionCounts.join(', ')}. Each day must have 3-20 questions.`
@@ -358,8 +379,12 @@ Requirements:
     let aiJson: any = null;
     let aiError: string | null = null;
 
-    // Try DeepSeek first (cost-effective)
-    if (DEEPSEEK_API_KEY && !aiJson) {
+    // Check if any day is HOLIDAY - if so, skip AI and use HOLIDAY template
+    const hasHoliday = [mondayExamType, tuesdayExamType, wednesdayExamType, thursdayExamType, fridayExamType].includes("HOLIDAY");
+    console.log("Has HOLIDAY days:", hasHoliday);
+
+    // Try DeepSeek first (cost-effective, unless HOLIDAY)
+    if (DEEPSEEK_API_KEY && !aiJson && !hasHoliday) {
       try {
         console.log("Trying DeepSeek API...");
         const deepSeekRes = await fetch("https://api.deepseek.com/chat/completions", {
@@ -402,10 +427,15 @@ Requirements:
       }
     }
 
-    // If DeepSeek API fails, create a template with exact user inputs
+    // If DeepSeek API fails or HOLIDAY detected, create a template with exact user inputs
     if (!aiJson) {
-      console.log("DeepSeek API failed, using template");
+      console.log(hasHoliday ? "HOLIDAY detected, using HOLIDAY template" : "DeepSeek API failed, using template");
+      
       const generateTemplateActivities = (day: string, plan: any) => {
+        // Handle HOLIDAY case
+        if (plan.examType === "HOLIDAY") {
+          return "No class - Holiday";
+        }
         const count = plan.questionCount;
         const type = plan.examType;
         let questions = "";
@@ -432,6 +462,12 @@ Requirements:
         return `Instructions/Directions: Complete the following ${type.toLowerCase()} assessment based on ${day}'s competency.\n\nQuiz:\n${questions}Expected Output: Completed assessment demonstrating understanding of the competency.\nContingency: Review materials and attempt again if needed.`;
       };
 
+      const generateReference = (plan: any) => {
+        return plan.examType === "HOLIDAY" ? 
+          "No references needed - Holiday" : 
+          `${subject} textbook, DepEd learning materials, K-12 curriculum guides`;
+      };
+
       aiJson = {
         competency: {
           mon: dailyPlan.Monday.competency,
@@ -441,11 +477,11 @@ Requirements:
           fri: dailyPlan.Friday.competency,
         },
         references: {
-          mon: `${subject} textbook, DepEd learning materials, K-12 curriculum guides`,
-          tue: `${subject} textbook, DepEd learning materials, K-12 curriculum guides`,
-          wed: `${subject} textbook, DepEd learning materials, K-12 curriculum guides`,
-          thu: `${subject} textbook, DepEd learning materials, K-12 curriculum guides`,
-          fri: `${subject} textbook, DepEd learning materials, K-12 curriculum guides`,
+          mon: generateReference(dailyPlan.Monday),
+          tue: generateReference(dailyPlan.Tuesday),
+          wed: generateReference(dailyPlan.Wednesday),
+          thu: generateReference(dailyPlan.Thursday),
+          fri: generateReference(dailyPlan.Friday),
         },
         activities: {
           mon: generateTemplateActivities("Monday", dailyPlan.Monday),
