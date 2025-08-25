@@ -32,8 +32,7 @@ type FormValues = {
   language?: string;
 };
 
-const logoUrl =
-  "https://raw.githubusercontent.com/John09lim/wee-mat-crafter/main/public/Screenshot%202025-08-11%20074334.png";
+const logoUrl = "/weelmat-logo.png";
 
 const WeeLMatGenerator = () => {
   const navigate = useNavigate();
@@ -75,6 +74,16 @@ const WeeLMatGenerator = () => {
       document.head.appendChild(link);
     }
     link.href = window.location.origin + "/weelmatgenerator";
+    
+    // Preload LCP image for better performance
+    let preloadLink = document.querySelector('link[rel="preload"][href="/weelmat-logo.png"]') as HTMLLinkElement | null;
+    if (!preloadLink) {
+      preloadLink = document.createElement("link");
+      preloadLink.rel = "preload";
+      preloadLink.as = "image";
+      preloadLink.href = "/weelmat-logo.png";
+      document.head.appendChild(preloadLink);
+    }
   }, []);
 
   useEffect(() => {
@@ -324,6 +333,7 @@ const WeeLMatGenerator = () => {
                 (e.currentTarget as HTMLImageElement).src = "/Screenshot%202025-08-11%20074334.png";
               }}
               loading="eager"
+              fetchPriority="high"
             />
             <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
               <div className="h-full w-1/3 bg-primary animate-[slide-in-right_1.4s_ease-out_infinite]" />
