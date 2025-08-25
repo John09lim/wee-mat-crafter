@@ -402,95 +402,9 @@ Requirements:
       }
     }
 
-    // Try OpenRouter as fallback
-    if (OPENROUTER_API_KEY && !aiJson) {
-      try {
-        console.log("Trying OpenRouter API...");
-        const openRouterRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "anthropic/claude-3.5-haiku",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: "Generate the weekly learning matrix content following the exact format specified." }
-            ],
-            temperature: 0.7,
-            max_tokens: 2000,
-          }),
-        });
-
-        if (openRouterRes.ok) {
-          const openRouterData = await openRouterRes.json();
-          const content = openRouterData.choices?.[0]?.message?.content?.trim();
-          if (content) {
-            try {
-              const jsonMatch = content.match(/\{[\s\S]*\}/);
-              if (jsonMatch) {
-                aiJson = JSON.parse(jsonMatch[0]);
-                console.log("OpenRouter API successful");
-              }
-            } catch (parseError) {
-              console.error("OpenRouter JSON parse error:", parseError);
-            }
-          }
-        } else {
-          console.error("OpenRouter API failed:", await openRouterRes.text());
-        }
-      } catch (error) {
-        console.error("OpenRouter API error:", error);
-      }
-    }
-
-    // Try OpenAI as final fallback
-    if (OPENAI_API_KEY && !aiJson) {
-      try {
-        console.log("Trying OpenAI API...");
-        const openAIRes = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${OPENAI_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "gpt-4o-mini",
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: "Generate the weekly learning matrix content following the exact format specified." }
-            ],
-            temperature: 0.7,
-            max_tokens: 2000,
-          }),
-        });
-
-        if (openAIRes.ok) {
-          const openAIData = await openAIRes.json();
-          const content = openAIData.choices?.[0]?.message?.content?.trim();
-          if (content) {
-            try {
-              const jsonMatch = content.match(/\{[\s\S]*\}/);
-              if (jsonMatch) {
-                aiJson = JSON.parse(jsonMatch[0]);
-                console.log("OpenAI API successful");
-              }
-            } catch (parseError) {
-              console.error("OpenAI JSON parse error:", parseError);
-            }
-          }
-        } else {
-          console.error("OpenAI API failed:", await openAIRes.text());
-        }
-      } catch (error) {
-        console.error("OpenAI API error:", error);
-      }
-    }
-
-    // If all AI APIs fail, create a template with exact user inputs
+    // If DeepSeek API fails, create a template with exact user inputs
     if (!aiJson) {
-      console.log("All AI APIs failed, using template");
+      console.log("DeepSeek API failed, using template");
       const generateTemplateActivities = (day: string, plan: any) => {
         const count = plan.questionCount;
         const type = plan.examType;

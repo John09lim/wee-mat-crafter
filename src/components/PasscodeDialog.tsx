@@ -67,6 +67,8 @@ export const PasscodeDialog: React.FC<PasscodeDialogProps> = ({ open, onPasscode
         <div className="space-y-6">
           <Alert className="border-accent/20 bg-accent/5">
             <AlertDescription className="text-sm text-center">
+              <strong>We apologize for the inconvenience.</strong> The platform is currently undergoing improvements to better serve our educators.
+              <br />
               <strong>Platform Status:</strong> Currently upgrading and improving features.
               <br />
               New educational tools will be available soon!
