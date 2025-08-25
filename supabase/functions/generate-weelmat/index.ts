@@ -304,6 +304,12 @@ CRITICAL JSON FORMAT REQUIREMENTS:
 4. NEVER modify the competency text provided
 5. Generate REAL questions - NO placeholders like "Option A, B, C, D"
 
+LANGUAGE REQUIREMENTS:
+- Generate ALL content in ${effectiveLanguage}
+- Instructions, questions, and activities should be in ${effectiveLanguage}
+- Use appropriate educational language for ${gradeLevel} students
+- Follow DepEd curriculum standards for ${effectiveLanguage} instruction
+
 Daily Learning Plan (DO NOT MODIFY COMPETENCIES):
 - Monday: "${dailyPlan.Monday.competency}" | Exam: ${dailyPlan.Monday.examType} | Questions: ${dailyPlan.Monday.questionCount}
 - Tuesday: "${dailyPlan.Tuesday.competency}" | Exam: ${dailyPlan.Tuesday.examType} | Questions: ${dailyPlan.Tuesday.questionCount}
@@ -320,7 +326,7 @@ Context:
 ${code ? `- Curriculum Code: ${code}` : ""}
 ${customInstructions ? `- Additional Instructions: ${customInstructions}` : ""}
 
-EXAM TYPE REQUIREMENTS - CREATE REAL QUESTIONS:
+EXAM TYPE REQUIREMENTS - CREATE REAL QUESTIONS IN ${effectiveLanguage}:
 - Multiple Choice: Real questions with factual options (A, B, C, D) - mark correct answer with *
 - Identification: Specific terms students should identify
 - Essay: Thought-provoking questions requiring analysis
@@ -470,57 +476,113 @@ Return EXACTLY this JSON structure:
           for (let i = 1; i <= count; i++) {
             switch (type) {
               case "Multiple Choice":
-                if (subjectLower.includes('filipino')) {
-                  questions += `${i}. Ano ang tamang pag-gamit ng pang-uri sa pangungusap?\n   A. Ang magandang bulaklak ay namumulaklak sa hardin.\n   B. Ang bulaklak na maganda ay namumulaklak sa hardin.\n   C. Ang bulaklak ay maganda sa hardin.\n   D. Ang hardin ay may magandang bulaklak.\n\n`;
-                } else if (subjectLower.includes('math')) {
-                  questions += `${i}. What is the result of 8 × 7?\n   A. 54\n   B. 56\n   C. 58\n   D. 60\n\n`;
-                } else if (subjectLower.includes('science')) {
-                  questions += `${i}. Which part of the plant is responsible for photosynthesis?\n   A. Roots\n   B. Stem\n   C. Leaves\n   D. Flowers\n\n`;
-                } else if (subjectLower.includes('epp')) {
-                  questions += `${i}. Ano ang pangunahing benepisyo ng pag-aalaga ng manok sa natural na paraan?\n   A. Mas mataas ang gastos sa pagkain\n   B. Mas mababa ang kalidad ng itlog\n   C. Mas masustansyang produkto\n   D. Mas mataas ang mortality rate\n\n`;
+                if (effectiveLanguage === 'Filipino') {
+                  if (subjectLower.includes('filipino')) {
+                    questions += `${i}. Ano ang tamang pag-gamit ng pang-uri sa pangungusap?\n   A. Ang magandang bulaklak ay namumulaklak sa hardin.\n   B. Ang bulaklak na maganda ay namumulaklak sa hardin.\n   C. Ang bulaklak ay maganda sa hardin.\n   D. Ang hardin ay may magandang bulaklak.\n\n`;
+                  } else if (subjectLower.includes('math')) {
+                    questions += `${i}. Ano ang sagot sa 8 × 7?\n   A. 54\n   B. 56\n   C. 58\n   D. 60\n\n`;
+                  } else if (subjectLower.includes('science')) {
+                    questions += `${i}. Anong bahagi ng halaman ang responsable sa photosynthesis?\n   A. Ugat\n   B. Tangkay\n   C. Dahon\n   D. Bulaklak\n\n`;
+                  } else if (subjectLower.includes('epp')) {
+                    questions += `${i}. Ano ang pangunahing benepisyo ng pag-aalaga ng manok sa natural na paraan?\n   A. Mas mataas ang gastos sa pagkain\n   B. Mas mababa ang kalidad ng itlog\n   C. Mas masustansyang produkto\n   D. Mas mataas ang mortality rate\n\n`;
+                  } else {
+                    questions += `${i}. Batay sa kompetensya na "${competency.split(' ').slice(0, 8).join(' ')}", alin ang pinaka-tumpak na pahayag?\n   A. Ang konseptong ito ay saligang-bato sa pag-unawa sa paksa\n   B. Ang kasanayang ito ay nangangailangan ng pagsasanay at paggamit\n   C. Ang kaalamang ito ay nakabase sa nakaraang natutuhan\n   D. Lahat ng nabanggit\n\n`;
+                  }
                 } else {
-                  questions += `${i}. Based on the competency "${competency.split(' ').slice(0, 8).join(' ')}", which statement is most accurate?\n   A. This concept is fundamental to understanding the subject\n   B. This skill requires practice and application\n   C. This knowledge builds on previous learning\n   D. All of the above\n\n`;
+                  if (subjectLower.includes('filipino')) {
+                    questions += `${i}. What is the correct use of adjectives in a sentence?\n   A. The beautiful flower is blooming in the garden.\n   B. The flower that is beautiful is blooming in the garden.\n   C. The flower is beautiful in the garden.\n   D. The garden has a beautiful flower.\n\n`;
+                  } else if (subjectLower.includes('math')) {
+                    questions += `${i}. What is the result of 8 × 7?\n   A. 54\n   B. 56\n   C. 58\n   D. 60\n\n`;
+                  } else if (subjectLower.includes('science')) {
+                    questions += `${i}. Which part of the plant is responsible for photosynthesis?\n   A. Roots\n   B. Stem\n   C. Leaves\n   D. Flowers\n\n`;
+                  } else if (subjectLower.includes('epp')) {
+                    questions += `${i}. What is the main benefit of caring for chickens naturally?\n   A. Higher feeding costs\n   B. Lower egg quality\n   C. More nutritious products\n   D. Higher mortality rate\n\n`;
+                  } else {
+                    questions += `${i}. Based on the competency "${competency.split(' ').slice(0, 8).join(' ')}", which statement is most accurate?\n   A. This concept is fundamental to understanding the subject\n   B. This skill requires practice and application\n   C. This knowledge builds on previous learning\n   D. All of the above\n\n`;
+                  }
                 }
                 break;
               case "Identification":
-                if (subjectLower.includes('filipino')) {
-                  questions += `${i}. Tukuyin ang uri ng salitang may salungguhit: "Ang MATALINONG bata ay nag-aaral nang mabuti."\n\n`;
-                } else if (subjectLower.includes('math')) {
-                  questions += `${i}. Identify the geometric shape with 4 equal sides and 4 right angles: _______\n\n`;
-                } else if (subjectLower.includes('science')) {
-                  questions += `${i}. Name the process by which plants make their own food: _______\n\n`;
-                } else if (subjectLower.includes('epp')) {
-                  questions += `${i}. Tukuyin ang tamang paraan ng pag-aalaga ng manok upang manatiling malusog: _______\n\n`;
+                if (effectiveLanguage === 'Filipino') {
+                  if (subjectLower.includes('filipino')) {
+                    questions += `${i}. Tukuyin ang uri ng salitang may salungguhit: "Ang MATALINONG bata ay nag-aaral nang mabuti."\n\n`;
+                  } else if (subjectLower.includes('math')) {
+                    questions += `${i}. Tukuyin ang hugis na may 4 na pantay na gilid at 4 na tamang sulok: _______\n\n`;
+                  } else if (subjectLower.includes('science')) {
+                    questions += `${i}. Pangalanan ang proseso kung saan ang mga halaman ay gumagawa ng sariling pagkain: _______\n\n`;
+                  } else if (subjectLower.includes('epp')) {
+                    questions += `${i}. Tukuyin ang tamang paraan ng pag-aalaga ng manok upang manatiling malusog: _______\n\n`;
+                  } else {
+                    questions += `${i}. Tukuyin ang pangunahing konsepto sa: ${competency.split(' ').slice(0, 6).join(' ')}\n\n`;
+                  }
                 } else {
-                  questions += `${i}. Identify the main concept in: ${competency.split(' ').slice(0, 6).join(' ')}\n\n`;
+                  if (subjectLower.includes('filipino')) {
+                    questions += `${i}. Identify the type of underlined word: "The INTELLIGENT child studies well."\n\n`;
+                  } else if (subjectLower.includes('math')) {
+                    questions += `${i}. Identify the geometric shape with 4 equal sides and 4 right angles: _______\n\n`;
+                  } else if (subjectLower.includes('science')) {
+                    questions += `${i}. Name the process by which plants make their own food: _______\n\n`;
+                  } else if (subjectLower.includes('epp')) {
+                    questions += `${i}. Identify the correct way to care for chickens to keep them healthy: _______\n\n`;
+                  } else {
+                    questions += `${i}. Identify the main concept in: ${competency.split(' ').slice(0, 6).join(' ')}\n\n`;
+                  }
                 }
                 break;
                 
               case "True/False":
-                if (subjectLower.includes('filipino')) {
-                  questions += `${i}. Ang pang-uri ay ginagamit upang maglarawan ng pangngalan. (Tama/Mali)\n\n`;
-                } else if (subjectLower.includes('math')) {
-                  questions += `${i}. The sum of all angles in a triangle is 180 degrees. (True/False)\n\n`;
-                } else if (subjectLower.includes('science')) {
-                  questions += `${i}. Plants need sunlight, water, and carbon dioxide for photosynthesis. (True/False)\n\n`;
-                } else if (subjectLower.includes('epp')) {
-                  questions += `${i}. Ang natural na pag-aalaga ng manok ay mas mahal kaysa sa artificial feeding. (Tama/Mali)\n\n`;
+                if (effectiveLanguage === 'Filipino') {
+                  if (subjectLower.includes('filipino')) {
+                    questions += `${i}. Ang pang-uri ay ginagamit upang maglarawan ng pangngalan. (Tama/Mali)\n\n`;
+                  } else if (subjectLower.includes('math')) {
+                    questions += `${i}. Ang kabuuan ng lahat ng sulok sa tatsulok ay 180 degrees. (Tama/Mali)\n\n`;
+                  } else if (subjectLower.includes('science')) {
+                    questions += `${i}. Ang mga halaman ay nangangailangan ng sikat ng araw, tubig, at carbon dioxide para sa photosynthesis. (Tama/Mali)\n\n`;
+                  } else if (subjectLower.includes('epp')) {
+                    questions += `${i}. Ang natural na pag-aalaga ng manok ay mas mahal kaysa sa artificial feeding. (Tama/Mali)\n\n`;
+                  } else {
+                    questions += `${i}. Ang sumusunod na pahayag tungkol sa "${competency.split(' ').slice(0, 5).join(' ')}" ay tumpak. (Tama/Mali)\n\n`;
+                  }
                 } else {
-                  questions += `${i}. The following statement about "${competency.split(' ').slice(0, 5).join(' ')}" is accurate. (True/False)\n\n`;
+                  if (subjectLower.includes('filipino')) {
+                    questions += `${i}. Adjectives are used to describe nouns. (True/False)\n\n`;
+                  } else if (subjectLower.includes('math')) {
+                    questions += `${i}. The sum of all angles in a triangle is 180 degrees. (True/False)\n\n`;
+                  } else if (subjectLower.includes('science')) {
+                    questions += `${i}. Plants need sunlight, water, and carbon dioxide for photosynthesis. (True/False)\n\n`;
+                  } else if (subjectLower.includes('epp')) {
+                    questions += `${i}. Natural chicken care is more expensive than artificial feeding. (True/False)\n\n`;
+                  } else {
+                    questions += `${i}. The following statement about "${competency.split(' ').slice(0, 5).join(' ')}" is accurate. (True/False)\n\n`;
+                  }
                 }
                 break;
                 
               case "Essay":
-                if (subjectLower.includes('filipino')) {
-                  questions += `${i}. Ipaliwanag kung paano ginagamit ang mga pang-uri sa pagbuo ng makabuluhang pangungusap.\n\n`;
-                } else if (subjectLower.includes('math')) {
-                  questions += `${i}. Explain the steps to solve word problems involving multiplication and division.\n\n`;
-                } else if (subjectLower.includes('science')) {
-                  questions += `${i}. Describe the importance of photosynthesis in the ecosystem.\n\n`;
-                } else if (subjectLower.includes('epp')) {
-                  questions += `${i}. Ipaliwanag ang mga hakbang sa wastong pag-aalaga ng poultry animals sa natural na paraan.\n\n`;
+                if (effectiveLanguage === 'Filipino') {
+                  if (subjectLower.includes('filipino')) {
+                    questions += `${i}. Ipaliwanag kung paano ginagamit ang mga pang-uri sa pagbuo ng makabuluhang pangungusap.\n\n`;
+                  } else if (subjectLower.includes('math')) {
+                    questions += `${i}. Ipaliwanag ang mga hakbang upang malutas ang word problems na may multiplication at division.\n\n`;
+                  } else if (subjectLower.includes('science')) {
+                    questions += `${i}. Ilarawan ang kahalagahan ng photosynthesis sa ekosistema.\n\n`;
+                  } else if (subjectLower.includes('epp')) {
+                    questions += `${i}. Ipaliwanag ang mga hakbang sa wastong pag-aalaga ng poultry animals sa natural na paraan.\n\n`;
+                  } else {
+                    questions += `${i}. Ipaliwanag at bigyang-kahulugan ang: ${competency.split(' ').slice(0, 8).join(' ')}\n\n`;
+                  }
                 } else {
-                  questions += `${i}. Analyze and explain the significance of: ${competency.split(' ').slice(0, 8).join(' ')}\n\n`;
+                  if (subjectLower.includes('filipino')) {
+                    questions += `${i}. Explain how adjectives are used in forming meaningful sentences.\n\n`;
+                  } else if (subjectLower.includes('math')) {
+                    questions += `${i}. Explain the steps to solve word problems involving multiplication and division.\n\n`;
+                  } else if (subjectLower.includes('science')) {
+                    questions += `${i}. Describe the importance of photosynthesis in the ecosystem.\n\n`;
+                  } else if (subjectLower.includes('epp')) {
+                    questions += `${i}. Explain the steps in proper care of poultry animals through natural methods.\n\n`;
+                  } else {
+                    questions += `${i}. Analyze and explain the significance of: ${competency.split(' ').slice(0, 8).join(' ')}\n\n`;
+                  }
                 }
                 break;
                 

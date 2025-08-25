@@ -265,9 +265,19 @@ const WeeLMatGenerator = () => {
           
           <div className="rounded-xl border bg-background p-4">
             <div className="text-center space-y-1 mb-4">
-              <p className="font-semibold">Weekly Learning Matrix (WeeLMat)</p>
-              <p className="text-sm text-muted-foreground">{values?.subject} • {values?.gradeLevel} • {values?.section}</p>
-              <p className="text-sm text-muted-foreground">Covered Dates: {values?.dateFrom} – {values?.dateTo}</p>
+              {values?.language === 'Filipino' ? (
+                <>
+                  <p className="font-semibold">Lingguhang Matris ng Pagkatuto (WeeLMat)</p>
+                  <p className="text-sm text-muted-foreground">{values?.subject} • {values?.gradeLevel} • {values?.section}</p>
+                  <p className="text-sm text-muted-foreground">Petsa na Nasaklaw: {values?.dateFrom} – {values?.dateTo}</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-semibold">Weekly Learning Matrix (WeeLMat)</p>
+                  <p className="text-sm text-muted-foreground">{values?.subject} • {values?.gradeLevel} • {values?.section}</p>
+                  <p className="text-sm text-muted-foreground">Covered Dates: {values?.dateFrom} – {values?.dateTo}</p>
+                </>
+              )}
             </div>
             {aiJson ? (
               <div className="overflow-x-auto">
@@ -280,7 +290,9 @@ const WeeLMatGenerator = () => {
                       ))}
                     </TableRow>
                     <TableRow>
-                      <TableCell className="font-semibold text-xs min-w-[120px]">Competency</TableCell>
+                      <TableCell className="font-semibold text-xs min-w-[120px]">
+                        {values?.language === 'Filipino' ? 'Kompetensya' : 'Competency'}
+                      </TableCell>
                       <TableCell className="text-xs min-w-[120px] break-words">{values?.mondayCompetency || ""}</TableCell>
                       <TableCell className="text-xs min-w-[120px] break-words">{values?.tuesdayCompetency || ""}</TableCell>
                       <TableCell className="text-xs min-w-[120px] break-words">{values?.wednesdayCompetency || ""}</TableCell>
@@ -288,13 +300,17 @@ const WeeLMatGenerator = () => {
                       <TableCell className="text-xs min-w-[120px] break-words">{values?.fridayCompetency || ""}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell className="font-semibold text-xs min-w-[120px]">Suggested Learning Material/Reference</TableCell>
+                      <TableCell className="font-semibold text-xs min-w-[120px]">
+                        {values?.language === 'Filipino' ? 'Mungkahing Materyales/Sanggunian' : 'Suggested Learning Material/Reference'}
+                      </TableCell>
                       {["mon","tue","wed","thu","fri"].map((d) => (
                         <TableCell key={d} className="text-xs min-w-[120px] break-words">{aiJson?.references?.[d] || ""}</TableCell>
                       ))}
                     </TableRow>
                     <TableRow>
-                      <TableCell className="font-semibold text-xs min-w-[120px]">Learning Activities/Tasks</TableCell>
+                      <TableCell className="font-semibold text-xs min-w-[120px]">
+                        {values?.language === 'Filipino' ? 'Mga Gawain/Aktividad sa Pagkatuto' : 'Learning Activities/Tasks'}
+                      </TableCell>
                       {["mon","tue","wed","thu","fri"].map((d) => (
                         <TableCell key={d} className="text-xs min-w-[120px] break-words">{aiJson?.activities?.[d] || ""}</TableCell>
                       ))}
