@@ -170,7 +170,12 @@ const WeeLMatGenerator = () => {
 
   // Calculate Monday-Friday dates in MM-DD-YYYY format
   const calculateWeekdayDates = () => {
-    if (!values?.dateFrom || !values?.dateTo) return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    if (!values?.dateFrom || !values?.dateTo) {
+      const defaultDays = values?.language === 'Filipino' ? 
+        ["Lunes", "Martes", "Miyerkules", "Huwebes", "Biyernes"] :
+        ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+      return defaultDays;
+    }
     
     try {
       const startDate = new Date(values.dateFrom);
@@ -183,7 +188,9 @@ const WeeLMatGenerator = () => {
       monday.setDate(monday.getDate() + daysToMonday);
       
       const weekdays = [];
-      const dayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+      const dayNames = values?.language === 'Filipino' ? 
+        ["Lunes", "Martes", "Miyerkules", "Huwebes", "Biyernes"] :
+        ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
       
       for (let i = 0; i < 5; i++) {
         const currentDay = new Date(monday);
@@ -203,7 +210,10 @@ const WeeLMatGenerator = () => {
       
       return weekdays;
     } catch (error) {
-      return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+      const defaultDays = values?.language === 'Filipino' ? 
+        ["Lunes", "Martes", "Miyerkules", "Huwebes", "Biyernes"] :
+        ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+      return defaultDays;
     }
   };
 

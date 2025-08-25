@@ -461,7 +461,7 @@ Return EXACTLY this JSON structure:
       const generateRealActivities = (day: string, plan: any) => {
         // Handle HOLIDAY case
         if (plan.examType === "HOLIDAY") {
-          return "No class - Holiday";
+          return effectiveLanguage === 'Filipino' ? "Walang klase - Holiday" : "No class - Holiday";
         }
         
         const count = plan.questionCount;
@@ -621,18 +621,18 @@ Return EXACTLY this JSON structure:
           return questions;
         };
         
-        return `Instructions/Directions: Complete the following ${type.toLowerCase()} assessment based on ${day}'s competency.
+        return `${effectiveLanguage === 'Filipino' ? 'Panuto/Mga Tagubilin:' : 'Instructions/Directions:'} ${effectiveLanguage === 'Filipino' ? 'Kumpletuhin ang sumusunod na' : 'Complete the following'} ${type.toLowerCase()} ${effectiveLanguage === 'Filipino' ? 'pagsusulit batay sa kompetensya ng' : 'assessment based on'} ${day}${effectiveLanguage === 'Filipino' ? '.' : "'s competency."}
 
-Quiz:
+${effectiveLanguage === 'Filipino' ? 'Pagsusulit:' : 'Quiz:'}
 ${createRealQuestions()}
-Expected Output: Completed assessment demonstrating understanding of the competency.
-Contingency: Review materials and attempt again if needed.`;
+${effectiveLanguage === 'Filipino' ? 'Inaasahang Output:' : 'Expected Output:'} ${effectiveLanguage === 'Filipino' ? 'Natapos na pagsusulit na nagpapakita ng pag-unawa sa kompetensya.' : 'Completed assessment demonstrating understanding of the competency.'}
+${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiveLanguage === 'Filipino' ? 'Suriin ang mga materyales at subukan muli kung kinakailangan.' : 'Review materials and attempt again if needed.'}`;
       };
 
       const generateReference = (plan: any) => {
         return plan.examType === "HOLIDAY" ? 
-          "No references needed - Holiday" : 
-          `${subject} textbook, DepEd learning materials, K-12 curriculum guides`;
+          (effectiveLanguage === 'Filipino' ? "Walang sanggunian na kailangan - Holiday" : "No references needed - Holiday") : 
+          (effectiveLanguage === 'Filipino' ? `${subject} textbook, DepEd na materyales sa pagkatuto, K-12 curriculum guides` : `${subject} textbook, DepEd learning materials, K-12 curriculum guides`);
       };
 
       aiJson = {
@@ -713,7 +713,7 @@ Contingency: Review materials and attempt again if needed.`;
           new Paragraph({
             children: [
               new TextRun({
-                text: "Weekly Learning Matrix (WeeLMat)",
+                text: effectiveLanguage === 'Filipino' ? "Lingguhang Matris ng Pagkatuto (WeeLMat)" : "Weekly Learning Matrix (WeeLMat)",
                 bold: true,
                 size: 32,
               }),
@@ -724,7 +724,9 @@ Contingency: Review materials and attempt again if needed.`;
           new Paragraph({
             children: [
               new TextRun({
-                text: `Subject: ${subject} | Grade Level: ${gradeLevel} | Section: ${section}`,
+                text: effectiveLanguage === 'Filipino' 
+                  ? `Asignatura: ${subject} | Antas: ${gradeLevel} | Seksyon: ${section}`
+                  : `Subject: ${subject} | Grade Level: ${gradeLevel} | Section: ${section}`,
                 size: 24,
               }),
             ],
@@ -734,7 +736,9 @@ Contingency: Review materials and attempt again if needed.`;
           new Paragraph({
             children: [
               new TextRun({
-                text: `Covered Dates: ${dateFrom} to ${dateTo}`,
+                text: effectiveLanguage === 'Filipino' 
+                  ? `Petsa na Nasaklaw: ${dateFrom} hanggang ${dateTo}`
+                  : `Covered Dates: ${dateFrom} to ${dateTo}`,
                 size: 20,
               }),
             ],
@@ -753,27 +757,27 @@ Contingency: Review materials and attempt again if needed.`;
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: "Monday", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Lunes" : "Monday", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
                     width: { size: 17, type: WidthType.PERCENTAGE },
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: "Tuesday", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Martes" : "Tuesday", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
                     width: { size: 17, type: WidthType.PERCENTAGE },
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: "Wednesday", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Miyerkules" : "Wednesday", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
                     width: { size: 17, type: WidthType.PERCENTAGE },
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: "Thursday", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Huwebes" : "Thursday", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
                     width: { size: 17, type: WidthType.PERCENTAGE },
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: "Friday", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Biyernes" : "Friday", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
                     width: { size: 17, type: WidthType.PERCENTAGE },
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
@@ -783,7 +787,7 @@ Contingency: Review materials and attempt again if needed.`;
               new TableRow({
                 children: [
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: "Competency", bold: true, size: 16 })] })],
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Kompetensya" : "Competency", bold: true, size: 16 })] })],
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
@@ -812,7 +816,7 @@ Contingency: Review materials and attempt again if needed.`;
               new TableRow({
                 children: [
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: "Suggested Learning Material/Reference", bold: true, size: 16 })] })],
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Mungkahing Materyales/Sanggunian" : "Suggested Learning Material/Reference", bold: true, size: 16 })] })],
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
@@ -841,7 +845,7 @@ Contingency: Review materials and attempt again if needed.`;
               new TableRow({
                 children: [
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: "Learning Activities/Tasks", bold: true, size: 16 })] })],
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Mga Gawain/Aktividad sa Pagkatuto" : "Learning Activities/Tasks", bold: true, size: 16 })] })],
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
