@@ -372,7 +372,7 @@ const WeeLMatGenerator = () => {
             <Button disabled={!docxUrl} onClick={() => docxUrl && downloadFile(docxUrl, buildFilename("docx"))}>
               Download DOCX
             </Button>
-            <Button variant="secondary" onClick={handleGenerateLogSheet}>
+            <Button onClick={handleGenerateLogSheet}>
               Generate Log Sheet
             </Button>
           </div>

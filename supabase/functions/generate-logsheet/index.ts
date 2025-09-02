@@ -186,7 +186,7 @@ serve(async (req) => {
             <w:r><w:rPr><w:b/></w:rPr><w:t>SECTION: ${requestData.section}</w:t></w:r>
           </w:p>
           
-          <!-- Table -->
+          <!-- Table with 7 rows x 6 columns -->
           <w:tbl>
             <w:tblPr>
               <w:tblBorders>
@@ -197,124 +197,266 @@ serve(async (req) => {
                 <w:insideH w:val="single" w:sz="4" w:space="0" w:color="auto"/>
                 <w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/>
               </w:tblBorders>
+              <w:tblGrid>
+                <w:gridCol/>
+                <w:gridCol/>
+                <w:gridCol/>
+                <w:gridCol/>
+                <w:gridCol/>
+                <w:gridCol/>
+              </w:tblGrid>
             </w:tblPr>
             
-            <!-- Header Row -->
+            <!-- Header Row 1 with merged cells -->
             <w:tr>
               <w:tc>
-                <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>LIST OF COMPETENCIES</w:t></w:r></w:p>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p>
+                  <w:pPr><w:jc w:val="center"/></w:pPr>
+                  <w:r><w:rPr><w:b/></w:rPr><w:t>LIST OF COMPETENCIES</w:t></w:r>
+                </w:p>
               </w:tc>
               <w:tc>
-                <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>DURATION</w:t></w:r></w:p>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p>
+                  <w:pPr><w:jc w:val="center"/></w:pPr>
+                  <w:r><w:rPr><w:b/></w:rPr><w:t>DURATION</w:t></w:r>
+                </w:p>
               </w:tc>
               <w:tc>
-                <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>LEARNERS PERFORMANCE</w:t></w:r></w:p>
+                <w:tcPr>
+                  <w:gridSpan w:val="2"/>
+                  <w:vAlign w:val="top"/>
+                </w:tcPr>
+                <w:p>
+                  <w:pPr><w:jc w:val="center"/></w:pPr>
+                  <w:r><w:rPr><w:b/></w:rPr><w:t>LEARNERS PERFORMANCE</w:t></w:r>
+                </w:p>
               </w:tc>
               <w:tc>
-                <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>REMARKS</w:t></w:r></w:p>
+                <w:tcPr>
+                  <w:gridSpan w:val="2"/>
+                  <w:vAlign w:val="top"/>
+                </w:tcPr>
+                <w:p>
+                  <w:pPr><w:jc w:val="center"/></w:pPr>
+                  <w:r><w:rPr><w:b/></w:rPr><w:t>REMARKS</w:t></w:r>
+                </w:p>
               </w:tc>
             </w:tr>
             
-            <!-- Structural Row -->
-            <w:tr>
-              <w:tc><w:p><w:r><w:t></w:t></w:r></w:p></w:tc>
-              <w:tc><w:p><w:r><w:t></w:t></w:r></w:p></w:tc>
-              <w:tc><w:p><w:r><w:t></w:t></w:r></w:p></w:tc>
-              <w:tc><w:p><w:r><w:t></w:t></w:r></w:p></w:tc>
-            </w:tr>
-            
-            <!-- Monday -->
+            <!-- Header Row 2 with sub-headers -->
             <w:tr>
               <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p>
+                  <w:pPr><w:jc w:val="center"/></w:pPr>
+                  <w:r><w:rPr><w:b/></w:rPr><w:t>Mastered the competencies</w:t></w:r>
+                </w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p>
+                  <w:pPr><w:jc w:val="center"/></w:pPr>
+                  <w:r><w:rPr><w:b/></w:rPr><w:t>Not mastered the competencies</w:t></w:r>
+                </w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p>
+                  <w:pPr><w:jc w:val="center"/></w:pPr>
+                  <w:r><w:rPr><w:b/></w:rPr><w:t>Teacher's (NOTE for not achieving the competency or intervention to address the least mastered competency)</w:t></w:r>
+                </w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p>
+                  <w:pPr><w:jc w:val="center"/></w:pPr>
+                  <w:r><w:rPr><w:b/></w:rPr><w:t>School Heads and Other Instructional Supervisors (Feedback or agreement during their observation visits)</w:t></w:r>
+                </w:p>
+              </w:tc>
+            </w:tr>
+            
+            <!-- Monday (Row 3) -->
+            <w:tr>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
                 <w:p><w:r><w:t>${requestData.mondayCompetency}</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
                 <w:p><w:r><w:t>${weekdayDates[0]}</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
-                <w:p><w:r><w:t>☐ Mastered ☐ Not Mastered ☐ Present ☐ Absent</w:t></w:r></w:p>
-                <w:p><w:r><w:t>☐ On Time ☐ Late ☐ Complete ☐ Incomplete</w:t></w:r></w:p>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t xml:space="preserve">____out of ___ learners have mastered the competencies</w:t></w:r></w:p>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">___Present</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">___Absent</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
-                <w:p><w:r><w:t>Already printed for teacher's record</w:t></w:r></w:p>
-                <w:p><w:r><w:t>Teacher's notes:</w:t></w:r></w:p>
-                <w:p><w:r><w:t>School Head's feedback:</w:t></w:r></w:p>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t xml:space="preserve">____out of ___ learners have not mastered the competencies</w:t></w:r></w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t xml:space="preserve">_____Continue with the new lesson </w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">  _____Give remedial instruction to learners who have not master the lesson </w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">   ______Reteach the lesson.</w:t></w:r></w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
               </w:tc>
             </w:tr>
             
-            <!-- Tuesday -->
+            <!-- Tuesday (Row 4) -->
             <w:tr>
               <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
                 <w:p><w:r><w:t>${requestData.tuesdayCompetency}</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
                 <w:p><w:r><w:t>${weekdayDates[1]}</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
-                <w:p><w:r><w:t>☐ Mastered ☐ Not Mastered ☐ Present ☐ Absent</w:t></w:r></w:p>
-                <w:p><w:r><w:t>☐ On Time ☐ Late ☐ Complete ☐ Incomplete</w:t></w:r></w:p>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t xml:space="preserve">____out of ___ learners have mastered the competencies</w:t></w:r></w:p>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">___Present</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">___Absent</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
-                <w:p><w:r><w:t>Already printed for teacher's record</w:t></w:r></w:p>
-                <w:p><w:r><w:t>Teacher's notes:</w:t></w:r></w:p>
-                <w:p><w:r><w:t>School Head's feedback:</w:t></w:r></w:p>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t xml:space="preserve">____out of ___ learners have not mastered the competencies</w:t></w:r></w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t xml:space="preserve">_____Continue with the new lesson </w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">  _____Give remedial instruction to learners who have not master the lesson </w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">   ______Reteach the lesson.</w:t></w:r></w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
               </w:tc>
             </w:tr>
             
-            <!-- Wednesday -->
+            <!-- Wednesday (Row 5) -->
             <w:tr>
               <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
                 <w:p><w:r><w:t>${requestData.wednesdayCompetency}</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
                 <w:p><w:r><w:t>${weekdayDates[2]}</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
-                <w:p><w:r><w:t>☐ Mastered ☐ Not Mastered ☐ Present ☐ Absent</w:t></w:r></w:p>
-                <w:p><w:r><w:t>☐ On Time ☐ Late ☐ Complete ☐ Incomplete</w:t></w:r></w:p>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t xml:space="preserve">____out of ___ learners have mastered the competencies</w:t></w:r></w:p>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">___Present</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">___Absent</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
-                <w:p><w:r><w:t>Already printed for teacher's record</w:t></w:r></w:p>
-                <w:p><w:r><w:t>Teacher's notes:</w:t></w:r></w:p>
-                <w:p><w:r><w:t>School Head's feedback:</w:t></w:r></w:p>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t xml:space="preserve">____out of ___ learners have not mastered the competencies</w:t></w:r></w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t xml:space="preserve">_____Continue with the new lesson </w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">  _____Give remedial instruction to learners who have not master the lesson </w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">   ______Reteach the lesson.</w:t></w:r></w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
               </w:tc>
             </w:tr>
             
-            <!-- Thursday -->
+            <!-- Thursday (Row 6) -->
             <w:tr>
               <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
                 <w:p><w:r><w:t>${requestData.thursdayCompetency}</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
                 <w:p><w:r><w:t>${weekdayDates[3]}</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
-                <w:p><w:r><w:t>☐ Mastered ☐ Not Mastered ☐ Present ☐ Absent</w:t></w:r></w:p>
-                <w:p><w:r><w:t>☐ On Time ☐ Late ☐ Complete ☐ Incomplete</w:t></w:r></w:p>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t xml:space="preserve">____out of ___ learners have mastered the competencies</w:t></w:r></w:p>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">___Present</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">___Absent</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
-                <w:p><w:r><w:t>Already printed for teacher's record</w:t></w:r></w:p>
-                <w:p><w:r><w:t>Teacher's notes:</w:t></w:r></w:p>
-                <w:p><w:r><w:t>School Head's feedback:</w:t></w:r></w:p>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t xml:space="preserve">____out of ___ learners have not mastered the competencies</w:t></w:r></w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t xml:space="preserve">_____Continue with the new lesson </w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">  _____Give remedial instruction to learners who have not master the lesson </w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">   ______Reteach the lesson.</w:t></w:r></w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
               </w:tc>
             </w:tr>
             
-            <!-- Friday -->
+            <!-- Friday (Row 7) -->
             <w:tr>
               <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
                 <w:p><w:r><w:t>${requestData.fridayCompetency}</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
                 <w:p><w:r><w:t>${weekdayDates[4]}</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
-                <w:p><w:r><w:t>☐ Mastered ☐ Not Mastered ☐ Present ☐ Absent</w:t></w:r></w:p>
-                <w:p><w:r><w:t>☐ On Time ☐ Late ☐ Complete ☐ Incomplete</w:t></w:r></w:p>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t xml:space="preserve">____out of ___ learners have mastered the competencies</w:t></w:r></w:p>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">___Present</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">___Absent</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
-                <w:p><w:r><w:t>Already printed for teacher's record</w:t></w:r></w:p>
-                <w:p><w:r><w:t>Teacher's notes:</w:t></w:r></w:p>
-                <w:p><w:r><w:t>School Head's feedback:</w:t></w:r></w:p>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t xml:space="preserve">____out of ___ learners have not mastered the competencies</w:t></w:r></w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t xml:space="preserve">_____Continue with the new lesson </w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">  _____Give remedial instruction to learners who have not master the lesson </w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">   ______Reteach the lesson.</w:t></w:r></w:p>
+              </w:tc>
+              <w:tc>
+                <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
+                <w:p><w:r><w:t></w:t></w:r></w:p>
               </w:tc>
             </w:tr>
           </w:tbl>
