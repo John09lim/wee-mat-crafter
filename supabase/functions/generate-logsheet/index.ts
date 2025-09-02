@@ -198,12 +198,12 @@ serve(async (req) => {
                 <w:insideV w:val="single" w:sz="4" w:space="0" w:color="auto"/>
               </w:tblBorders>
               <w:tblGrid>
-                <w:gridCol/>
-                <w:gridCol/>
-                <w:gridCol/>
-                <w:gridCol/>
-                <w:gridCol/>
-                <w:gridCol/>
+                <w:gridCol w:w="2500"/>
+                <w:gridCol w:w="1800"/>
+                <w:gridCol w:w="2500"/>
+                <w:gridCol w:w="2500"/>
+                <w:gridCol w:w="2500"/>
+                <w:gridCol w:w="2500"/>
               </w:tblGrid>
             </w:tblPr>
             
@@ -308,9 +308,9 @@ serve(async (req) => {
               </w:tc>
               <w:tc>
                 <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
-                <w:p><w:r><w:t xml:space="preserve">_____Continue with the new lesson </w:t></w:r></w:p>
-                <w:p><w:r><w:t xml:space="preserve">  _____Give remedial instruction to learners who have not master the lesson </w:t></w:r></w:p>
-                <w:p><w:r><w:t xml:space="preserve">   ______Reteach the lesson.</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">_________Continue with the new lesson</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve"> _______Give remedial instruction to learners who have not master the lesson</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">  _______Reteach the lesson.</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
                 <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
@@ -343,9 +343,9 @@ serve(async (req) => {
               </w:tc>
               <w:tc>
                 <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
-                <w:p><w:r><w:t xml:space="preserve">_____Continue with the new lesson </w:t></w:r></w:p>
-                <w:p><w:r><w:t xml:space="preserve">  _____Give remedial instruction to learners who have not master the lesson </w:t></w:r></w:p>
-                <w:p><w:r><w:t xml:space="preserve">   ______Reteach the lesson.</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">_________Continue with the new lesson</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve"> _______Give remedial instruction to learners who have not master the lesson</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">  _______Reteach the lesson.</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
                 <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
@@ -378,9 +378,9 @@ serve(async (req) => {
               </w:tc>
               <w:tc>
                 <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
-                <w:p><w:r><w:t xml:space="preserve">_____Continue with the new lesson </w:t></w:r></w:p>
-                <w:p><w:r><w:t xml:space="preserve">  _____Give remedial instruction to learners who have not master the lesson </w:t></w:r></w:p>
-                <w:p><w:r><w:t xml:space="preserve">   ______Reteach the lesson.</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">_________Continue with the new lesson</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve"> _______Give remedial instruction to learners who have not master the lesson</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">  _______Reteach the lesson.</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
                 <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
@@ -413,9 +413,9 @@ serve(async (req) => {
               </w:tc>
               <w:tc>
                 <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
-                <w:p><w:r><w:t xml:space="preserve">_____Continue with the new lesson </w:t></w:r></w:p>
-                <w:p><w:r><w:t xml:space="preserve">  _____Give remedial instruction to learners who have not master the lesson </w:t></w:r></w:p>
-                <w:p><w:r><w:t xml:space="preserve">   ______Reteach the lesson.</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">_________Continue with the new lesson</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve"> _______Give remedial instruction to learners who have not master the lesson</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">  _______Reteach the lesson.</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
                 <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
@@ -448,9 +448,9 @@ serve(async (req) => {
               </w:tc>
               <w:tc>
                 <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
-                <w:p><w:r><w:t xml:space="preserve">_____Continue with the new lesson </w:t></w:r></w:p>
-                <w:p><w:r><w:t xml:space="preserve">  _____Give remedial instruction to learners who have not master the lesson </w:t></w:r></w:p>
-                <w:p><w:r><w:t xml:space="preserve">   ______Reteach the lesson.</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">_________Continue with the new lesson</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve"> _______Give remedial instruction to learners who have not master the lesson</w:t></w:r></w:p>
+                <w:p><w:r><w:t xml:space="preserve">  _______Reteach the lesson.</w:t></w:r></w:p>
               </w:tc>
               <w:tc>
                 <w:tcPr><w:vAlign w:val="top"/></w:tcPr>
