@@ -697,6 +697,106 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
 
     const matrixId = matrixData?.id;
 
+    // Function to parse activity content into properly formatted paragraphs
+    const parseActivityContent = (content: string) => {
+      if (!content) {
+        return [new Paragraph({ children: [new TextRun({ text: "", size: 14 })] })];
+      }
+
+      const paragraphs: Paragraph[] = [];
+      
+      // Split content by double newlines first, then by single newlines
+      const sections = content.split(/\n\n+/);
+      
+      sections.forEach((section, sectionIndex) => {
+        if (!section.trim()) return;
+        
+        // Check if this is a quiz section with numbered questions
+        if (section.includes('Quiz:') || /^\d+\./.test(section.trim())) {
+          const lines = section.split(/\n+/);
+          
+          lines.forEach((line, lineIndex) => {
+            if (!line.trim()) return;
+            
+            // Handle section headers (Instructions, Quiz, etc.)
+            if (line.includes('Instructions/Directions:') || line.includes('Panuto/Mga Tagubilin:') ||
+                line.includes('Quiz:') || line.includes('Pagsusulit:') ||
+                line.includes('Expected Output:') || line.includes('Inaasahang Output:') ||
+                line.includes('Contingency:')) {
+              paragraphs.push(new Paragraph({
+                children: [new TextRun({ text: line.trim(), bold: true, size: 14 })],
+                spacing: { before: 200, after: 100 }
+              }));
+            }
+            // Handle questions (lines starting with numbers)
+            else if (/^\d+\./.test(line.trim())) {
+              paragraphs.push(new Paragraph({
+                children: [new TextRun({ text: line.trim(), size: 14 })],
+                spacing: { before: 150, after: 50 }
+              }));
+            }
+            // Handle multiple choice options (A, B, C, D)
+            else if (/^\s*[A-D]\./.test(line.trim())) {
+              paragraphs.push(new Paragraph({
+                children: [new TextRun({ text: `   ${line.trim()}`, size: 14 })],
+                spacing: { before: 50, after: 50 }
+              }));
+            }
+            // Handle True/False options
+            else if (line.includes('(True/False)') || line.includes('(Tama/Mali)')) {
+              paragraphs.push(new Paragraph({
+                children: [new TextRun({ text: line.trim(), size: 14 })],
+                spacing: { before: 100, after: 100 }
+              }));
+            }
+            // Handle regular content lines
+            else if (line.trim()) {
+              paragraphs.push(new Paragraph({
+                children: [new TextRun({ text: line.trim(), size: 14 })],
+                spacing: { after: 80 }
+              }));
+            }
+          });
+        } else {
+          // Handle non-quiz sections (simple text)
+          const lines = section.split(/\n+/);
+          lines.forEach(line => {
+            if (!line.trim()) return;
+            
+            // Check if it's a section header
+            if (line.includes('Instructions/Directions:') || line.includes('Panuto/Mga Tagubilin:') ||
+                line.includes('Expected Output:') || line.includes('Inaasahang Output:') ||
+                line.includes('Contingency:')) {
+              paragraphs.push(new Paragraph({
+                children: [new TextRun({ text: line.trim(), bold: true, size: 14 })],
+                spacing: { before: 200, after: 100 }
+              }));
+            } else {
+              paragraphs.push(new Paragraph({
+                children: [new TextRun({ text: line.trim(), size: 14 })],
+                spacing: { after: 80 }
+              }));
+            }
+          });
+        }
+        
+        // Add spacing between major sections
+        if (sectionIndex < sections.length - 1) {
+          paragraphs.push(new Paragraph({
+            children: [new TextRun({ text: "", size: 8 })],
+            spacing: { after: 100 }
+          }));
+        }
+      });
+
+      // If no paragraphs were created, return a default empty paragraph
+      if (paragraphs.length === 0) {
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: "", size: 14 })] }));
+      }
+
+      return paragraphs;
+    };
+
     // Step 4: Generate DOCX
     const doc = new Document({
       creator: "WeeLMat Generator",
@@ -849,23 +949,23 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: aiJson?.activities?.mon || "", size: 14 })] })],
+                    children: parseActivityContent(aiJson?.activities?.mon || ""),
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: aiJson?.activities?.tue || "", size: 14 })] })],
+                    children: parseActivityContent(aiJson?.activities?.tue || ""),
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: aiJson?.activities?.wed || "", size: 14 })] })],
+                    children: parseActivityContent(aiJson?.activities?.wed || ""),
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: aiJson?.activities?.thu || "", size: 14 })] })],
+                    children: parseActivityContent(aiJson?.activities?.thu || ""),
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: [new Paragraph({ children: [new TextRun({ text: aiJson?.activities?.fri || "", size: 14 })] })],
+                    children: parseActivityContent(aiJson?.activities?.fri || ""),
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                 ],

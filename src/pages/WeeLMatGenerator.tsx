@@ -278,108 +278,180 @@ const WeeLMatGenerator = () => {
     }
   };
 
-  const Success = () => (
-    <section className="container max-w-6xl animate-fade-in">
-      <article className="rounded-2xl border bg-card text-card-foreground shadow-sm overflow-hidden">
-        <header className="px-6 pt-6 pb-4 border-b flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold">WeeLMat is ready</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Preview below, then download or save to your files.
-            </p>
-          </div>
-          <Button variant="outline" onClick={() => navigate("/dashboard")}>
-            Back to Dashboard
-          </Button>
-        </header>
-        <div className="p-6 space-y-5">
-          {/* Instructions Panel - Collapsible */}
-          <div className="rounded-xl border bg-muted/30 p-4">
-            <details className="group">
-              <summary className="cursor-pointer font-semibold text-sm text-muted-foreground hover:text-foreground transition-colors">
-                📋 Instructions & Tips (click to expand)
-              </summary>
-              <div className="mt-3 text-sm text-muted-foreground space-y-2 group-open:animate-fade-in">
-                <p><strong>About WeeLMat:</strong> This tool generates a Weekly Learning Matrix following DepEd guidelines for curriculum planning.</p>
-                <p><strong>Using the preview:</strong> Review the competencies (your exact inputs) and generated learning activities before downloading.</p>
-                <p><strong>DOCX format:</strong> Compatible with Microsoft Word and Google Docs for easy editing and sharing.</p>
-                <p><strong>Important:</strong> This is an unofficial tool. Generated content should be reviewed by educators before classroom use.</p>
-              </div>
-            </details>
-          </div>
+  const Success = () => {
+    // Function to format activity content for HTML display
+    const formatActivityForPreview = (content: string) => {
+      if (!content) return "";
+      
+      return content
+        .split(/\n+/)
+        .filter(line => line.trim())
+        .map((line, index) => {
+          const trimmedLine = line.trim();
           
-          <div className="rounded-xl border bg-background p-4">
-            <div className="text-center space-y-1 mb-4">
-              {values?.language === 'Filipino' ? (
-                <>
-                  <p className="font-semibold">Lingguhang Matris ng Pagkatuto (WeeLMat)</p>
-                  <p className="text-sm text-muted-foreground">{values?.subject} • {values?.gradeLevel} • {values?.section}</p>
-                  <p className="text-sm text-muted-foreground">Petsa na Nasaklaw: {values?.dateFrom} – {values?.dateTo}</p>
-                </>
+          // Handle section headers (make them bold)
+          if (trimmedLine.includes('Instructions/Directions:') || trimmedLine.includes('Panuto/Mga Tagubilin:') ||
+              trimmedLine.includes('Quiz:') || trimmedLine.includes('Pagsusulit:') ||
+              trimmedLine.includes('Expected Output:') || trimmedLine.includes('Inaasahang Output:') ||
+              trimmedLine.includes('Contingency:')) {
+            return `**${trimmedLine}**`;
+          }
+          
+          // Handle questions (add extra spacing before)
+          if (/^\d+\./.test(trimmedLine)) {
+            return `\n${trimmedLine}`;
+          }
+          
+          // Handle multiple choice options (indent slightly)
+          if (/^\s*[A-D]\./.test(trimmedLine)) {
+            return `   ${trimmedLine}`;
+          }
+          
+          return trimmedLine;
+        })
+        .join('\n')
+        .replace(/\*\*(.*?)\*\*/g, '$1') // Remove markdown bold since we'll handle it in CSS
+        .split('\n')
+        .map((line, index) => {
+          const trimmedLine = line.trim();
+          
+          // Check if it's a header line
+          const isHeader = content.includes(trimmedLine) && (
+            trimmedLine.includes('Instructions/Directions:') || trimmedLine.includes('Panuto/Mga Tagubilin:') ||
+            trimmedLine.includes('Quiz:') || trimmedLine.includes('Pagsusulit:') ||
+            trimmedLine.includes('Expected Output:') || trimmedLine.includes('Inaasahang Output:') ||
+            trimmedLine.includes('Contingency:')
+          );
+          
+          if (isHeader) {
+            return <div key={index} className="font-semibold mt-2 mb-1">{line}</div>;
+          }
+          
+          // Check if it's a question (starts with number)
+          if (/^\d+\./.test(trimmedLine)) {
+            return <div key={index} className="mt-2 mb-1">{line}</div>;
+          }
+          
+          // Check if it's a multiple choice option
+          if (/^\s*[A-D]\./.test(trimmedLine)) {
+            return <div key={index} className="ml-2">{line}</div>;
+          }
+          
+          if (line.trim()) {
+            return <div key={index} className="mb-1">{line}</div>;
+          }
+          
+          return <div key={index} className="h-2"></div>;
+        });
+    };
+
+    return (
+      <section className="container max-w-6xl animate-fade-in">
+        <article className="rounded-2xl border bg-card text-card-foreground shadow-sm overflow-hidden">
+          <header className="px-6 pt-6 pb-4 border-b flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-semibold">WeeLMat is ready</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Preview below, then download or save to your files.
+              </p>
+            </div>
+            <Button variant="outline" onClick={() => navigate("/dashboard")}>
+              Back to Dashboard
+            </Button>
+          </header>
+          <div className="p-6 space-y-5">
+            {/* Instructions Panel - Collapsible */}
+            <div className="rounded-xl border bg-muted/30 p-4">
+              <details className="group">
+                <summary className="cursor-pointer font-semibold text-sm text-muted-foreground hover:text-foreground transition-colors">
+                  📋 Instructions & Tips (click to expand)
+                </summary>
+                <div className="mt-3 text-sm text-muted-foreground space-y-2 group-open:animate-fade-in">
+                  <p><strong>About WeeLMat:</strong> This tool generates a Weekly Learning Matrix following DepEd guidelines for curriculum planning.</p>
+                  <p><strong>Using the preview:</strong> Review the competencies (your exact inputs) and generated learning activities before downloading.</p>
+                  <p><strong>DOCX format:</strong> Compatible with Microsoft Word and Google Docs for easy editing and sharing.</p>
+                  <p><strong>Important:</strong> This is an unofficial tool. Generated content should be reviewed by educators before classroom use.</p>
+                </div>
+              </details>
+            </div>
+            
+            <div className="rounded-xl border bg-background p-4">
+              <div className="text-center space-y-1 mb-4">
+                {values?.language === 'Filipino' ? (
+                  <>
+                    <p className="font-semibold">Lingguhang Matris ng Pagkatuto (WeeLMat)</p>
+                    <p className="text-sm text-muted-foreground">{values?.subject} • {values?.gradeLevel} • {values?.section}</p>
+                    <p className="text-sm text-muted-foreground">Petsa na Nasaklaw: {values?.dateFrom} – {values?.dateTo}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-semibold">Weekly Learning Matrix (WeeLMat)</p>
+                    <p className="text-sm text-muted-foreground">{values?.subject} • {values?.gradeLevel} • {values?.section}</p>
+                    <p className="text-sm text-muted-foreground">Covered Dates: {values?.dateFrom} – {values?.dateTo}</p>
+                  </>
+                )}
+              </div>
+              {aiJson ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableBody>
+                      <TableRow>
+                        <TableCell className="text-xs min-w-[120px] font-semibold"></TableCell>
+                        {calculateWeekdayDates().map((date, i) => (
+                          <TableCell key={i} className="text-xs min-w-[120px] font-semibold text-center whitespace-pre-line">{date}</TableCell>
+                        ))}
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-semibold text-xs min-w-[120px]">
+                          {values?.language === 'Filipino' ? 'Kompetensya' : 'Competency'}
+                        </TableCell>
+                        <TableCell className="text-xs min-w-[120px] break-words">{values?.mondayCompetency || ""}</TableCell>
+                        <TableCell className="text-xs min-w-[120px] break-words">{values?.tuesdayCompetency || ""}</TableCell>
+                        <TableCell className="text-xs min-w-[120px] break-words">{values?.wednesdayCompetency || ""}</TableCell>
+                        <TableCell className="text-xs min-w-[120px] break-words">{values?.thursdayCompetency || ""}</TableCell>
+                        <TableCell className="text-xs min-w-[120px] break-words">{values?.fridayCompetency || ""}</TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-semibold text-xs min-w-[120px]">
+                          {values?.language === 'Filipino' ? 'Mungkahing Materyales/Sanggunian' : 'Suggested Learning Material/Reference'}
+                        </TableCell>
+                        {["mon","tue","wed","thu","fri"].map((d) => (
+                          <TableCell key={d} className="text-xs min-w-[120px] break-words">{aiJson?.references?.[d] || ""}</TableCell>
+                        ))}
+                      </TableRow>
+                      <TableRow>
+                        <TableCell className="font-semibold text-xs min-w-[120px]">
+                          {values?.language === 'Filipino' ? 'Mga Gawain/Aktividad sa Pagkatuto' : 'Learning Activities/Tasks'}
+                        </TableCell>
+                        {["mon","tue","wed","thu","fri"].map((d) => (
+                          <TableCell key={d} className="text-xs min-w-[120px] break-words">
+                            <div className="space-y-1">
+                              {formatActivityForPreview(aiJson?.activities?.[d] || "")}
+                            </div>
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
               ) : (
-                <>
-                  <p className="font-semibold">Weekly Learning Matrix (WeeLMat)</p>
-                  <p className="text-sm text-muted-foreground">{values?.subject} • {values?.gradeLevel} • {values?.section}</p>
-                  <p className="text-sm text-muted-foreground">Covered Dates: {values?.dateFrom} – {values?.dateTo}</p>
-                </>
+                <p className="text-sm text-muted-foreground">Preview unavailable.</p>
               )}
             </div>
-            {aiJson ? (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell className="text-xs min-w-[120px] font-semibold"></TableCell>
-                      {calculateWeekdayDates().map((date, i) => (
-                        <TableCell key={i} className="text-xs min-w-[120px] font-semibold text-center whitespace-pre-line">{date}</TableCell>
-                      ))}
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-semibold text-xs min-w-[120px]">
-                        {values?.language === 'Filipino' ? 'Kompetensya' : 'Competency'}
-                      </TableCell>
-                      <TableCell className="text-xs min-w-[120px] break-words">{values?.mondayCompetency || ""}</TableCell>
-                      <TableCell className="text-xs min-w-[120px] break-words">{values?.tuesdayCompetency || ""}</TableCell>
-                      <TableCell className="text-xs min-w-[120px] break-words">{values?.wednesdayCompetency || ""}</TableCell>
-                      <TableCell className="text-xs min-w-[120px] break-words">{values?.thursdayCompetency || ""}</TableCell>
-                      <TableCell className="text-xs min-w-[120px] break-words">{values?.fridayCompetency || ""}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-semibold text-xs min-w-[120px]">
-                        {values?.language === 'Filipino' ? 'Mungkahing Materyales/Sanggunian' : 'Suggested Learning Material/Reference'}
-                      </TableCell>
-                      {["mon","tue","wed","thu","fri"].map((d) => (
-                        <TableCell key={d} className="text-xs min-w-[120px] break-words">{aiJson?.references?.[d] || ""}</TableCell>
-                      ))}
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-semibold text-xs min-w-[120px]">
-                        {values?.language === 'Filipino' ? 'Mga Gawain/Aktividad sa Pagkatuto' : 'Learning Activities/Tasks'}
-                      </TableCell>
-                      {["mon","tue","wed","thu","fri"].map((d) => (
-                        <TableCell key={d} className="text-xs min-w-[120px] break-words">{aiJson?.activities?.[d] || ""}</TableCell>
-                      ))}
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">Preview unavailable.</p>
-            )}
-          </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button disabled={!docxUrl} onClick={() => docxUrl && downloadFile(docxUrl, buildFilename("docx"))}>
-              Download DOCX
-            </Button>
-            <Button onClick={handleGenerateLogSheet}>
-              Generate Log Sheet
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button disabled={!docxUrl} onClick={() => docxUrl && downloadFile(docxUrl, buildFilename("docx"))}>
+                Download DOCX
+              </Button>
+              <Button onClick={handleGenerateLogSheet}>
+                Generate Log Sheet
+              </Button>
+            </div>
           </div>
-        </div>
-      </article>
-    </section>
-  );
+        </article>
+      </section>
+    );
+  };
 
   return (
     <main className="min-h-[calc(100vh-160px)] bg-background">
