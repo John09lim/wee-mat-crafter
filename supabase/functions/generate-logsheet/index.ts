@@ -23,7 +23,6 @@ interface LogSheetRequest {
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const deepseekApiKey = Deno.env.get('DEEPSEEK_API_KEY');
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -82,105 +81,19 @@ serve(async (req) => {
       }
     };
 
-    // Enhance competencies with DeepSeek API if available
-    const enhanceCompetencies = async (competencies: string[], language: string = 'English') => {
-      if (!deepseekApiKey) {
-        console.log('DeepSeek API key not available, using original competencies');
-        return competencies;
-      }
-
-      try {
-        const prompt = `Please enhance and format the following competencies for a ${language} educational log sheet. Keep the meaning intact but make them more professionally formatted and clear:
-
-${competencies.map((comp, i) => `${i + 1}. ${comp}`).join('\n')}
-
-Return only the enhanced competencies, one per line, without numbers or extra formatting.`;
-
-        const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${deepseekApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'deepseek-chat',
-            messages: [
-              { role: 'system', content: 'You are an educational content formatter. Enhance competencies while preserving their original meaning.' },
-              { role: 'user', content: prompt }
-            ],
-            max_completion_tokens: 1000,
-            temperature: 0.3,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const enhancedText = data.choices[0]?.message?.content?.trim();
-          if (enhancedText) {
-            const enhanced = enhancedText.split('\n').filter(line => line.trim()).map(line => line.trim());
-            console.log('Competencies enhanced with DeepSeek');
-            return enhanced.length === 5 ? enhanced : competencies;
-          }
-        }
-      } catch (error) {
-        console.log('DeepSeek enhancement failed, using original:', error.message);
-      }
-      
-      return competencies;
-    };
-
-    const originalCompetencies = [
-      requestData.mondayCompetency,
-      requestData.tuesdayCompetency,
-      requestData.wednesdayCompetency,
-      requestData.thursdayCompetency,
-      requestData.fridayCompetency
-    ];
-
-    const enhancedCompetencies = await enhanceCompetencies(originalCompetencies, requestData.language);
     const weekdayDates = calculateWeekdayDates(requestData.dateFrom, requestData.dateTo);
 
-    // Try multiple template sources - first try to get from GitHub, fallback to storage
-    let templateBuffer: ArrayBuffer | null = null;
+    // Load template file from public folder
+    const templateUrl = `${supabaseUrl}/storage/v1/object/public/weelmat/WEELMAT%20NEW%20TEMPLATE%20LOGSHEET.docx`;
+    console.log('Fetching template from:', templateUrl);
     
-    // Method 1: Try GitHub raw URL first
-    try {
-      const githubUrl = 'https://raw.githubusercontent.com/John09lim/wee-mat-crafter/main/public/WEELMAT%20NEW%20TEMPLATE%20LOGSHEET.docx';
-      console.log('Trying GitHub template from:', githubUrl);
-      
-      const githubResponse = await fetch(githubUrl);
-      if (githubResponse.ok) {
-        templateBuffer = await githubResponse.arrayBuffer();
-        console.log('Template loaded from GitHub, size:', templateBuffer.byteLength);
-      }
-    } catch (error) {
-      console.log('GitHub fetch failed:', error.message);
+    const templateResponse = await fetch(templateUrl);
+    if (!templateResponse.ok) {
+      throw new Error(`Failed to fetch template: ${templateResponse.status} ${templateResponse.statusText}`);
     }
-
-    // Method 2: Try Supabase storage if GitHub failed
-    if (!templateBuffer) {
-      try {
-        const encodedFilename = encodeURIComponent('WEELMAT NEW TEMPLATE LOGSHEET.docx');
-        const storageUrl = `${supabaseUrl}/storage/v1/object/public/weelmat/${encodedFilename}`;
-        console.log('Trying Supabase storage from:', storageUrl);
-        
-        const storageResponse = await fetch(storageUrl);
-        if (storageResponse.ok) {
-          templateBuffer = await storageResponse.arrayBuffer();
-          console.log('Template loaded from storage, size:', templateBuffer.byteLength);
-        } else {
-          console.log('Storage response not ok:', storageResponse.status, storageResponse.statusText);
-        }
-      } catch (error) {
-        console.log('Storage fetch failed:', error.message);
-      }
-    }
-
-    // Method 3: Create basic template if both failed
-    if (!templateBuffer) {
-      console.log('Both template sources failed, will create basic template structure');
-      throw new Error('Template file not found. Please ensure the DOCX template is available.');
-    }
+    
+    const templateBuffer = await templateResponse.arrayBuffer();
+    console.log('Template loaded, size:', templateBuffer.byteLength);
 
     // Load docx manipulation libraries
     const { default: PizZip } = await import('https://esm.sh/pizzip@3.1.6');
@@ -194,18 +107,16 @@ Return only the enhanced competencies, one per line, without numbers or extra fo
         linebreaks: true,
       });
 
-      // Set data for template variables (Column 1: Competencies, Column 2: Dates)
+      // Set data for template variables
       doc.setData({
         subject: requestData.subject.toUpperCase(),
         gradeLevel: requestData.gradeLevel,
         section: requestData.section,
-        // Column 1 - Enhanced Competencies
-        mondayCompetency: enhancedCompetencies[0] || '',
-        tuesdayCompetency: enhancedCompetencies[1] || '',
-        wednesdayCompetency: enhancedCompetencies[2] || '',
-        thursdayCompetency: enhancedCompetencies[3] || '',
-        fridayCompetency: enhancedCompetencies[4] || '',
-        // Column 2 - Calculated Dates
+        mondayCompetency: requestData.mondayCompetency || '',
+        tuesdayCompetency: requestData.tuesdayCompetency || '',
+        wednesdayCompetency: requestData.wednesdayCompetency || '',
+        thursdayCompetency: requestData.thursdayCompetency || '',
+        fridayCompetency: requestData.fridayCompetency || '',
         mondayDate: weekdayDates[0] || '',
         tuesdayDate: weekdayDates[1] || '',
         wednesdayDate: weekdayDates[2] || '',
@@ -258,7 +169,6 @@ Return only the enhanced competencies, one per line, without numbers or extra fo
           filename: filename
         }),
         {
-          status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
