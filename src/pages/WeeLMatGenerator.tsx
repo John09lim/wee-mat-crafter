@@ -217,29 +217,64 @@ const WeeLMatGenerator = () => {
     }
   };
 
-  const handleSave = async () => {
+  const handleGenerateLogSheet = async () => {
+    if (!values) {
+      toast("No form data available");
+      return;
+    }
+
+    // Validate required fields
+    const requiredFields = [
+      { field: 'subject', label: 'Subject' },
+      { field: 'gradeLevel', label: 'Grade Level' },
+      { field: 'section', label: 'Section' },
+      { field: 'mondayCompetency', label: 'Monday competency' },
+      { field: 'tuesdayCompetency', label: 'Tuesday competency' },
+      { field: 'wednesdayCompetency', label: 'Wednesday competency' },
+      { field: 'thursdayCompetency', label: 'Thursday competency' },
+      { field: 'fridayCompetency', label: 'Friday competency' }
+    ];
+
+    for (const { field, label } of requiredFields) {
+      if (!values[field as keyof FormValues]) {
+        toast("Please complete Subject, Grade, Section, and all five daily competencies before generating the Log Sheet.");
+        return;
+      }
+    }
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        toast("Please log in to save your WeeLMat");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const access_token = sessionData.session?.access_token;
+
+      if (!access_token) {
+        toast("Please log in to generate Log Sheet");
         navigate("/auth");
         return;
       }
 
-      // The WeeLMat is already saved to the database during generation
-      // We just need to navigate to My Account to view it
-      if (matrixId) {
-        toast("WeeLMat saved to your account!");
-        navigate("/my-account");
-      } else {
-        // Navigate anyway as the file should still be in the database
-        toast("Navigating to your saved files...");
-        navigate("/my-account");
+      toast("Generating Log Sheet...");
+
+      const { data, error } = await supabase.functions.invoke("generate-logsheet", {
+        headers: { Authorization: `Bearer ${access_token}` },
+        body: values,
+      });
+
+      if (error) {
+        console.error("LogSheet generation error:", error);
+        throw new Error(error.message || "Failed to generate Log Sheet");
       }
-    } catch (error) {
-      console.error('Error in handleSave:', error);
-      toast("There was an error saving your WeeLMat");
+
+      if (!data?.docx_url) {
+        throw new Error("No file URL received from generation");
+      }
+
+      // Auto-download the file
+      await downloadFile(data.docx_url, data.filename || "logsheet.docx");
+      toast("Log Sheet downloaded successfully!");
+
+    } catch (error: any) {
+      console.error("Error generating LogSheet:", error);
+      toast(`Error: ${error.message || "Failed to generate Log Sheet"}`);
     }
   };
 
@@ -337,8 +372,8 @@ const WeeLMatGenerator = () => {
             <Button disabled={!docxUrl} onClick={() => docxUrl && downloadFile(docxUrl, buildFilename("docx"))}>
               Download DOCX
             </Button>
-            <Button className="bg-yellow-500 hover:bg-yellow-600 text-white" onClick={handleSave}>
-              Save to My Files
+            <Button variant="secondary" onClick={handleGenerateLogSheet}>
+              Generate Log Sheet
             </Button>
           </div>
         </div>
