@@ -7,148 +7,13 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
+  // Allows to automatically instanciate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
   }
   public: {
     Tables: {
-      care_logs: {
-        Row: {
-          created_at: string
-          dog_id: string | null
-          id: string
-          note: string | null
-          type: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          dog_id?: string | null
-          id?: string
-          note?: string | null
-          type: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          dog_id?: string | null
-          id?: string
-          note?: string | null
-          type?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      dogs: {
-        Row: {
-          age_months: number | null
-          breed: string | null
-          created_at: string
-          id: string
-          name: string
-          photo_url: string | null
-          user_id: string
-        }
-        Insert: {
-          age_months?: number | null
-          breed?: string | null
-          created_at?: string
-          id?: string
-          name: string
-          photo_url?: string | null
-          user_id: string
-        }
-        Update: {
-          age_months?: number | null
-          breed?: string | null
-          created_at?: string
-          id?: string
-          name?: string
-          photo_url?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      events: {
-        Row: {
-          audio_url: string | null
-          confidence: number | null
-          context: string | null
-          created_at: string
-          dog_id: string | null
-          id: string
-          state: string
-          user_id: string
-        }
-        Insert: {
-          audio_url?: string | null
-          confidence?: number | null
-          context?: string | null
-          created_at?: string
-          dog_id?: string | null
-          id?: string
-          state: string
-          user_id: string
-        }
-        Update: {
-          audio_url?: string | null
-          confidence?: number | null
-          context?: string | null
-          created_at?: string
-          dog_id?: string | null
-          id?: string
-          state?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      logsheet_history: {
-        Row: {
-          competencies: Json
-          created_at: string | null
-          date_from: string | null
-          date_to: string | null
-          docx_url: string
-          filename: string
-          grade_level: string
-          id: string
-          section: string
-          subject: string
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          competencies: Json
-          created_at?: string | null
-          date_from?: string | null
-          date_to?: string | null
-          docx_url: string
-          filename: string
-          grade_level: string
-          id?: string
-          section: string
-          subject: string
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          competencies?: Json
-          created_at?: string | null
-          date_from?: string | null
-          date_to?: string | null
-          docx_url?: string
-          filename?: string
-          grade_level?: string
-          id?: string
-          section?: string
-          subject?: string
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       payment_webhooks: {
         Row: {
           created_at: string | null
@@ -282,30 +147,6 @@ export type Database = {
         }
         Relationships: []
       }
-      saved_tips: {
-        Row: {
-          created_at: string
-          dog_id: string | null
-          id: string
-          tip_key: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          dog_id?: string | null
-          id?: string
-          tip_key: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          dog_id?: string | null
-          id?: string
-          tip_key?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       subscriptions: {
         Row: {
           created_at: string | null
@@ -352,30 +193,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      training_sessions: {
-        Row: {
-          dog_id: string | null
-          done_at: string
-          drill_key: string
-          id: string
-          user_id: string
-        }
-        Insert: {
-          dog_id?: string | null
-          done_at?: string
-          drill_key: string
-          id?: string
-          user_id: string
-        }
-        Update: {
-          dog_id?: string | null
-          done_at?: string
-          drill_key?: string
-          id?: string
-          user_id?: string
-        }
-        Relationships: []
       }
       user_goals: {
         Row: {
