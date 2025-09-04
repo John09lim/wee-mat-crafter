@@ -395,7 +395,7 @@ Return EXACTLY this JSON structure:
                 { role: "user", content: "Generate the weekly learning matrix content as valid JSON only. No markdown, no explanations." }
               ],
               temperature: 0.3, // Lower temperature for more consistent JSON output
-              max_tokens: 8000, // Increased limit for comprehensive learning activities
+              max_tokens: 16000, // High limit to handle 15 questions per day (75 total questions)
             }),
           });
 
