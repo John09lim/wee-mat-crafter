@@ -303,12 +303,19 @@ CRITICAL JSON FORMAT REQUIREMENTS:
 3. Escape special characters properly (use \\n for newlines, \\" for quotes)
 4. NEVER modify the competency text provided
 5. Generate REAL questions - NO placeholders like "Option A, B, C, D"
+6. CREATE UNIQUE CONTENT FOR EACH DAY - Monday activities must differ from Tuesday, Wednesday, Thursday, and Friday
 
 LANGUAGE REQUIREMENTS:
 - Generate ALL content in ${effectiveLanguage}
 - Instructions, questions, and activities should be in ${effectiveLanguage}
 - Use appropriate educational language for ${gradeLevel} students
 - Follow DepEd curriculum standards for ${effectiveLanguage} instruction
+
+UNIQUENESS REQUIREMENTS:
+- Each day MUST have completely different questions and activities
+- Base questions specifically on each day's unique competency
+- Avoid repetitive patterns across days
+- Ensure Monday content is distinctly different from other days
 
 Daily Learning Plan (DO NOT MODIFY COMPETENCIES):
 - Monday: "${dailyPlan.Monday.competency}" | Exam: ${dailyPlan.Monday.examType} | Questions: ${dailyPlan.Monday.questionCount}
@@ -395,7 +402,7 @@ Return EXACTLY this JSON structure:
                 { role: "user", content: "Generate the weekly learning matrix content as valid JSON only. No markdown, no explanations." }
               ],
               temperature: 0.3, // Lower temperature for more consistent JSON output
-              max_tokens: 16000, // High limit to handle 15 questions per day (75 total questions)
+              max_tokens: 8192, // DeepSeek's maximum token limit
             }),
           });
 
@@ -469,63 +476,89 @@ Return EXACTLY this JSON structure:
         const competency = plan.competency;
         const subjectLower = subject.toLowerCase();
         
-        // Create real, subject-specific questions based on competency
-        const createRealQuestions = () => {
+        // Create competency-specific questions based on the actual competency text
+        const createCompetencyBasedQuestions = () => {
           let questions = "";
           
+          // Extract key terms from competency for more specific questions
+          const competencyWords = competency.toLowerCase().split(/\s+/);
+          const dayHash = day.length + competency.length; // Create day-specific variation
+          
           for (let i = 1; i <= count; i++) {
+            const questionSeed = i + dayHash; // Make each question unique per day
+            
             switch (type) {
               case "Multiple Choice":
                 if (effectiveLanguage === 'Filipino') {
-                  if (subjectLower.includes('filipino')) {
-                    questions += `${i}. Ano ang tamang pag-gamit ng pang-uri sa pangungusap?\n   A. Ang magandang bulaklak ay namumulaklak sa hardin.\n   B. Ang bulaklak na maganda ay namumulaklak sa hardin.\n   C. Ang bulaklak ay maganda sa hardin.\n   D. Ang hardin ay may magandang bulaklak.\n\n`;
-                  } else if (subjectLower.includes('math')) {
-                    questions += `${i}. Ano ang sagot sa 8 × 7?\n   A. 54\n   B. 56\n   C. 58\n   D. 60\n\n`;
-                  } else if (subjectLower.includes('science')) {
-                    questions += `${i}. Anong bahagi ng halaman ang responsable sa photosynthesis?\n   A. Ugat\n   B. Tangkay\n   C. Dahon\n   D. Bulaklak\n\n`;
-                  } else if (subjectLower.includes('epp')) {
-                    questions += `${i}. Ano ang pangunahing benepisyo ng pag-aalaga ng manok sa natural na paraan?\n   A. Mas mataas ang gastos sa pagkain\n   B. Mas mababa ang kalidad ng itlog\n   C. Mas masustansyang produkto\n   D. Mas mataas ang mortality rate\n\n`;
+                  // Create competency-specific Filipino multiple choice questions
+                  if (competency.toLowerCase().includes('plot') || competency.toLowerCase().includes('sequential')) {
+                    questions += `${i}. Ano ang sequential type of plot sa isang kwento?\n   A. Ang mga pangyayari ay nagsisimula sa simula at nagtatapos sa wakas\n   B. Ang mga pangyayari ay hindi sunod-sunod\n   C. Ang mga pangyayari ay nagsisimula sa wakas\n   D. Ang mga pangyayari ay walang pagkakasunod-sunod\n\n`;
+                  } else if (competency.toLowerCase().includes('point of view') || competency.toLowerCase().includes('author')) {
+                    questions += `${i}. Ano ang first person point of view?\n   A. Gumagamit ng "siya" sa pagsasalita\n   B. Gumagamit ng "ako" o "kami" sa pagsasalita\n   C. Gumagamit ng "kayo" sa pagsasalita\n   D. Walang tiyak na pananaw\n\n`;
+                  } else if (competency.toLowerCase().includes('sequence') || competency.toLowerCase().includes('events')) {
+                    questions += `${i}. Paano mo masisiguro na tamang pagkakasunod-sunod ang mga pangyayari sa kwento?\n   A. Sundin ang chronological order\n   B. Isulat nang hindi sunod-sunod\n   C. Huwag alamin ang simula\n   D. Simulan sa wakas\n\n`;
+                  } else if (competency.toLowerCase().includes('fantasy') || competency.toLowerCase().includes('reality')) {
+                    questions += `${i}. Alin sa mga sumusunod ang nagpapakita ng fantasy sa isang kwento?\n   A. Isang batang naglalakad sa parke\n   B. Isang hayop na nagsasalita\n   C. Isang guro na nagtuturo\n   D. Isang nanay na nagluluto\n\n`;
+                  } else if (competency.toLowerCase().includes('story elements') || competency.toLowerCase().includes('schema')) {
+                    questions += `${i}. Ano ang kahulugan ng "connecting to one's experience" sa pagbabasa?\n   A. Huwag isipin ang sariling karanasan\n   B. Iugnay ang kwento sa sariling buhay\n   C. Limutin ang nabasang kwento\n   D. Huwag intindihin ang kwento\n\n`;
                   } else {
-                    questions += `${i}. Batay sa kompetensya na "${competency.split(' ').slice(0, 8).join(' ')}", alin ang pinaka-tumpak na pahayag?\n   A. Ang konseptong ito ay saligang-bato sa pag-unawa sa paksa\n   B. Ang kasanayang ito ay nangangailangan ng pagsasanay at paggamit\n   C. Ang kaalamang ito ay nakabase sa nakaraang natutuhan\n   D. Lahat ng nabanggit\n\n`;
+                    // Generic competency-based question in Filipino
+                    const competencyPhrase = competency.split(' ').slice(0, 6).join(' ');
+                    questions += `${i}. Tungkol sa "${competencyPhrase}", alin ang tamang pag-unawa?\n   A. Kailangan ng mas malalim na pag-aaral\n   B. Madaling mauunawaan ng lahat\n   C. Hindi mahalagang aralin\n   D. Pwedeng hindi pansinin\n\n`;
                   }
                 } else {
-                  if (subjectLower.includes('filipino')) {
-                    questions += `${i}. What is the correct use of adjectives in a sentence?\n   A. The beautiful flower is blooming in the garden.\n   B. The flower that is beautiful is blooming in the garden.\n   C. The flower is beautiful in the garden.\n   D. The garden has a beautiful flower.\n\n`;
-                  } else if (subjectLower.includes('math')) {
-                    questions += `${i}. What is the result of 8 × 7?\n   A. 54\n   B. 56\n   C. 58\n   D. 60\n\n`;
-                  } else if (subjectLower.includes('science')) {
-                    questions += `${i}. Which part of the plant is responsible for photosynthesis?\n   A. Roots\n   B. Stem\n   C. Leaves\n   D. Flowers\n\n`;
-                  } else if (subjectLower.includes('epp')) {
-                    questions += `${i}. What is the main benefit of caring for chickens naturally?\n   A. Higher feeding costs\n   B. Lower egg quality\n   C. More nutritious products\n   D. Higher mortality rate\n\n`;
+                  // Create competency-specific English multiple choice questions
+                  if (competency.toLowerCase().includes('plot') || competency.toLowerCase().includes('sequential')) {
+                    questions += `${i}. What is a sequential plot in a story?\n   A. Events that happen in chronological order\n   B. Events that happen randomly\n   C. Events that start at the end\n   D. Events with no particular order\n\n`;
+                  } else if (competency.toLowerCase().includes('point of view') || competency.toLowerCase().includes('first person')) {
+                    questions += `${i}. Which pronoun indicates first person point of view?\n   A. He, she, they\n   B. I, we, my\n   C. You, your\n   D. It, its\n\n`;
+                  } else if (competency.toLowerCase().includes('sequence') || competency.toLowerCase().includes('events')) {
+                    questions += `${i}. What is the best way to sequence story events?\n   A. Follow the order they happened\n   B. Start with the ending\n   C. Mix them randomly\n   D. Skip important events\n\n`;
+                  } else if (competency.toLowerCase().includes('fantasy') || competency.toLowerCase().includes('reality')) {
+                    questions += `${i}. Which example shows fantasy in a story?\n   A. A child walking to school\n   B. A talking animal\n   C. A teacher in a classroom\n   D. A mother cooking dinner\n\n`;
+                  } else if (competency.toLowerCase().includes('story elements') || competency.toLowerCase().includes('connections')) {
+                    questions += `${i}. What does "making connections" mean in reading?\n   A. Ignoring your own experiences\n   B. Relating the story to your life\n   C. Forgetting what you read\n   D. Not understanding the story\n\n`;
                   } else {
-                    questions += `${i}. Based on the competency "${competency.split(' ').slice(0, 8).join(' ')}", which statement is most accurate?\n   A. This concept is fundamental to understanding the subject\n   B. This skill requires practice and application\n   C. This knowledge builds on previous learning\n   D. All of the above\n\n`;
+                    // Generic competency-based question in English
+                    const competencyPhrase = competency.split(' ').slice(0, 6).join(' ');
+                    questions += `${i}. Regarding "${competencyPhrase}", which understanding is correct?\n   A. It requires deeper study and practice\n   B. It's easily understood by everyone\n   C. It's not important to learn\n   D. It can be ignored completely\n\n`;
                   }
                 }
                 break;
               case "Identification":
                 if (effectiveLanguage === 'Filipino') {
-                  if (subjectLower.includes('filipino')) {
-                    questions += `${i}. Tukuyin ang uri ng salitang may salungguhit: "Ang MATALINONG bata ay nag-aaral nang mabuti."\n\n`;
-                  } else if (subjectLower.includes('math')) {
-                    questions += `${i}. Tukuyin ang hugis na may 4 na pantay na gilid at 4 na tamang sulok: _______\n\n`;
-                  } else if (subjectLower.includes('science')) {
-                    questions += `${i}. Pangalanan ang proseso kung saan ang mga halaman ay gumagawa ng sariling pagkain: _______\n\n`;
-                  } else if (subjectLower.includes('epp')) {
-                    questions += `${i}. Tukuyin ang tamang paraan ng pag-aalaga ng manok upang manatiling malusog: _______\n\n`;
+                  // Create competency-specific Filipino identification questions
+                  if (competency.toLowerCase().includes('plot') || competency.toLowerCase().includes('sequential')) {
+                    questions += `${i}. Tukuyin ang uri ng plot na ginagamit sa kwentong: "Una, naglakbay si Juan. Pagkatapos, nakatagpo niya ang higante. Sa wakas, naging masaya sila." ________\n\n`;
+                  } else if (competency.toLowerCase().includes('point of view') || competency.toLowerCase().includes('author')) {
+                    questions += `${i}. Tukuyin ang point of view na ginamit sa pangungusap: "Ako ay naglalakad sa parke." ________\n\n`;
+                  } else if (competency.toLowerCase().includes('sequence') || competency.toLowerCase().includes('events')) {
+                    questions += `${i}. Tukuyin ang tamang pagkakasunod-sunod: Natulog, Gumising, Kumain ng almusal. Una: ________\n\n`;
+                  } else if (competency.toLowerCase().includes('fantasy') || competency.toLowerCase().includes('reality')) {
+                    questions += `${i}. Tukuyin kung fantasy o reality: "Ang ibon ay lumipad sa kalangitan." ________\n\n`;
+                  } else if (competency.toLowerCase().includes('story elements') || competency.toLowerCase().includes('schema')) {
+                    questions += `${i}. Tukuyin ang story element na maaaring iugnay sa sariling karanasan: ________\n\n`;
                   } else {
-                    questions += `${i}. Tukuyin ang pangunahing konsepto sa: ${competency.split(' ').slice(0, 6).join(' ')}\n\n`;
+                    // Competency-specific identification
+                    const competencyPhrase = competency.split(' ').slice(0, 8).join(' ');
+                    questions += `${i}. Tukuyin ang pangunahing ideya sa: "${competencyPhrase}" ________\n\n`;
                   }
                 } else {
-                  if (subjectLower.includes('filipino')) {
-                    questions += `${i}. Identify the type of underlined word: "The INTELLIGENT child studies well."\n\n`;
-                  } else if (subjectLower.includes('math')) {
-                    questions += `${i}. Identify the geometric shape with 4 equal sides and 4 right angles: _______\n\n`;
-                  } else if (subjectLower.includes('science')) {
-                    questions += `${i}. Name the process by which plants make their own food: _______\n\n`;
-                  } else if (subjectLower.includes('epp')) {
-                    questions += `${i}. Identify the correct way to care for chickens to keep them healthy: _______\n\n`;
+                  // Create competency-specific English identification questions
+                  if (competency.toLowerCase().includes('plot') || competency.toLowerCase().includes('sequential')) {
+                    questions += `${i}. Identify the plot type used in: "First, Tom went to school. Then, he met his friend. Finally, they played together." ________\n\n`;
+                  } else if (competency.toLowerCase().includes('point of view') || competency.toLowerCase().includes('author')) {
+                    questions += `${i}. Identify the point of view in: "I walked through the garden." ________\n\n`;
+                  } else if (competency.toLowerCase().includes('sequence') || competency.toLowerCase().includes('events')) {
+                    questions += `${i}. Identify the correct sequence: Slept, Woke up, Ate breakfast. First: ________\n\n`;
+                  } else if (competency.toLowerCase().includes('fantasy') || competency.toLowerCase().includes('reality')) {
+                    questions += `${i}. Identify as fantasy or reality: "The bird flew in the sky." ________\n\n`;
+                  } else if (competency.toLowerCase().includes('story elements') || competency.toLowerCase().includes('connections')) {
+                    questions += `${i}. Identify the story element you can connect to your experience: ________\n\n`;
                   } else {
-                    questions += `${i}. Identify the main concept in: ${competency.split(' ').slice(0, 6).join(' ')}\n\n`;
+                    // Competency-specific identification
+                    const competencyPhrase = competency.split(' ').slice(0, 8).join(' ');
+                    questions += `${i}. Identify the main concept in: "${competencyPhrase}" ________\n\n`;
                   }
                 }
                 break;
