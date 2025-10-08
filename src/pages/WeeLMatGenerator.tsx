@@ -440,7 +440,15 @@ const WeeLMatGenerator = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button disabled={!docxUrl} onClick={() => docxUrl && downloadFile(docxUrl, buildFilename("docx"))}>
+              <Button 
+                onClick={() => {
+                  if (docxUrl) {
+                    downloadFile(docxUrl, buildFilename("docx"));
+                  } else {
+                    toast("DOCX file is not available. Please try regenerating the WeeLMat.");
+                  }
+                }}
+              >
                 Download DOCX
               </Button>
               <Button onClick={handleGenerateLogSheet}>
