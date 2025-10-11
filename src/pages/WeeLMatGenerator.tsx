@@ -346,7 +346,7 @@ const WeeLMatGenerator = () => {
     };
 
     return (
-      <section className="container max-w-6xl animate-fade-in">
+      <section className="container max-w-[95%] animate-fade-in">
         <article className="rounded-2xl border bg-card text-card-foreground shadow-sm overflow-hidden">
           <header className="px-6 pt-6 pb-4 border-b flex items-center justify-between">
             <div>
