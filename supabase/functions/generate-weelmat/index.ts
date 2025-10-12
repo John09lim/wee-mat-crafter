@@ -502,9 +502,17 @@ Return EXACTLY this JSON structure:
                   } else if (competency.toLowerCase().includes('story elements') || competency.toLowerCase().includes('schema')) {
                     questions += `${i}. Ano ang kahulugan ng "connecting to one's experience" sa pagbabasa?\n   A. Huwag isipin ang sariling karanasan\n   B. Iugnay ang kwento sa sariling buhay\n   C. Limutin ang nabasang kwento\n   D. Huwag intindihin ang kwento\n\n`;
                   } else {
-                    // Generic competency-based question in Filipino
+                    // Generic competency-based question in Filipino with variation
                     const competencyPhrase = competency.split(' ').slice(0, 6).join(' ');
-                    questions += `${i}. Tungkol sa "${competencyPhrase}", alin ang tamang pag-unawa?\n   A. Kailangan ng mas malalim na pag-aaral\n   B. Madaling mauunawaan ng lahat\n   C. Hindi mahalagang aralin\n   D. Pwedeng hindi pansinin\n\n`;
+                    const variation = questionSeed % 5; // Create 5 different question patterns
+                    const questions_filipino = [
+                      `${i}. Tungkol sa "${competencyPhrase}", alin ang tamang pag-unawa?\n   A. Kailangan ng mas malalim na pag-aaral at pagsasanay\n   B. Madaling mauunawaan ng lahat nang walang pagsisikap\n   C. Hindi mahalagang aralin sa pag-aaral\n   D. Pwedeng balewalain nang tuluyan\n\n`,
+                      `${i}. Paano mo ilalapat ang konsepto ng "${competencyPhrase}" sa tunay na buhay?\n   A. Sa pang-araw-araw na komunikasyon at gawain\n   B. Hindi ito maaaring ilapat sa realidad\n   C. Ginagamit lamang sa loob ng paaralan\n   D. Para sa mga guro lamang ang paggamit nito\n\n`,
+                      `${i}. Ano ang pangunahing layunin ng pag-aaral ng "${competencyPhrase}"?\n   A. Para makapasa lamang sa pagsusulit\n   B. Upang mapabuti ang iyong kasanayan at kaalaman\n   C. Walang malinaw na layunin sa pag-aaral\n   D. Dahil ito ay bahagi lamang ng curriculum\n\n`,
+                      `${i}. Sa pagsasagawa ng "${competencyPhrase}", ano ang dapat bigyang-pansin?\n   A. Tamang pag-unawa at wastong aplikasyon\n   B. Bilis ng pagsagot nang walang pag-iisip\n   C. Haba ng sagot kahit mali ang nilalaman\n   D. Kagandahan ng sulat lamang hindi laman\n\n`,
+                      `${i}. Bakit mahalaga ang "${competencyPhrase}" sa iyong pag-aaral?\n   A. Tumutulong ito sa pagpapabuti ng iyong kakayahan\n   B. Hindi ito makakatulong sa kinabukasan mo\n   C. Pang-test taking strategies lang ito\n   D. Walang tunay na kabuluhan sa buhay\n\n`
+                    ];
+                    questions += questions_filipino[variation];
                   }
                 } else {
                   // Create competency-specific English multiple choice questions
@@ -519,9 +527,17 @@ Return EXACTLY this JSON structure:
                   } else if (competency.toLowerCase().includes('story elements') || competency.toLowerCase().includes('connections')) {
                     questions += `${i}. What does "making connections" mean in reading?\n   A. Ignoring your own experiences\n   B. Relating the story to your life\n   C. Forgetting what you read\n   D. Not understanding the story\n\n`;
                   } else {
-                    // Generic competency-based question in English
+                    // Generic competency-based question in English with variation
                     const competencyPhrase = competency.split(' ').slice(0, 6).join(' ');
-                    questions += `${i}. Regarding "${competencyPhrase}", which understanding is correct?\n   A. It requires deeper study and practice\n   B. It's easily understood by everyone\n   C. It's not important to learn\n   D. It can be ignored completely\n\n`;
+                    const variation = questionSeed % 5; // Create 5 different question patterns
+                    const questions_english = [
+                      `${i}. Regarding "${competencyPhrase}", which understanding is correct?\n   A. It requires deeper study and practice to master\n   B. It's easily understood by everyone without effort\n   C. It's not important enough to learn properly\n   D. It can be ignored or skipped completely\n\n`,
+                      `${i}. How can "${competencyPhrase}" be applied in real life?\n   A. Through daily communication and practical activities\n   B. It cannot be applied outside the classroom\n   C. Only in school assignments and textbooks\n   D. Reserved for teachers and experts only\n\n`,
+                      `${i}. What is the main purpose of learning "${competencyPhrase}"?\n   A. Just to pass tests and examinations\n   B. To improve your skills and deepen understanding\n   C. There is no clear purpose for learning it\n   D. Because it's required by the curriculum\n\n`,
+                      `${i}. When demonstrating "${competencyPhrase}", what should you focus on?\n   A. Proper understanding and correct application\n   B. Speed of answering without thinking\n   C. Length of response regardless of accuracy\n   D. Appearance only, not the content\n\n`,
+                      `${i}. Why is "${competencyPhrase}" important in your studies?\n   A. It helps develop your abilities and competence\n   B. It won't help you in your future career\n   C. It's only for test-taking strategies\n   D. It has no real value in everyday life\n\n`
+                    ];
+                    questions += questions_english[variation];
                   }
                 }
                 break;
@@ -574,7 +590,13 @@ Return EXACTLY this JSON structure:
                   } else if (subjectLower.includes('epp')) {
                     questions += `${i}. Ang natural na pag-aalaga ng manok ay mas mahal kaysa sa artificial feeding. (Tama/Mali)\n\n`;
                   } else {
-                    questions += `${i}. Ang sumusunod na pahayag tungkol sa "${competency.split(' ').slice(0, 5).join(' ')}" ay tumpak. (Tama/Mali)\n\n`;
+                    const variation = questionSeed % 3;
+                    const questions_filipino = [
+                      `${i}. Ang pahayag na "${competency.split(' ').slice(0, 6).join(' ')}" ay wasto at makatotohanan. (Tama/Mali)\n\n`,
+                      `${i}. Batay sa "${competency.split(' ').slice(0, 6).join(' ')}", ang sumusunod na ideya ay totoo. (Tama/Mali)\n\n`,
+                      `${i}. Tama o mali: Ang konsepto ng "${competency.split(' ').slice(0, 6).join(' ')}" ay nauugnay sa pag-aaral. (Tama/Mali)\n\n`
+                    ];
+                    questions += questions_filipino[variation];
                   }
                 } else {
                   if (subjectLower.includes('filipino')) {
@@ -586,7 +608,13 @@ Return EXACTLY this JSON structure:
                   } else if (subjectLower.includes('epp')) {
                     questions += `${i}. Natural chicken care is more expensive than artificial feeding. (True/False)\n\n`;
                   } else {
-                    questions += `${i}. The following statement about "${competency.split(' ').slice(0, 5).join(' ')}" is accurate. (True/False)\n\n`;
+                    const variation = questionSeed % 3;
+                    const questions_english = [
+                      `${i}. The statement about "${competency.split(' ').slice(0, 6).join(' ')}" is accurate and valid. (True/False)\n\n`,
+                      `${i}. Based on "${competency.split(' ').slice(0, 6).join(' ')}", the following concept is true. (True/False)\n\n`,
+                      `${i}. True or false: The idea of "${competency.split(' ').slice(0, 6).join(' ')}" relates to learning. (True/False)\n\n`
+                    ];
+                    questions += questions_english[variation];
                   }
                 }
                 break;
@@ -602,7 +630,13 @@ Return EXACTLY this JSON structure:
                   } else if (subjectLower.includes('epp')) {
                     questions += `${i}. Ipaliwanag ang mga hakbang sa wastong pag-aalaga ng poultry animals sa natural na paraan.\n\n`;
                   } else {
-                    questions += `${i}. Ipaliwanag at bigyang-kahulugan ang: ${competency.split(' ').slice(0, 8).join(' ')}\n\n`;
+                    const variation = questionSeed % 3;
+                    const questions_filipino = [
+                      `${i}. Ipaliwanag nang detalyado ang konsepto ng: ${competency.split(' ').slice(0, 8).join(' ')}\n\n`,
+                      `${i}. Bigyang-kahulugan at ilarawan ang kahalagahan ng: ${competency.split(' ').slice(0, 8).join(' ')}\n\n`,
+                      `${i}. Suriin at talakayin ang mga aspeto ng: ${competency.split(' ').slice(0, 8).join(' ')}\n\n`
+                    ];
+                    questions += questions_filipino[variation];
                   }
                 } else {
                   if (subjectLower.includes('filipino')) {
@@ -614,7 +648,13 @@ Return EXACTLY this JSON structure:
                   } else if (subjectLower.includes('epp')) {
                     questions += `${i}. Explain the steps in proper care of poultry animals through natural methods.\n\n`;
                   } else {
-                    questions += `${i}. Analyze and explain the significance of: ${competency.split(' ').slice(0, 8).join(' ')}\n\n`;
+                    const variation = questionSeed % 3;
+                    const questions_english = [
+                      `${i}. Analyze and explain the significance of: ${competency.split(' ').slice(0, 8).join(' ')}\n\n`,
+                      `${i}. Describe and discuss the importance of: ${competency.split(' ').slice(0, 8).join(' ')}\n\n`,
+                      `${i}. Evaluate and elaborate on the concept of: ${competency.split(' ').slice(0, 8).join(' ')}\n\n`
+                    ];
+                    questions += questions_english[variation];
                   }
                 }
                 break;
