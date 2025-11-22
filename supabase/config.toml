@@ -2,3 +2,9 @@ project_id = "velpueasbsrptocrjljg"
 
 [functions.generate-weelmat]
 verify_jwt = true
+
+[functions.generate-lesson-plan]
+verify_jwt = true
+
+[functions.generate-periodical-test]
+verify_jwt = true
