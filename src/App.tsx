@@ -13,6 +13,9 @@ import Dashboard from "./pages/Dashboard";
 import Splash from "./pages/Splash";
 import WeeLMatGenerator from "./pages/WeeLMatGenerator";
 import WeeLMatGeneratorPremium from "./pages/WeeLMatGeneratorPremium";
+import WeeLMatGeneratorWeeLMat from "./pages/WeeLMatGeneratorWeeLMat";
+import LessonPlanGenerator from "./pages/LessonPlanGenerator";
+import PeriodicalTestGenerator from "./pages/PeriodicalTestGenerator";
 import MyAccount from "./pages/MyAccount";
 
 const queryClient = new QueryClient();
@@ -33,6 +36,9 @@ const App = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/weelmatgenerator" element={<WeeLMatGenerator />} />
           <Route path="/weelmatgeneratorpremium" element={<WeeLMatGeneratorPremium />} />
+          <Route path="/weelmatgeneratorpremium/weelmat" element={<WeeLMatGeneratorWeeLMat />} />
+          <Route path="/weelmatgeneratorpremium/lessonplan" element={<LessonPlanGenerator />} />
+          <Route path="/weelmatgeneratorpremium/test" element={<PeriodicalTestGenerator />} />
           <Route path="/my-account" element={<MyAccount />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
