@@ -96,22 +96,41 @@ Section: ${section || "N/A"}
 Week Coverage: ${weekStart || "N/A"} to ${weekEnd || "N/A"}
 
 TASK:
-1. Identify or infer the main weekly competency from the text (aligned to the grade level and subject)
-2. For each day Monday to Friday, propose:
-   - Competency (daily variation or weekly competency)
-   - Suggested Learning Materials/References (DepEd-aligned materials when needed, include online references and textbook pages)
-   - Learning Activities/Tasks (concrete assessment tasks and questions aligned to the extracted text)
-   - Exam Type (Multiple Choice, Identification, Essay, True/False, Matching Type, Performance Task)
-   - Question Count (5-15)
+1. Identify the main weekly competency/objective from the text.
+
+2. Find content organized by days. Look for these patterns in the document:
+   - "Day 1", "Day 2", "Day 3", "Day 4", "Day 5"
+   - "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"
+   - "Araw 1", "Araw 2", "Araw 3", "Araw 4", "Araw 5" (Filipino)
+   - "Gawain 1", "Gawain 2", etc.
+   - Numbered sections (I, II, III, IV, V)
+   - "Week 1 Day 1", "Week 1 Day 2", etc.
+
+3. For each day (Monday-Friday), extract:
+   - Competency: The specific learning objective for that day
+   - Suggested Materials: Learning materials, textbook references, LM pages mentioned
+   - Learning Tasks: **CRITICAL** - Extract the ACTUAL quiz questions, assessment items, and activity questions EXACTLY as they appear in the document. Include:
+     * The complete question text with its number
+     * Answer choices (A, B, C, D) if present, each on a new line
+     * Fill-in-the-blank items with underscores preserved  
+     * True/False statements
+     * Activity instructions
+     * DO NOT create generic descriptions - copy the actual questions from the text
+     * Preserve the original formatting and numbering
+     * Look for patterns like "1.", "2.", "A.", "B.", numbered lists, bullet points
+   - Exam Type: Based on the question format found (Multiple Choice, Identification, Essay, True/False, Matching Type, Performance Task)
+   - Question Count: Count of actual questions found for that day
+
+4. Map Day 1 → Monday, Day 2 → Tuesday, Day 3 → Wednesday, Day 4 → Thursday, Day 5 → Friday
 
 Output in this exact JSON format:
 {
-  "weekCompetency": "Overall weekly competency description",
+  "weekCompetency": "...",
   "days": {
     "Monday": {
-      "competency": "Monday's specific competency",
-      "suggestedMaterials": ["LM pages 10-15", "Reference 1", "Online resource"],
-      "learningTasks": "Detailed learning activities text with real assessment tasks...",
+      "competency": "...",
+      "suggestedMaterials": ["...", "..."],
+      "learningTasks": "Include ACTUAL questions here:\n1. Question text\n   A. Choice A\n   B. Choice B\n   C. Choice C\n   D. Choice D\n\n2. Next question...",
       "examType": "Multiple Choice",
       "questionCount": 10
     },
@@ -122,19 +141,13 @@ Output in this exact JSON format:
   }
 }
 
-RULES:
-- Extract actual competencies/learning objectives from the text
-- Look for day-specific sections (Monday, Day 1, etc.)
-- Infer appropriate exam types based on content:
-  * "identify", "recognize", "name" → Identification
-  * "choose", "select" → Multiple Choice
-  * "explain", "discuss", "describe" → Essay
-  * "true or false", "yes or no" → True/False
-  * "match", "pair" → Matching Type
-  * "demonstrate", "perform", "create" → Performance Task
-- Language rule: If Language Use is Filipino, write all content in Filipino; otherwise write in English
-- Keep the content concrete, classroom-ready, and tied to the uploaded material
-- Return ONLY the JSON object, no markdown formatting or extra text`;
+CRITICAL RULES:
+- Extract ACTUAL questions from the document word-for-word, do not create generic descriptions
+- Preserve question numbering and formatting exactly as shown
+- Include answer choices for multiple choice questions on separate lines
+- If no questions found for a day, describe the activities mentioned in the document
+- Language must match the Language Use setting (Filipino or English)
+- Return ONLY valid JSON, no markdown formatting or code blocks`;
 
     const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
