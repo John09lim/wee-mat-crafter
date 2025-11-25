@@ -615,6 +615,7 @@ export type Database = {
           id: string
           pdf_url: string | null
           section: string
+          student_docx_url: string | null
           subject: string
           updated_at: string
           user_id: string
@@ -632,6 +633,7 @@ export type Database = {
           id?: string
           pdf_url?: string | null
           section: string
+          student_docx_url?: string | null
           subject: string
           updated_at?: string
           user_id: string
@@ -649,6 +651,7 @@ export type Database = {
           id?: string
           pdf_url?: string | null
           section?: string
+          student_docx_url?: string | null
           subject?: string
           updated_at?: string
           user_id?: string
