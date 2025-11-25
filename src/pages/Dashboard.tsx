@@ -458,16 +458,6 @@ const watchedValues = watch();
                 <div className="grid grid-cols-2 gap-4">
                   <Button
                     type="button"
-                    variant={matrixMode === "automatic" ? "default" : "outline"}
-                    className="h-24 flex flex-col items-center justify-center gap-2"
-                    onClick={() => setMatrixMode("automatic")}
-                  >
-                    <Upload className="h-6 w-6" />
-                    <span className="font-semibold">Automatic Matrix Content</span>
-                    <span className="text-xs opacity-80">Upload file to auto-fill</span>
-                  </Button>
-                  <Button
-                    type="button"
                     variant={matrixMode === "manual" ? "default" : "outline"}
                     className="h-24 flex flex-col items-center justify-center gap-2"
                     onClick={() => setMatrixMode("manual")}
@@ -475,6 +465,16 @@ const watchedValues = watch();
                     <FileText className="h-6 w-6" />
                     <span className="font-semibold">Manual Matrix Content</span>
                     <span className="text-xs opacity-80">Enter competencies manually</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={matrixMode === "automatic" ? "default" : "outline"}
+                    className="h-24 flex flex-col items-center justify-center gap-2"
+                    onClick={() => setMatrixMode("automatic")}
+                  >
+                    <Upload className="h-6 w-6" />
+                    <span className="font-semibold">Automatic Matrix Content</span>
+                    <span className="text-xs opacity-80">Upload file to auto-fill</span>
                   </Button>
                 </div>
               </div>
