@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { unzip } from "https://deno.land/x/zip@v1.2.5/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,12 +31,12 @@ serve(async (req) => {
     
     if (fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || 
         fileType === "application/msword") {
-      // For DOCX/DOC files, use OCR/Vision API
+      // For DOCX files, use native ZIP extraction
       try {
-        extractedText = await extractDocumentText(fileData, "DOCX");
+        extractedText = await extractDocxText(fileData);
       } catch (err) {
         console.error("DOCX extraction failed:", err);
-        throw new Error("Unable to extract text from DOCX file. Please try converting to PDF or image format.");
+        throw new Error("Unable to extract text from DOCX file. Please ensure it's a valid Word document.");
       }
     } else if (fileType === "application/pdf") {
       // For PDF files, use OCR fallback
@@ -212,6 +213,73 @@ async function extractImageText(base64Data: string): Promise<string> {
   }
   
   return extractedText;
+}
+
+async function extractDocxText(base64Data: string): Promise<string> {
+  try {
+    // 1. Decode base64 to binary
+    const base64Clean = base64Data.replace(/^data:.*?;base64,/, "");
+    const binaryString = atob(base64Clean);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    console.log("DOCX file size:", bytes.length, "bytes");
+
+    // 2. Create temporary file for unzipping
+    const tempFilePath = await Deno.makeTempFile({ suffix: ".docx" });
+    await Deno.writeFile(tempFilePath, bytes);
+
+    // 3. Unzip the DOCX file
+    const outputDir = await Deno.makeTempDir();
+    await unzip(tempFilePath, outputDir);
+
+    console.log("DOCX extracted to:", outputDir);
+
+    // 4. Read word/document.xml
+    const documentXmlPath = `${outputDir}/word/document.xml`;
+    let xmlContent: string;
+    
+    try {
+      xmlContent = await Deno.readTextFile(documentXmlPath);
+    } catch (err) {
+      console.error("Failed to read document.xml:", err);
+      throw new Error("Invalid DOCX structure: word/document.xml not found");
+    }
+
+    console.log("document.xml size:", xmlContent.length, "characters");
+
+    // 5. Extract text from <w:t> tags
+    const textMatches = xmlContent.match(/<w:t[^>]*>(.*?)<\/w:t>/gs) || [];
+    const extractedText = textMatches
+      .map(match => {
+        const text = match.replace(/<[^>]+>/g, '');
+        return text;
+      })
+      .join(' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    console.log("Extracted text length:", extractedText.length);
+
+    // 6. Cleanup
+    try {
+      await Deno.remove(tempFilePath);
+      await Deno.remove(outputDir, { recursive: true });
+    } catch (cleanupErr) {
+      console.warn("Cleanup error (non-critical):", cleanupErr);
+    }
+
+    if (!extractedText || extractedText.length < 10) {
+      throw new Error("No readable text found in DOCX file");
+    }
+
+    return extractedText;
+  } catch (error) {
+    console.error("DOCX parsing error:", error);
+    throw error;
+  }
 }
 
 async function extractDocumentText(base64Data: string, docType: string): Promise<string> {
