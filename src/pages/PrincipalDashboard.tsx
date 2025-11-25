@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Download, CheckCircle, Users, BookOpen, Calendar, UserCircle, CheckCircle2, XCircle } from "lucide-react";
+import { Download, CheckCircle, Users, BookOpen, Calendar, UserCircle, CheckCircle2, XCircle, Bell } from "lucide-react";
 import DocumentViewer from "@/components/DocumentViewer";
 
 export default function PrincipalDashboard() {
@@ -15,10 +16,47 @@ export default function PrincipalDashboard() {
   const [activeTab, setActiveTab] = useState("all");
   const [profile, setProfile] = useState<any>(null);
   const [allTeachers, setAllTeachers] = useState<any[]>([]);
+  const [newSubmissionsCount, setNewSubmissionsCount] = useState(0);
+  const initialLoadComplete = useRef(false);
 
   useEffect(() => {
     fetchSubmissions();
   }, []);
+
+  // Realtime subscription for new submissions
+  useEffect(() => {
+    if (!profile?.school) return;
+
+    const channel = supabase
+      .channel('teacher-submissions-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'teacher_submissions',
+          filter: `school_name=eq.${profile.school}`
+        },
+        (payload) => {
+          if (initialLoadComplete.current) {
+            const newSubmission = payload.new;
+            toast.success(
+              `New submission from ${newSubmission.teacher_name}`,
+              {
+                description: `${newSubmission.subject} - ${newSubmission.grade_level}`,
+              }
+            );
+            setNewSubmissionsCount(prev => prev + 1);
+            setSubmissions(prev => [newSubmission, ...prev]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [profile?.school]);
 
   const fetchSubmissions = async () => {
     try {
@@ -64,6 +102,7 @@ export default function PrincipalDashboard() {
         toast.error("Failed to load submissions");
       } else {
         setSubmissions(data || []);
+        initialLoadComplete.current = true;
       }
     } catch (error: any) {
       console.error("Error:", error);
@@ -206,7 +245,30 @@ export default function PrincipalDashboard() {
       )}
 
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold" style={{ color: "#236130" }}>Principal Dashboard</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold" style={{ color: "#236130" }}>Principal Dashboard</h1>
+          {newSubmissionsCount > 0 && (
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Bell className="h-6 w-6" style={{ color: "#236130" }} />
+                <Badge 
+                  className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0"
+                  style={{ backgroundColor: "#f5ca47", color: "#236130" }}
+                >
+                  {newSubmissionsCount}
+                </Badge>
+              </div>
+              <Button 
+                size="sm"
+                variant="outline"
+                onClick={() => setNewSubmissionsCount(0)}
+                style={{ borderColor: "#236130", color: "#236130" }}
+              >
+                Clear
+              </Button>
+            </div>
+          )}
+        </div>
         <Button 
           onClick={markWeekComplete}
           style={{ backgroundColor: "#f5ca47", color: "#236130" }}
