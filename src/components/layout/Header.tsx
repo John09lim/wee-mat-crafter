@@ -43,15 +43,12 @@ const Header = () => {
           <p className="text-lg font-semibold leading-tight">WeeLMat • Weekly Learning Matrix</p>
         </div>
         <nav className="flex items-center gap-4 text-sm">
-          <Link to="/my-account" className="hover:underline underline-offset-4">
-            My Files
+          <Link to="/weelmat-history" className="hover:underline underline-offset-4">
+            History
           </Link>
           
           {!loading && userRole === 'teacher' && (
             <>
-              <Link to="/weelmat-history" className="hover:underline underline-offset-4">
-                My WeeLMats
-              </Link>
               <Link to="/teacher-submission" className="hover:underline underline-offset-4">
                 Submit WeeLMat
               </Link>

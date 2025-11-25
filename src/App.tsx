@@ -16,7 +16,7 @@ import WeeLMatGeneratorPremium from "./pages/WeeLMatGeneratorPremium";
 import WeeLMatGeneratorWeeLMat from "./pages/WeeLMatGeneratorWeeLMat";
 import LessonPlanGenerator from "./pages/LessonPlanGenerator";
 import PeriodicalTestGenerator from "./pages/PeriodicalTestGenerator";
-import MyAccount from "./pages/MyAccount";
+import { Navigate } from "react-router-dom";
 import TeacherSubmission from "./pages/TeacherSubmission";
 import PrincipalDashboard from "./pages/PrincipalDashboard";
 import SupervisorDashboard from "./pages/SupervisorDashboard";
@@ -43,7 +43,7 @@ const App = () => {
           <Route path="/premium/weelmat" element={<WeeLMatGeneratorWeeLMat />} />
           <Route path="/premium/lesson-plan" element={<LessonPlanGenerator />} />
           <Route path="/premium/periodical-test" element={<PeriodicalTestGenerator />} />
-          <Route path="/my-account" element={<MyAccount />} />
+          <Route path="/my-account" element={<Navigate to="/weelmat-history" replace />} />
           <Route path="/teacher-submission" element={<TeacherSubmission />} />
           <Route path="/principal-dashboard" element={<PrincipalDashboard />} />
           <Route path="/supervisor-dashboard" element={<SupervisorDashboard />} />
