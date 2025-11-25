@@ -291,7 +291,7 @@ const Index = () => {
               <TypewriterText text="WeeLMat Generator" />
             </span>
             <span className="block text-foreground mt-1">
-              <ColorWaveText text="Weekly planning, instantly clear" />
+              <ColorWaveText text="Craft AI-driven Weekly Learning Matrices in seconds" />
             </span>
           </h1>
             
