@@ -326,48 +326,37 @@ async function extractDocxText(base64Data: string): Promise<string> {
   }
 }
 
-// Extract text from PDF files using OpenAI Vision API (treat as image)
+// Extract text from PDF files using pdf-parse library
 async function extractPdfText(base64Data: string): Promise<string> {
-  // For PDFs, we use Vision API to extract text from the rendered document
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "This is a PDF document containing a lesson plan or curriculum guide. Extract ALL text content from it, focusing on daily learning plans, competencies, objectives, or lesson content for Monday through Friday. Return only the extracted text, preserving the structure and day labels."
-            },
-            {
-              type: "image_url",
-              image_url: { url: base64Data }
-            }
-          ]
-        }
-      ],
-      max_tokens: 4000
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("OpenAI PDF API error:", errorText);
+  try {
+    console.log("Extracting text from PDF using pdf-parse library...");
+    
+    // Import pdf-parse dynamically
+    const pdfParse = await import("https://esm.sh/pdf-parse@1.1.1");
+    
+    // Convert base64 to Uint8Array
+    const base64Clean = base64Data.replace(/^data:.*?;base64,/, "");
+    const binary = Uint8Array.from(atob(base64Clean), c => c.charCodeAt(0));
+    
+    // Parse PDF
+    const pdfData = await pdfParse.default(binary);
+    
+    console.log(`Extracted ${pdfData.text.length} characters from PDF`);
+    console.log(`PDF has ${pdfData.numpages} pages`);
+    
+    if (!pdfData.text || pdfData.text.length < 10) {
+      throw new Error("No text could be extracted from the PDF file");
+    }
+    
+    // Clean up the text
+    const cleanedText = pdfData.text
+      .replace(/\r\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    
+    return cleanedText;
+  } catch (error) {
+    console.error("PDF extraction failed:", error);
     throw new Error("PDF extraction failed");
   }
-
-  const data = await response.json();
-  const extractedText = data.choices?.[0]?.message?.content || "";
-  
-  if (!extractedText || extractedText.length < 10) {
-    throw new Error("No text could be extracted from the PDF file");
-  }
-  
-  return extractedText;
 }
