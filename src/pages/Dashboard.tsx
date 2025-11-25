@@ -277,6 +277,19 @@ const watchedValues = watch();
 
         setUploadedFile(file);
         toast.success("File processed! Competencies auto-filled for Monday-Friday");
+        
+        // Auto-generate WeeLMat if all fields are complete in automatic mode
+        if (matrixMode === "automatic") {
+          setTimeout(() => {
+            const currentValues = watch();
+            if (isFormComplete(currentValues)) {
+              toast.success("All fields complete! Auto-generating WeeLMat...");
+              handleSubmit(onSubmit)();
+            } else {
+              toast.info("Please fill in the remaining fields and click Generate.");
+            }
+          }, 500);
+        }
       }
       
       setUploadProgress(100);
