@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { PasscodeDialog } from "@/components/PasscodeDialog";
-import { Upload, FileText, Check } from "lucide-react";
+import { Upload, FileText, Check, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 const examTypes = ["Identification", "Matching Type", "True/False", "Multiple Choice", "Essay", "Performance Task", "HOLIDAY"] as const;
@@ -283,6 +283,7 @@ const watchedValues = watch();
           setTimeout(() => {
             const currentValues = watch();
             if (isFormComplete(currentValues)) {
+              setLoading(true);
               toast.success("All fields complete! Auto-generating WeeLMat...");
               handleSubmit(onSubmit)();
             } else {
@@ -307,6 +308,44 @@ const watchedValues = watch();
         open={showPasscodeDialog} 
         onPasscodeVerified={handlePasscodeVerified}
       />
+      
+      {/* Loading Overlay for Auto-Generation */}
+      {loading && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-card p-8 rounded-2xl shadow-lg border max-w-md w-full mx-4 space-y-6">
+            <div className="flex flex-col items-center gap-4">
+              <Loader2 className="h-12 w-12 text-primary animate-spin" />
+              <div className="text-center space-y-2">
+                <h3 className="text-xl font-semibold">Generating WeeLMat</h3>
+                <p className="text-sm text-muted-foreground">
+                  Please wait while we create your Weekly Learning Matrix...
+                </p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {steps.map((step, idx) => (
+                <div 
+                  key={idx}
+                  className={`flex items-center gap-3 transition-all duration-300 ${
+                    idx <= stepIndex ? 'opacity-100' : 'opacity-40'
+                  }`}
+                >
+                  {idx < stepIndex ? (
+                    <Check className="h-5 w-5 text-primary flex-shrink-0" />
+                  ) : idx === stepIndex ? (
+                    <Loader2 className="h-5 w-5 text-primary animate-spin flex-shrink-0" />
+                  ) : (
+                    <div className="h-5 w-5 rounded-full border-2 border-muted flex-shrink-0" />
+                  )}
+                  <span className={`text-sm ${idx <= stepIndex ? 'text-foreground' : 'text-muted-foreground'}`}>
+                    {step}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       
       {passcodeVerified && (
         <main className="min-h-[calc(100vh-160px)] py-12 bg-background">
