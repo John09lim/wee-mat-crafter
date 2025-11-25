@@ -175,7 +175,7 @@ const WeeLMatHistory = () => {
       <div className="container py-8">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">My Saved WeeLMats</h1>
+            <h1 className="text-3xl font-bold text-foreground">WeeLMat History</h1>
             <p className="text-muted-foreground mt-1">
               View, download, and regenerate your past Weekly Learning Matrices
             </p>
