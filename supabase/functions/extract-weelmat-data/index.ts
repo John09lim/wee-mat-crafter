@@ -55,7 +55,7 @@ serve(async (req) => {
         console.error("PDF extraction failed:", err);
         return new Response(JSON.stringify({
           success: false,
-          error: "This PDF couldn't be processed. Try converting to DOCX or use an image screenshot.",
+          error: "Couldn't extract text from this PDF. It may be image-based (scanned). Try: 1) Taking screenshots of the pages and uploading as images, 2) Converting to DOCX, or 3) Using manual mode.",
           canRetry: true
         }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
@@ -339,58 +339,45 @@ async function extractDocxText(base64Data: string): Promise<string> {
   }
 }
 
-// Extract text from PDF files using OpenAI Vision API
+// Extract text from PDF files using pdf-parse library (Deno-compatible)
 async function extractPdfText(base64Data: string): Promise<string> {
-  console.log("Extracting text from PDF using OpenAI Vision API...");
+  console.log("Extracting text from PDF using pdf-parse...");
   
-  // Ensure proper data URL format for PDF
-  let pdfDataUrl = base64Data;
-  if (!base64Data.startsWith('data:')) {
-    pdfDataUrl = `data:application/pdf;base64,${base64Data}`;
-    console.log("Added data URL prefix to PDF");
+  try {
+    // Import pdf-parse using npm import (Deno-compatible)
+    const pdfParse = (await import("npm:pdf-parse/lib/pdf-parse.js")).default;
+    
+    // Convert base64 to ArrayBuffer
+    const base64Clean = base64Data.replace(/^data:.*?;base64,/, "");
+    const binaryString = atob(base64Clean);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    
+    console.log(`PDF file size: ${bytes.length} bytes`);
+    
+    // Parse PDF using pdf-parse
+    const pdfData = await pdfParse(bytes.buffer);
+    
+    console.log(`Extracted ${pdfData.text.length} characters from PDF`);
+    console.log(`PDF has ${pdfData.numpages} pages`);
+    
+    if (!pdfData.text || pdfData.text.length < 10) {
+      throw new Error("No text could be extracted from the PDF");
+    }
+    
+    // Clean up the text
+    const cleanedText = pdfData.text
+      .replace(/\r\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    
+    console.log("PDF text extraction successful");
+    
+    return cleanedText;
+  } catch (error) {
+    console.error("PDF extraction failed:", error);
+    throw new Error("PDF text extraction failed. The file may be image-based or corrupted.");
   }
-  
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Extract ALL text from this PDF document. Focus on finding: lesson plans, competencies, learning objectives, daily activities, questions, and educational content. Preserve the structure and formatting. Return only the extracted text, no explanations."
-            },
-            {
-              type: "image_url",
-              image_url: { url: pdfDataUrl }
-            }
-          ]
-        }
-      ],
-      max_tokens: 8000
-    })
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("OpenAI PDF extraction error:", response.status, errorText);
-    throw new Error("PDF extraction via OpenAI failed");
-  }
-
-  const data = await response.json();
-  const extractedText = data.choices?.[0]?.message?.content || "";
-  
-  console.log(`Extracted ${extractedText.length} characters from PDF via OpenAI Vision`);
-  
-  if (!extractedText || extractedText.length < 10) {
-    throw new Error("No text could be extracted from the PDF");
-  }
-  
-  return extractedText;
 }
