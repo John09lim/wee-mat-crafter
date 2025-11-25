@@ -255,6 +255,51 @@ export type Database = {
           },
         ]
       }
+      principal_weekly_reports: {
+        Row: {
+          created_at: string | null
+          id: string
+          notes: string | null
+          principal_id: string
+          school_name: string
+          status: string
+          submitted_teachers: number
+          supervisor_id: string | null
+          total_teachers: number
+          updated_at: string | null
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          principal_id: string
+          school_name: string
+          status?: string
+          submitted_teachers?: number
+          supervisor_id?: string | null
+          total_teachers?: number
+          updated_at?: string | null
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          principal_id?: string
+          school_name?: string
+          status?: string
+          submitted_teachers?: number
+          supervisor_id?: string | null
+          total_teachers?: number
+          updated_at?: string | null
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -306,6 +351,33 @@ export type Database = {
         }
         Relationships: []
       }
+      school_assignments: {
+        Row: {
+          created_at: string | null
+          id: string
+          principal_id: string | null
+          school_name: string
+          supervisor_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          principal_id?: string | null
+          school_name: string
+          supervisor_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          principal_id?: string | null
+          school_name?: string
+          supervisor_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           created_at: string | null
@@ -352,6 +424,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      teacher_submissions: {
+        Row: {
+          created_at: string | null
+          file_type: string
+          file_url: string
+          grade_level: string
+          id: string
+          principal_id: string | null
+          principal_notes: string | null
+          section: string
+          status: string
+          subject: string
+          teacher_name: string
+          updated_at: string | null
+          user_id: string
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string | null
+          file_type: string
+          file_url: string
+          grade_level: string
+          id?: string
+          principal_id?: string | null
+          principal_notes?: string | null
+          section: string
+          status?: string
+          subject: string
+          teacher_name: string
+          updated_at?: string | null
+          user_id: string
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string | null
+          file_type?: string
+          file_url?: string
+          grade_level?: string
+          id?: string
+          principal_id?: string | null
+          principal_notes?: string | null
+          section?: string
+          status?: string
+          subject?: string
+          teacher_name?: string
+          updated_at?: string | null
+          user_id?: string
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: []
       }
       training_sessions: {
         Row: {
