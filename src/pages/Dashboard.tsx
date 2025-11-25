@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { PasscodeDialog } from "@/components/PasscodeDialog";
+import { Upload, FileText, Check } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 const examTypes = ["Identification", "Matching Type", "True/False", "Multiple Choice", "Essay", "Performance Task", "HOLIDAY"] as const;
 const questionCounts = [5, 10, 15] as const;
@@ -63,6 +65,11 @@ const Dashboard = () => {
   const [stepIndex, setStepIndex] = useState(0);
   const [showPasscodeDialog, setShowPasscodeDialog] = useState(false);
   const [passcodeVerified, setPasscodeVerified] = useState(false);
+  const [matrixMode, setMatrixMode] = useState<"automatic" | "manual">("manual");
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [extractedData, setExtractedData] = useState<any>(null);
   const steps = useMemo(() => [
     "Planning daily competencies…",
     "Selecting trusted references…",
@@ -187,6 +194,93 @@ const watchedValues = watch();
     navigate("/");
   };
 
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File size must be less than 10MB");
+      return;
+    }
+
+    // Validate file type
+    const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    if (!validTypes.includes(file.type)) {
+      toast.error("Only PDF and Image files are supported");
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      // Convert file to base64
+      const base64 = await fileToBase64(file);
+      
+      setUploadProgress(30);
+      
+      // Call edge function to extract data
+      const { data, error } = await supabase.functions.invoke('extract-weelmat-data', {
+        body: {
+          fileData: base64,
+          fileType: file.type,
+          fileName: file.name,
+          subject: watch('subject'),
+          gradeLevel: watch('gradeLevel'),
+          language: watch('language') || 'English'
+        }
+      });
+
+      setUploadProgress(70);
+
+      if (error) throw error;
+
+      // Auto-fill form fields with extracted data
+      if (data.success) {
+        setExtractedData(data);
+        
+        // Pre-fill Monday-Friday data
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+        const dayNames: Record<string, string> = {
+          monday: 'Monday',
+          tuesday: 'Tuesday',
+          wednesday: 'Wednesday',
+          thursday: 'Thursday',
+          friday: 'Friday'
+        };
+        
+        days.forEach((day) => {
+          const dayData = data.dailyPlan?.[dayNames[day]];
+          if (dayData) {
+            setValue(`${day}Competency` as any, dayData.competency || '');
+            setValue(`${day}ExamType` as any, dayData.examType || 'Multiple Choice');
+            setValue(`${day}QuestionCount` as any, dayData.questionCount || 10);
+          }
+        });
+
+        setUploadedFile(file);
+        toast.success("File processed! Competencies auto-filled for Monday-Friday");
+      }
+      
+      setUploadProgress(100);
+    } catch (error) {
+      console.error('File upload error:', error);
+      toast.error("Failed to process file. Please try manual mode or upload a different file.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <>
       <PasscodeDialog 
@@ -260,10 +354,75 @@ const watchedValues = watch();
                 </div>
               </div>
 
-              <div>
-                <Label className="text-base font-medium">Daily Learning Plan Setup</Label>
-                <p className="text-sm text-muted-foreground mb-4">Configure competency, exam type, and question count for each day. All fields are required.</p>
-                <div className="grid gap-6">
+              {/* Mode Selection Toggle */}
+              <div className="mb-6">
+                <Label className="text-base font-medium mb-3 block">Matrix Content Generation Mode</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  <Button
+                    type="button"
+                    variant={matrixMode === "automatic" ? "default" : "outline"}
+                    className="h-24 flex flex-col items-center justify-center gap-2"
+                    onClick={() => setMatrixMode("automatic")}
+                  >
+                    <Upload className="h-6 w-6" />
+                    <span className="font-semibold">Automatic Matrix Content</span>
+                    <span className="text-xs opacity-80">Upload file to auto-fill</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={matrixMode === "manual" ? "default" : "outline"}
+                    className="h-24 flex flex-col items-center justify-center gap-2"
+                    onClick={() => setMatrixMode("manual")}
+                  >
+                    <FileText className="h-6 w-6" />
+                    <span className="font-semibold">Manual Matrix Content</span>
+                    <span className="text-xs opacity-80">Enter competencies manually</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Automatic Mode - File Upload */}
+              {matrixMode === "automatic" && (
+                <div className="border rounded-lg p-6 space-y-4 bg-muted/30 mb-6">
+                  <Label className="text-base font-medium">Upload Learning Material (Image/PDF) to Auto-Fill</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Upload a lesson plan, curriculum guide, or teaching material (PDF or Image). 
+                    AI will automatically extract competencies, exam types, and question counts for Monday-Friday.
+                  </p>
+                  
+                  <Input
+                    type="file"
+                    accept=".pdf,image/*"
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                  />
+                  
+                  {uploadedFile && (
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <Check className="h-4 w-4" />
+                      <span>File uploaded: {uploadedFile.name}</span>
+                    </div>
+                  )}
+                  
+                  {uploading && (
+                    <div className="space-y-2">
+                      <Progress value={uploadProgress} />
+                      <p className="text-sm text-muted-foreground text-center">Processing file...</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Manual Mode - Daily Learning Plan Setup */}
+              {matrixMode === "manual" && (
+                <div className="mb-4">
+                  <Label className="text-base font-medium">Daily Learning Plan Setup</Label>
+                  <p className="text-sm text-muted-foreground">Configure competency, exam type, and question count for each day. All fields are required.</p>
+                </div>
+              )}
+
+              {/* Daily Fields - Always Visible (auto-filled in automatic mode, manual in manual mode) */}
+              <div className="grid gap-6">
                   {[
                     { day: "Monday", prefix: "monday" },
                     { day: "Tuesday", prefix: "tuesday" },
@@ -345,7 +504,6 @@ const watchedValues = watch();
                     </div>
                   ))}
                 </div>
-              </div>
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
