@@ -6,12 +6,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { Download, CheckCircle, Users, BookOpen, Calendar } from "lucide-react";
+import { Download, CheckCircle, Users, BookOpen, Calendar, UserCircle, CheckCircle2, XCircle } from "lucide-react";
+import DocumentViewer from "@/components/DocumentViewer";
 
 export default function PrincipalDashboard() {
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
+  const [profile, setProfile] = useState<any>(null);
+  const [allTeachers, setAllTeachers] = useState<any[]>([]);
 
   useEffect(() => {
     fetchSubmissions();
@@ -27,23 +30,33 @@ export default function PrincipalDashboard() {
         return;
       }
 
-      const { data: profile } = await supabase
+      const { data: profileData } = await supabase
         .from("profiles")
-        .select("school, district_name")
+        .select("*")
         .eq("user_id", user.id)
         .single();
 
-      if (!profile) {
+      if (!profileData) {
         toast.error("Profile not found");
         setLoading(false);
         return;
       }
 
+      setProfile(profileData);
+
+      // Fetch all teachers from this school
+      const { data: teachersData } = await supabase
+        .from("school_assignments")
+        .select("*")
+        .eq("school_name", profileData.school);
+      
+      setAllTeachers(teachersData || []);
+
       // Query ONLY submissions from principal's school
       const { data, error } = await supabase
         .from("teacher_submissions")
         .select("*")
-        .eq("school_name", profile.school)
+        .eq("school_name", profileData.school)
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -142,8 +155,56 @@ export default function PrincipalDashboard() {
     returned: submissions.filter(s => s.status === 'returned').length,
   };
 
+  // Calculate current week's submissions
+  const today = new Date();
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - today.getDay());
+  const currentWeekSubmissions = submissions.filter(s => 
+    new Date(s.created_at) >= startOfWeek
+  );
+  
+  const submittedTeacherIds = new Set(currentWeekSubmissions.map(s => s.user_id));
+  const submittedTeachers = allTeachers.filter(t => submittedTeacherIds.has(t.user_id));
+  const notSubmittedTeachers = allTeachers.filter(t => !submittedTeacherIds.has(t.user_id));
+
+  if (loading) {
+    return (
+      <div className="container py-8 flex items-center justify-center">
+        <p>Loading dashboard...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="container py-8 max-w-7xl mx-auto">
+      {/* Account Info Card */}
+      {profile && (
+        <Card className="p-6 mb-6" style={{ borderColor: "#236130" }}>
+          <div className="flex items-start gap-4">
+            <UserCircle className="h-12 w-12" style={{ color: "#236130" }} />
+            <div className="flex-1">
+              <h2 className="text-xl font-bold mb-2" style={{ color: "#236130" }}>
+                Account Information
+              </h2>
+              <div className="grid md:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="font-semibold">Name:</span> {profile.teacher_name}
+                </div>
+                <div>
+                  <span className="font-semibold">Email:</span> {profile.email}
+                </div>
+                <div>
+                  <span className="font-semibold">School:</span> {profile.school}
+                </div>
+                <div>
+                  <span className="font-semibold">District:</span> {profile.district_name || "N/A"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold" style={{ color: "#236130" }}>Principal Dashboard</h1>
         <Button 
@@ -155,6 +216,56 @@ export default function PrincipalDashboard() {
           Mark This Week as Completed
         </Button>
       </div>
+
+      {/* Teacher Tracking for Current Week */}
+      <Card className="p-6 mb-6">
+        <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+          This Week's Teacher Submissions
+        </h3>
+        <div className="grid md:grid-cols-2 gap-6">
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <h4 className="font-semibold">Submitted ({submittedTeachers.length})</h4>
+            </div>
+            <div className="space-y-2">
+              {submittedTeachers.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No submissions yet</p>
+              ) : (
+                submittedTeachers.map((teacher) => (
+                  <div key={teacher.id} className="flex items-center gap-2 text-sm p-2 bg-green-50 rounded">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <span>{teacher.user_id}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <XCircle className="h-5 w-5 text-red-600" />
+              <h4 className="font-semibold">Not Yet Submitted ({notSubmittedTeachers.length})</h4>
+            </div>
+            <div className="space-y-2">
+              {notSubmittedTeachers.length === 0 ? (
+                <p className="text-sm text-muted-foreground">All teachers have submitted!</p>
+              ) : (
+                notSubmittedTeachers.map((teacher) => (
+                  <div key={teacher.id} className="flex items-center gap-2 text-sm p-2 bg-red-50 rounded">
+                    <XCircle className="h-4 w-4 text-red-600" />
+                    <span>{teacher.user_id}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 text-sm text-muted-foreground">
+          <strong>Completion Rate:</strong> {allTeachers.length > 0 
+            ? Math.round((submittedTeachers.length / allTeachers.length) * 100) 
+            : 0}%
+        </div>
+      </Card>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -311,6 +422,10 @@ function SubmissionCard({ submission, onStatusUpdate }: { submission: any; onSta
           </Select>
           
           <div className="flex gap-2">
+            <DocumentViewer 
+              fileUrl={submission.file_url}
+              fileName={`${submission.teacher_name}_${submission.subject}`}
+            />
             <Button size="sm" variant="outline" asChild className="flex-1">
               <a href={submission.file_url} target="_blank" rel="noopener noreferrer" download>
                 <Download className="h-4 w-4" />

@@ -4,12 +4,15 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { School, Users, CheckCircle, TrendingUp } from "lucide-react";
+import { School, Users, CheckCircle, TrendingUp, UserCircle } from "lucide-react";
+import DocumentViewer from "@/components/DocumentViewer";
 
 export default function SupervisorDashboard() {
   const [reports, setReports] = useState<any[]>([]);
   const [schools, setSchools] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<any>(null);
+  const [teacherSubmissions, setTeacherSubmissions] = useState<any[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -24,23 +27,25 @@ export default function SupervisorDashboard() {
         return;
       }
 
-      const { data: profile } = await supabase
+      const { data: profileData } = await supabase
         .from("profiles")
-        .select("district_name")
+        .select("*")
         .eq("user_id", user.id)
         .single();
 
-      if (!profile || !profile.district_name) {
+      if (!profileData || !profileData.district_name) {
         console.error("Supervisor profile or district not found");
         setLoading(false);
         return;
       }
 
+      setProfile(profileData);
+
       // Fetch ONLY reports from supervisor's district
       const { data: reportsData, error: reportsError } = await supabase
         .from("principal_weekly_reports")
         .select("*")
-        .eq("district_name", profile.district_name)
+        .eq("district_name", profileData.district_name)
         .order("created_at", { ascending: false });
 
       if (reportsError) throw reportsError;
@@ -49,12 +54,22 @@ export default function SupervisorDashboard() {
       const { data: schoolsData, error: schoolsError } = await supabase
         .from("school_assignments")
         .select("*")
-        .eq("district_name", profile.district_name);
+        .eq("district_name", profileData.district_name);
 
       if (schoolsError) throw schoolsError;
 
+      // Fetch teacher submissions from this district
+      const { data: submissionsData, error: submissionsError } = await supabase
+        .from("teacher_submissions")
+        .select("*")
+        .eq("district_name", profileData.district_name)
+        .order("created_at", { ascending: false });
+
+      if (submissionsError) throw submissionsError;
+
       setReports(reportsData || []);
       setSchools(schoolsData || []);
+      setTeacherSubmissions(submissionsData || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -96,11 +111,45 @@ export default function SupervisorDashboard() {
     );
   }
 
+  // Group submissions by school and teacher
+  const submissionsBySchool = teacherSubmissions.reduce((acc, sub) => {
+    if (!acc[sub.school_name]) {
+      acc[sub.school_name] = [];
+    }
+    acc[sub.school_name].push(sub);
+    return acc;
+  }, {} as Record<string, any[]>);
+
   return (
     <div className="container py-8 max-w-7xl mx-auto">
+      {/* Account Info Card */}
+      {profile && (
+        <Card className="p-6 mb-6" style={{ borderColor: "#236130" }}>
+          <div className="flex items-start gap-4">
+            <UserCircle className="h-12 w-12" style={{ color: "#236130" }} />
+            <div className="flex-1">
+              <h2 className="text-xl font-bold mb-2" style={{ color: "#236130" }}>
+                Account Information
+              </h2>
+              <div className="grid md:grid-cols-3 gap-3 text-sm">
+                <div>
+                  <span className="font-semibold">Name:</span> {profile.teacher_name}
+                </div>
+                <div>
+                  <span className="font-semibold">Email:</span> {profile.email}
+                </div>
+                <div>
+                  <span className="font-semibold">District:</span> {profile.district_name || "N/A"}
+                </div>
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2" style={{ color: "#236130" }}>
-          Supervisor Dashboard - Bacong District
+          Supervisor Dashboard - {profile?.district_name || "District"}
         </h1>
         <p className="text-muted-foreground">
           Monitor weekly learning matrix submissions across all schools
@@ -155,6 +204,7 @@ export default function SupervisorDashboard() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="by-school">By School</TabsTrigger>
           <TabsTrigger value="recent">Recent Reports</TabsTrigger>
+          <TabsTrigger value="teacher-files">Teacher Files</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -253,6 +303,40 @@ export default function SupervisorDashboard() {
                     {new Date(report.created_at).toLocaleDateString()}
                   </p>
                 </div>
+              </div>
+            </Card>
+          ))}
+        </TabsContent>
+
+        <TabsContent value="teacher-files" className="space-y-6">
+          {Object.entries(submissionsBySchool).map(([schoolName, submissions]: [string, any[]]) => (
+            <Card key={schoolName} className="p-6">
+              <h3 className="text-xl font-semibold mb-4" style={{ color: "#236130" }}>
+                {schoolName} ({submissions.length} submissions)
+              </h3>
+              <div className="space-y-3">
+                {submissions.map((submission) => (
+                  <Card key={submission.id} className="p-4 hover:shadow-md transition-shadow">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <h4 className="font-semibold">{submission.teacher_name}</h4>
+                        <p className="text-sm">{submission.subject} - {submission.grade_level} ({submission.section})</p>
+                        <p className="text-sm text-muted-foreground">
+                          Week: {new Date(submission.week_start).toLocaleDateString()} to {new Date(submission.week_end).toLocaleDateString()}
+                        </p>
+                        <Badge variant={submission.status === 'accepted' ? 'default' : 'secondary'} className="mt-2">
+                          {submission.status}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-2">
+                        <DocumentViewer 
+                          fileUrl={submission.file_url}
+                          fileName={`${submission.teacher_name}_${submission.subject}`}
+                        />
+                      </div>
+                    </div>
+                  </Card>
+                ))}
               </div>
             </Card>
           ))}

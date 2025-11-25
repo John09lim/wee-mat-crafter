@@ -232,6 +232,26 @@ const Auth = () => {
                   {mode === "login" ? "Sign up" : "Login"}
                 </button>
               </p>
+
+              <div className="mt-4 text-center text-xs text-muted-foreground">
+                <p>Other login portals:</p>
+                <div className="flex justify-center gap-3 mt-2">
+                  <button
+                    onClick={() => navigate("/auth-school-head")}
+                    className="hover:underline"
+                    style={{ color: "#236130" }}
+                  >
+                    School Head Login
+                  </button>
+                  <button
+                    onClick={() => navigate("/auth-supervisor")}
+                    className="hover:underline"
+                    style={{ color: "#236130" }}
+                  >
+                    Supervisor Login
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
