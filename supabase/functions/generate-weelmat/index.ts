@@ -770,8 +770,31 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
 
     const matrixId = matrixData?.id;
 
-    // Function to parse activity content into properly formatted paragraphs
-    const parseActivityContent = (content: string) => {
+    // Function to extract answer key from quiz content
+    const extractAnswerKey = (content: string): string[] => {
+      const answers: string[] = [];
+      
+      // Look for patterns like "Answer Key:" or "Susi sa Sagot:" followed by answers
+      const answerKeyMatch = content.match(/(Answer Key:|Susi sa Sagot:)([\s\S]*?)(?=\n\n|$)/i);
+      
+      if (answerKeyMatch) {
+        const answerSection = answerKeyMatch[2];
+        const answerLines = answerSection.split(/\n/).filter(line => line.trim());
+        
+        answerLines.forEach(line => {
+          // Match patterns like "1. B", "1) B", "1 - B", etc.
+          const match = line.match(/^\d+[\.\)\-\s]+([A-D]|True|False|Tama|Mali)/i);
+          if (match) {
+            answers.push(match[1]);
+          }
+        });
+      }
+      
+      return answers;
+    };
+
+    // Function to parse activity content into properly formatted paragraphs with answer key
+    const parseActivityContentWithAnswerKey = (content: string) => {
       if (!content) {
         return [new Paragraph({ children: [new TextRun({ text: "", size: 14 })] })];
       }
@@ -795,7 +818,8 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
             if (line.includes('Instructions/Directions:') || line.includes('Panuto/Mga Tagubilin:') ||
                 line.includes('Quiz:') || line.includes('Pagsusulit:') ||
                 line.includes('Expected Output:') || line.includes('Inaasahang Output:') ||
-                line.includes('Contingency:')) {
+                line.includes('Contingency:') ||
+                line.includes('Answer Key:') || line.includes('Susi sa Sagot:')) {
               paragraphs.push(new Paragraph({
                 children: [new TextRun({ text: line.trim(), bold: true, size: 14 })],
                 spacing: { before: 200, after: 100 }
@@ -839,7 +863,8 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
             // Check if it's a section header
             if (line.includes('Instructions/Directions:') || line.includes('Panuto/Mga Tagubilin:') ||
                 line.includes('Expected Output:') || line.includes('Inaasahang Output:') ||
-                line.includes('Contingency:')) {
+                line.includes('Contingency:') ||
+                line.includes('Answer Key:') || line.includes('Susi sa Sagot:')) {
               paragraphs.push(new Paragraph({
                 children: [new TextRun({ text: line.trim(), bold: true, size: 14 })],
                 spacing: { before: 200, after: 100 }
@@ -870,11 +895,127 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
       return paragraphs;
     };
 
-    // Step 4: Generate DOCX
-    const doc = new Document({
-      creator: "WeeLMat Generator",
-      title: `WeeLMat - ${subject} - ${gradeLevel} - ${section}`,
-      description: `Weekly Learning Matrix for ${subject}, ${gradeLevel}, Section ${section}`,
+    // Function to parse activity content for students (removes answer keys, Expected Output, Contingency)
+    const parseActivityContentForStudent = (content: string) => {
+      if (!content) {
+        return [new Paragraph({ children: [new TextRun({ text: "", size: 14 })] })];
+      }
+
+      // Remove sections that should not be visible to students
+      let studentContent = content.replace(/(Expected Output|Inaasahang Output):.*?(?=\n\n|$)/gis, '');
+      studentContent = studentContent.replace(/(Contingency):.*?(?=\n\n|$)/gis, '');
+      studentContent = studentContent.replace(/(Answer Key|Susi sa Sagot):.*?(?=\n\n|$)/gis, '');
+
+      const paragraphs: Paragraph[] = [];
+      
+      // Split content by double newlines first, then by single newlines
+      const sections = studentContent.split(/\n\n+/);
+      
+      sections.forEach((section, sectionIndex) => {
+        if (!section.trim()) return;
+        
+        // Check if this is a quiz section with numbered questions
+        if (section.includes('Quiz:') || /^\d+\./.test(section.trim())) {
+          const lines = section.split(/\n+/);
+          
+          lines.forEach((line, lineIndex) => {
+            if (!line.trim()) return;
+            
+            // Skip lines that are part of removed sections
+            if (line.includes('Expected Output:') || line.includes('Inaasahang Output:') ||
+                line.includes('Contingency:') ||
+                line.includes('Answer Key:') || line.includes('Susi sa Sagot:')) {
+              return;
+            }
+            
+            // Handle section headers (Instructions, Quiz, etc.)
+            if (line.includes('Instructions/Directions:') || line.includes('Panuto/Mga Tagubilin:') ||
+                line.includes('Quiz:') || line.includes('Pagsusulit:')) {
+              paragraphs.push(new Paragraph({
+                children: [new TextRun({ text: line.trim(), bold: true, size: 14 })],
+                spacing: { before: 200, after: 100 }
+              }));
+            }
+            // Handle questions (lines starting with numbers)
+            else if (/^\d+\./.test(line.trim())) {
+              paragraphs.push(new Paragraph({
+                children: [new TextRun({ text: line.trim(), size: 14 })],
+                spacing: { before: 150, after: 50 }
+              }));
+            }
+            // Handle multiple choice options (A, B, C, D)
+            else if (/^\s*[A-D]\./.test(line.trim())) {
+              paragraphs.push(new Paragraph({
+                children: [new TextRun({ text: `   ${line.trim()}`, size: 14 })],
+                spacing: { before: 50, after: 50 }
+              }));
+            }
+            // Handle True/False options
+            else if (line.includes('(True/False)') || line.includes('(Tama/Mali)')) {
+              paragraphs.push(new Paragraph({
+                children: [new TextRun({ text: line.trim(), size: 14 })],
+                spacing: { before: 100, after: 100 }
+              }));
+            }
+            // Handle regular content lines
+            else if (line.trim()) {
+              paragraphs.push(new Paragraph({
+                children: [new TextRun({ text: line.trim(), size: 14 })],
+                spacing: { after: 80 }
+              }));
+            }
+          });
+        } else {
+          // Handle non-quiz sections (simple text)
+          const lines = section.split(/\n+/);
+          lines.forEach(line => {
+            if (!line.trim()) return;
+            
+            // Skip lines that are part of removed sections
+            if (line.includes('Expected Output:') || line.includes('Inaasahang Output:') ||
+                line.includes('Contingency:') ||
+                line.includes('Answer Key:') || line.includes('Susi sa Sagot:')) {
+              return;
+            }
+            
+            // Check if it's a section header
+            if (line.includes('Instructions/Directions:') || line.includes('Panuto/Mga Tagubilin:')) {
+              paragraphs.push(new Paragraph({
+                children: [new TextRun({ text: line.trim(), bold: true, size: 14 })],
+                spacing: { before: 200, after: 100 }
+              }));
+            } else {
+              paragraphs.push(new Paragraph({
+                children: [new TextRun({ text: line.trim(), size: 14 })],
+                spacing: { after: 80 }
+              }));
+            }
+          });
+        }
+        
+        // Add spacing between major sections
+        if (sectionIndex < sections.length - 1) {
+          paragraphs.push(new Paragraph({
+            children: [new TextRun({ text: "", size: 8 })],
+            spacing: { after: 100 }
+          }));
+        }
+      });
+
+      // If no paragraphs were created, return a default empty paragraph
+      if (paragraphs.length === 0) {
+        paragraphs.push(new Paragraph({ children: [new TextRun({ text: "", size: 14 })] }));
+      }
+
+      return paragraphs;
+    };
+
+    // Step 4: Generate Teacher DOCX (Full Version with Answer Keys)
+    console.log("Generating Teacher version DOCX...");
+    const teacherDoc = new Document({
+      creator: "WeeLMat Generator - Teacher Version",
+      title: `WeeLMat Teacher - ${subject} - ${gradeLevel} - ${section}`,
+      description: `Weekly Learning Matrix for ${subject}, ${gradeLevel}, Section ${section} - Full Version`,
       sections: [{
         properties: {
           page: {
@@ -1014,7 +1155,7 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
                   }),
                 ],
               }),
-              // Activities Row
+              // Activities Row (Teacher Version - with answer keys)
               new TableRow({
                 children: [
                   new TableCell({
@@ -1022,23 +1163,23 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: parseActivityContent(aiJson?.activities?.mon || ""),
+                    children: parseActivityContentWithAnswerKey(aiJson?.activities?.mon || ""),
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: parseActivityContent(aiJson?.activities?.tue || ""),
+                    children: parseActivityContentWithAnswerKey(aiJson?.activities?.tue || ""),
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: parseActivityContent(aiJson?.activities?.wed || ""),
+                    children: parseActivityContentWithAnswerKey(aiJson?.activities?.wed || ""),
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: parseActivityContent(aiJson?.activities?.thu || ""),
+                    children: parseActivityContentWithAnswerKey(aiJson?.activities?.thu || ""),
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                   new TableCell({
-                    children: parseActivityContent(aiJson?.activities?.fri || ""),
+                    children: parseActivityContentWithAnswerKey(aiJson?.activities?.fri || ""),
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
                 ],
@@ -1049,31 +1190,234 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
       }],
     });
 
-    const docxBuffer = await Packer.toBuffer(doc);
+    const teacherDocxBuffer = await Packer.toBuffer(teacherDoc);
 
-    // Step 5: Upload DOCX to Supabase Storage
-    const docxFilename = `weelmat-${matrixId}.docx`;
-    const { error: docxUploadError } = await supabase.storage
+    // Step 5: Generate Student DOCX (Simplified Version without Answer Keys, Expected Output, Contingency)
+    console.log("Generating Student version DOCX...");
+    const studentDoc = new Document({
+      creator: "WeeLMat Generator - Student Version",
+      title: `WeeLMat Student - ${subject} - ${gradeLevel} - ${section}`,
+      description: `Weekly Learning Matrix for ${subject}, ${gradeLevel}, Section ${section} - Simplified Version`,
+      sections: [{
+        properties: {
+          page: {
+            margin: { top: 720, right: 720, bottom: 720, left: 720 },
+            size: { orientation: PageOrientation.LANDSCAPE },
+          },
+        },
+        children: [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: effectiveLanguage === 'Filipino' ? "Lingguhang Matris ng Pagkatuto (WeeLMat)" : "Weekly Learning Matrix (WeeLMat)",
+                bold: true,
+                size: 32,
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 400 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: effectiveLanguage === 'Filipino' 
+                  ? `Asignatura: ${subject} | Antas: ${gradeLevel} | Seksyon: ${section}`
+                  : `Subject: ${subject} | Grade Level: ${gradeLevel} | Section: ${section}`,
+                size: 24,
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 },
+          }),
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: effectiveLanguage === 'Filipino' 
+                  ? `Petsa na Nasaklaw: ${dateFrom} hanggang ${dateTo}`
+                  : `Covered Dates: ${dateFrom} to ${dateTo}`,
+                size: 20,
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 400 },
+          }),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              // Header Row
+              new TableRow({
+                children: [
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: "", bold: true, size: 18 })] })],
+                    width: { size: 15, type: WidthType.PERCENTAGE },
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Lunes" : "Monday", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+                    width: { size: 17, type: WidthType.PERCENTAGE },
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Martes" : "Tuesday", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+                    width: { size: 17, type: WidthType.PERCENTAGE },
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Miyerkules" : "Wednesday", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+                    width: { size: 17, type: WidthType.PERCENTAGE },
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Huwebes" : "Thursday", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+                    width: { size: 17, type: WidthType.PERCENTAGE },
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Biyernes" : "Friday", bold: true, size: 18 })], alignment: AlignmentType.CENTER })],
+                    width: { size: 17, type: WidthType.PERCENTAGE },
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                ],
+              }),
+              // Competency Row
+              new TableRow({
+                children: [
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Kompetensya" : "Competency", bold: true, size: 16 })] })],
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: dailyPlan.Monday.competency, size: 14 })] })],
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: dailyPlan.Tuesday.competency, size: 14 })] })],
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: dailyPlan.Wednesday.competency, size: 14 })] })],
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: dailyPlan.Thursday.competency, size: 14 })] })],
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: dailyPlan.Friday.competency, size: 14 })] })],
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                ],
+              }),
+              // References Row
+              new TableRow({
+                children: [
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Mungkahing Materyales/Sanggunian" : "Suggested Learning Material/Reference", bold: true, size: 16 })] })],
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: aiJson?.references?.mon || "", size: 14 })] })],
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: aiJson?.references?.tue || "", size: 14 })] })],
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: aiJson?.references?.wed || "", size: 14 })] })],
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: aiJson?.references?.thu || "", size: 14 })] })],
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: aiJson?.references?.fri || "", size: 14 })] })],
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                ],
+              }),
+              // Activities Row (Student Version - no answer keys, Expected Output, Contingency)
+              new TableRow({
+                children: [
+                  new TableCell({
+                    children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Mga Gawain/Aktividad sa Pagkatuto" : "Learning Activities/Tasks", bold: true, size: 16 })] })],
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: parseActivityContentForStudent(aiJson?.activities?.mon || ""),
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: parseActivityContentForStudent(aiJson?.activities?.tue || ""),
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: parseActivityContentForStudent(aiJson?.activities?.wed || ""),
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: parseActivityContentForStudent(aiJson?.activities?.thu || ""),
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                  new TableCell({
+                    children: parseActivityContentForStudent(aiJson?.activities?.fri || ""),
+                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }],
+    });
+
+    const studentDocxBuffer = await Packer.toBuffer(studentDoc);
+
+    // Step 6: Upload Teacher DOCX to Supabase Storage
+    console.log("Uploading Teacher DOCX...");
+    const teacherDocxFilename = `weelmat-teacher-${matrixId}.docx`;
+    const { error: teacherUploadError } = await supabase.storage
       .from("weelmat")
-      .upload(docxFilename, docxBuffer, {
+      .upload(teacherDocxFilename, teacherDocxBuffer, {
         contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         upsert: true,
       });
 
-    if (docxUploadError) {
-      console.error("DOCX upload error:", docxUploadError);
-      throw new Error("Failed to upload DOCX file");
+    if (teacherUploadError) {
+      console.error("Teacher DOCX upload error:", teacherUploadError);
+      throw new Error("Failed to upload teacher DOCX file");
     }
 
-    const { data: docxUrlData } = supabase.storage
+    const { data: teacherDocxUrlData } = supabase.storage
       .from("weelmat")
-      .getPublicUrl(docxFilename);
+      .getPublicUrl(teacherDocxFilename);
 
-    // Step 6: Update database with file URLs
+    // Step 7: Upload Student DOCX to Supabase Storage
+    console.log("Uploading Student DOCX...");
+    const studentDocxFilename = `weelmat-student-${matrixId}.docx`;
+    const { error: studentUploadError } = await supabase.storage
+      .from("weelmat")
+      .upload(studentDocxFilename, studentDocxBuffer, {
+        contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        upsert: true,
+      });
+
+    if (studentUploadError) {
+      console.error("Student DOCX upload error:", studentUploadError);
+      throw new Error("Failed to upload student DOCX file");
+    }
+
+    const { data: studentDocxUrlData } = supabase.storage
+      .from("weelmat")
+      .getPublicUrl(studentDocxFilename);
+
+    // Step 8: Update database with both file URLs
     const { error: updateError } = await supabase
       .from("weelmat_matrices")
       .update({
-        docx_url: docxUrlData.publicUrl,
+        docx_url: teacherDocxUrlData.publicUrl,
+        student_docx_url: studentDocxUrlData.publicUrl,
       })
       .eq("id", matrixId);
 
@@ -1081,13 +1425,17 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
       console.error("Database update error:", updateError);
     }
 
-    // Return response
+    console.log("WeeLMat generation complete. Teacher URL:", teacherDocxUrlData.publicUrl);
+    console.log("WeeLMat generation complete. Student URL:", studentDocxUrlData.publicUrl);
+
+    // Return response with both URLs
     return new Response(
       JSON.stringify({
         success: true,
         matrixId,
         ai_json: aiJson,
-        docx_url: docxUrlData.publicUrl,
+        docx_url: teacherDocxUrlData.publicUrl,
+        student_docx_url: studentDocxUrlData.publicUrl,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
