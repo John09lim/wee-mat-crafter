@@ -341,7 +341,7 @@ const watchedValues = watch();
       
       {/* Extracted Text Preview Dialog */}
       <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
-        <DialogContent className="max-w-5xl w-[90vw] max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Extracted Text Preview</DialogTitle>
             <DialogDescription>
@@ -375,12 +375,7 @@ const watchedValues = watch();
                           <div><span className="text-muted-foreground">Materials:</span> {dayData.suggestedMaterials.join(', ')}</div>
                         )}
                         {dayData?.learningTasks && (
-                          <div>
-                            <span className="text-muted-foreground">Learning Tasks/Questions:</span>
-                            <pre className="mt-1 text-xs bg-muted/30 p-3 rounded whitespace-pre-wrap max-h-40 overflow-y-auto font-sans">
-                              {dayData.learningTasks}
-                            </pre>
-                          </div>
+                          <div><span className="text-muted-foreground">Tasks:</span> {dayData.learningTasks.slice(0, 100)}...</div>
                         )}
                       </div>
                     </div>
@@ -389,17 +384,16 @@ const watchedValues = watch();
               </div>
             </div>
           </div>
-          <div className="flex gap-4 justify-center mt-6">
+          <div className="flex gap-3 justify-end">
             <Button
               variant="outline"
               onClick={() => setShowPreviewDialog(false)}
-              className="px-6"
             >
               Edit Manually
             </Button>
             <Button
               onClick={handleConfirmGeneration}
-              className="bg-[#236130] hover:bg-[#236130]/90 px-8 py-3 text-base"
+              className="bg-[#236130] hover:bg-[#236130]/90"
             >
               Confirm & Generate
             </Button>
