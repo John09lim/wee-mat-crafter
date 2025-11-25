@@ -214,9 +214,16 @@ const watchedValues = watch();
     }
 
     // Validate file type
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
+    const validTypes = [
+      'application/pdf', 
+      'image/jpeg', 
+      'image/png', 
+      'image/jpg',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
+      'application/msword' // DOC
+    ];
     if (!validTypes.includes(file.type)) {
-      toast.error("Only PDF and Image files are supported");
+      toast.error("Only DOCX, PDF, and Image files are supported");
       return;
     }
 
@@ -384,15 +391,15 @@ const watchedValues = watch();
               {/* Automatic Mode - File Upload */}
               {matrixMode === "automatic" && (
                 <div className="border rounded-lg p-6 space-y-4 bg-muted/30 mb-6">
-                  <Label className="text-base font-medium">Upload Learning Material (Image/PDF) to Auto-Fill</Label>
+                  <Label className="text-base font-medium">Upload Learning Material (DOCX/PDF/Image) to Auto-Fill</Label>
                   <p className="text-sm text-muted-foreground">
-                    Upload a lesson plan, curriculum guide, or teaching material (PDF or Image). 
+                    Upload a lesson plan, curriculum guide, or teaching material (DOCX, PDF, or Image). 
                     AI will automatically extract competencies, exam types, and question counts for Monday-Friday.
                   </p>
                   
                   <Input
                     type="file"
-                    accept=".pdf,image/*"
+                    accept=".pdf,.doc,.docx,image/*"
                     onChange={handleFileUpload}
                     disabled={uploading}
                   />
@@ -421,8 +428,9 @@ const watchedValues = watch();
                 </div>
               )}
 
-              {/* Daily Fields - Always Visible (auto-filled in automatic mode, manual in manual mode) */}
-              <div className="grid gap-6">
+              {/* Daily Fields - Only show in Manual mode */}
+              {matrixMode === "manual" && (
+                <div className="grid gap-6">
                   {[
                     { day: "Monday", prefix: "monday" },
                     { day: "Tuesday", prefix: "tuesday" },
@@ -504,6 +512,7 @@ const watchedValues = watch();
                     </div>
                   ))}
                 </div>
+              )}
 
               <div className="grid md:grid-cols-2 gap-4">
                 <div>

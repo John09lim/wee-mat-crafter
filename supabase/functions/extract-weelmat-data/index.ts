@@ -28,14 +28,19 @@ serve(async (req) => {
     // Extract text from file
     let extractedText = "";
     
-    if (fileType === "application/pdf") {
-      // For PDF files, use a simpler extraction approach
-      // Note: For production, consider using a dedicated PDF parsing library
-      extractedText = "PDF text extraction - Using OCR fallback";
-      
-      // Fallback to OCR for PDF images
+    if (fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || 
+        fileType === "application/msword") {
+      // For DOCX/DOC files, use OCR/Vision API
       try {
-        extractedText = await extractImageText(fileData);
+        extractedText = await extractDocumentText(fileData, "DOCX");
+      } catch (err) {
+        console.error("DOCX extraction failed:", err);
+        throw new Error("Unable to extract text from DOCX file. Please try converting to PDF or image format.");
+      }
+    } else if (fileType === "application/pdf") {
+      // For PDF files, use OCR fallback
+      try {
+        extractedText = await extractDocumentText(fileData, "PDF");
       } catch (err) {
         console.error("PDF/OCR extraction failed:", err);
         throw new Error("Unable to extract text from PDF. Please ensure the PDF contains readable text or try an image format.");
@@ -204,6 +209,54 @@ async function extractImageText(base64Data: string): Promise<string> {
   
   if (!extractedText || extractedText.length < 10) {
     throw new Error("No text could be extracted from the image");
+  }
+  
+  return extractedText;
+}
+
+async function extractDocumentText(base64Data: string, docType: string): Promise<string> {
+  if (!OPENAI_API_KEY) {
+    throw new Error("OpenAI API key not configured");
+  }
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `This is a ${docType} document containing a lesson plan or curriculum guide. Extract ALL text content from it, focusing on daily learning plans, competencies, objectives, or lesson content for Monday through Friday. Return only the extracted text, preserving the structure and day labels.`
+            },
+            {
+              type: "image_url",
+              image_url: { url: base64Data }
+            }
+          ]
+        }
+      ],
+      max_tokens: 4000
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("OpenAI Document API error:", errorText);
+    throw new Error(`${docType} extraction failed`);
+  }
+
+  const data = await response.json();
+  const extractedText = data.choices?.[0]?.message?.content || "";
+  
+  if (!extractedText || extractedText.length < 10) {
+    throw new Error(`No text could be extracted from the ${docType} file`);
   }
   
   return extractedText;
