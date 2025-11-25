@@ -111,16 +111,6 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
   defaultValues: {
     gradeLevel: "",
     language: "English",
-    mondayQuestionCount: 10,
-    tuesdayQuestionCount: 10,
-    wednesdayQuestionCount: 10,
-    thursdayQuestionCount: 10,
-    fridayQuestionCount: 10,
-    mondayExamType: "Multiple Choice",
-    tuesdayExamType: "Multiple Choice",
-    wednesdayExamType: "Multiple Choice",
-    thursdayExamType: "Multiple Choice",
-    fridayExamType: "Multiple Choice",
   }
 });
 
@@ -217,9 +207,8 @@ const watchedValues = watch();
       return;
     }
 
-    // Validate file type
+    // Validate file type - DOCX and Images only
     const validTypes = [
-      'application/pdf', 
       'image/jpeg', 
       'image/png', 
       'image/jpg',
@@ -227,7 +216,7 @@ const watchedValues = watch();
       'application/msword' // DOC
     ];
     if (!validTypes.includes(file.type)) {
-      toast.error("Only DOCX, PDF, and Image files are supported");
+      toast.error("PDF files are not supported. Please convert your PDF to DOCX format first, then upload.");
       return;
     }
 
@@ -482,15 +471,15 @@ const watchedValues = watch();
               {/* Automatic Mode - File Upload */}
               {matrixMode === "automatic" && (
                 <div className="border rounded-lg p-6 space-y-4 bg-muted/30 mb-6">
-                  <Label className="text-base font-medium">Upload Learning Material (DOCX/PDF/Image) to Auto-Fill</Label>
+                  <Label className="text-base font-medium">Upload Learning Material (DOCX/Image only) to Auto-Fill</Label>
                   <p className="text-sm text-muted-foreground">
-                    Upload a lesson plan, curriculum guide, or teaching material (DOCX, PDF, or Image). 
+                    Upload a lesson plan, curriculum guide, or teaching material (DOCX or Image). 
                     AI will automatically extract competencies, exam types, and question counts for Monday-Friday.
                   </p>
                   
                   <Input
                     type="file"
-                    accept=".pdf,.doc,.docx,image/*"
+                    accept=".doc,.docx,image/*"
                     onChange={handleFileUpload}
                     disabled={uploading}
                   />

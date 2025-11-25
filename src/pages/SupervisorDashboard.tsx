@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { School, Users, CheckCircle, TrendingUp, UserCircle } from "lucide-react";
 import DocumentViewer from "@/components/DocumentViewer";
+import Footer from "@/components/layout/Footer";
 
 export default function SupervisorDashboard() {
   const [reports, setReports] = useState<any[]>([]);
@@ -121,7 +122,8 @@ export default function SupervisorDashboard() {
   }, {} as Record<string, any[]>);
 
   return (
-    <div className="container py-8 max-w-7xl mx-auto">
+    <div className="min-h-screen flex flex-col">
+      <div className="flex-1 container py-8 max-w-7xl mx-auto">
       {/* Account Info Card */}
       {profile && (
         <Card className="p-6 mb-6" style={{ borderColor: "#236130" }}>
@@ -342,6 +344,8 @@ export default function SupervisorDashboard() {
           ))}
         </TabsContent>
       </Tabs>
+      </div>
+      <Footer />
     </div>
   );
 }

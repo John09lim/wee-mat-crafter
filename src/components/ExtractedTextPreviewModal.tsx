@@ -29,7 +29,7 @@ export const ExtractedTextPreviewModal = ({
             File Content Extracted Successfully
           </DialogTitle>
           <DialogDescription>
-            Review the extracted text from <strong>{fileName}</strong> before proceeding with auto-fill.
+            Review the extracted text from <strong>{fileName}</strong> before generating your WeeLMat document.
           </DialogDescription>
         </DialogHeader>
 
@@ -53,7 +53,7 @@ export const ExtractedTextPreviewModal = ({
             className="gap-2"
           >
             <CheckCircle className="h-4 w-4" />
-            Proceed with Auto-Fill
+            Generate WeeLMat DOCX
           </Button>
         </DialogFooter>
       </DialogContent>

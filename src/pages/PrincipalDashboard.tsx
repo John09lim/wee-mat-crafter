@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Download, CheckCircle, Users, BookOpen, Calendar, UserCircle, CheckCircle2, XCircle, Bell } from "lucide-react";
 import DocumentViewer from "@/components/DocumentViewer";
+import Footer from "@/components/layout/Footer";
 
 export default function PrincipalDashboard() {
   const [submissions, setSubmissions] = useState<any[]>([]);
@@ -215,7 +216,8 @@ export default function PrincipalDashboard() {
   }
 
   return (
-    <div className="container py-8 max-w-7xl mx-auto">
+    <div className="min-h-screen flex flex-col">
+      <div className="flex-1 container py-8 max-w-7xl mx-auto">
       {/* Account Info Card */}
       {profile && (
         <Card className="p-6 mb-6" style={{ borderColor: "#236130" }}>
@@ -424,6 +426,8 @@ export default function PrincipalDashboard() {
           ))}
         </TabsContent>
       </Tabs>
+      </div>
+      <Footer />
     </div>
   );
 }

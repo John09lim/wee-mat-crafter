@@ -241,25 +241,6 @@ export default function AuthSchoolHead() {
           </button>
         </div>
 
-        <div className="mt-4 text-center text-xs text-muted-foreground">
-          <p>Other login portals:</p>
-          <div className="flex justify-center gap-3 mt-2">
-            <button
-              onClick={() => navigate("/auth")}
-              className="hover:underline"
-              style={{ color: "#236130" }}
-            >
-              Teacher Login
-            </button>
-            <button
-              onClick={() => navigate("/auth-supervisor")}
-              className="hover:underline"
-              style={{ color: "#236130" }}
-            >
-              Supervisor Login
-            </button>
-          </div>
-        </div>
       </Card>
     </div>
   );

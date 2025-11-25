@@ -147,7 +147,7 @@ export default function AuthSupervisor() {
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <MapPin className="h-4 w-4" />
-                  District/Division Name
+                  District Name
                 </label>
                 <Input
                   type="text"
@@ -226,25 +226,6 @@ export default function AuthSupervisor() {
           </button>
         </div>
 
-        <div className="mt-4 text-center text-xs text-muted-foreground">
-          <p>Other login portals:</p>
-          <div className="flex justify-center gap-3 mt-2">
-            <button
-              onClick={() => navigate("/auth")}
-              className="hover:underline"
-              style={{ color: "#236130" }}
-            >
-              Teacher Login
-            </button>
-            <button
-              onClick={() => navigate("/auth-school-head")}
-              className="hover:underline"
-              style={{ color: "#236130" }}
-            >
-              School Head Login
-            </button>
-          </div>
-        </div>
       </Card>
     </div>
   );

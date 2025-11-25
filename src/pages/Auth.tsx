@@ -25,14 +25,14 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Auth guard: if logged in, go to dashboard
+    // Auth guard: if logged in, go to my account
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        navigate("/dashboard");
+        navigate("/my-account");
       }
     });
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) navigate("/dashboard");
+      if (session?.user) navigate("/my-account");
     });
     return () => subscription.unsubscribe();
   }, [navigate]);
@@ -62,7 +62,7 @@ const Auth = () => {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast("Logged in");
-        navigate("/dashboard");
+        navigate("/my-account");
         return;
       }
 
@@ -94,7 +94,7 @@ const Auth = () => {
           await insertOrUpdateProfile(signInData.session.user.id);
           await insertUserRole(signInData.session.user.id, role);
           toast(`Welcome, ${teacherName}!`);
-          navigate("/dashboard");
+          navigate("/my-account");
           return;
         }
       }
@@ -104,7 +104,7 @@ const Auth = () => {
         await insertOrUpdateProfile(signUpData.session.user.id);
         await insertUserRole(signUpData.session.user.id, role);
         toast(`Welcome, ${teacherName}!`);
-        navigate("/dashboard");
+        navigate("/my-account");
       } else {
         // Fallback - should not happen with email confirmation disabled
         toast("Account created. Please log in to continue.");
@@ -233,25 +233,6 @@ const Auth = () => {
                 </button>
               </p>
 
-              <div className="mt-4 text-center text-xs text-muted-foreground">
-                <p>Other login portals:</p>
-                <div className="flex justify-center gap-3 mt-2">
-                  <button
-                    onClick={() => navigate("/auth-school-head")}
-                    className="hover:underline"
-                    style={{ color: "#236130" }}
-                  >
-                    School Head Login
-                  </button>
-                  <button
-                    onClick={() => navigate("/auth-supervisor")}
-                    className="hover:underline"
-                    style={{ color: "#236130" }}
-                  >
-                    Supervisor Login
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         </div>
