@@ -49,6 +49,9 @@ const Header = () => {
           
           {!loading && userRole === 'teacher' && (
             <>
+              <Link to="/weelmat-history" className="hover:underline underline-offset-4">
+                My WeeLMats
+              </Link>
               <Link to="/teacher-submission" className="hover:underline underline-offset-4">
                 Submit WeeLMat
               </Link>

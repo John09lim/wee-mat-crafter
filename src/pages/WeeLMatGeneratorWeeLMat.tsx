@@ -37,6 +37,8 @@ const WeeLMatGeneratorWeeLMat = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const values = (location.state || null) as FormValues | null;
+  const searchParams = new URLSearchParams(location.search);
+  const matrixId = searchParams.get('matrixId');
 
   const steps = useMemo(
     () => [
@@ -53,7 +55,7 @@ const WeeLMatGeneratorWeeLMat = () => {
   const [studentDocxUrl, setStudentDocxUrl] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [aiJson, setAiJson] = useState<any | null>(null);
-  const [matrixId, setMatrixId] = useState<string | null>(null);
+  const [savedMatrixId, setSavedMatrixId] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "WeeLMat Generator | WeeLMat";
@@ -68,11 +70,60 @@ const WeeLMatGeneratorWeeLMat = () => {
   }, []);
 
   useEffect(() => {
-    if (!values) {
-      console.error("WeeLMatGenerator: No form values provided, redirecting to dashboard");
+    if (matrixId && !values) {
+      // Load from database
+      loadMatrixFromDatabase(matrixId);
+    } else if (!values && !matrixId) {
+      console.error("WeeLMatGenerator: No form values or matrix ID provided, redirecting to dashboard");
       navigate("/dashboard");
       return;
+    } else if (values) {
+      // Generate new WeeLMat
+      generateWeeLMat();
     }
+  }, [navigate, values, matrixId]);
+
+  const loadMatrixFromDatabase = async (id: string) => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/auth");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("weelmat_matrices")
+        .select("*")
+        .eq("id", id)
+        .eq("user_id", user.id)
+        .single();
+
+      if (error) throw error;
+
+      if (!data) {
+        toast.error("WeeLMat not found");
+        navigate("/weelmat-history");
+        return;
+      }
+
+      setDocxUrl(data.docx_url || null);
+      setStudentDocxUrl(data.student_docx_url || null);
+      setPdfUrl(data.pdf_url || null);
+      setAiJson(data.ai_json);
+      setSavedMatrixId(data.id);
+      setLoading(false);
+      
+      toast.success("WeeLMat loaded successfully");
+    } catch (err: any) {
+      console.error("Error loading WeeLMat:", err);
+      toast.error("Failed to load WeeLMat");
+      navigate("/weelmat-history");
+    }
+  };
+
+  const generateWeeLMat = () => {
+    if (!values) return;
 
     console.log("WeeLMatGenerator: Received form values:", values);
 
@@ -112,7 +163,7 @@ const WeeLMatGeneratorWeeLMat = () => {
         setStudentDocxUrl(data?.student_docx_url || null);
         setPdfUrl(data?.pdf_url || null);
         setAiJson(data?.ai_json || null);
-        setMatrixId(data?.matrix_id || null);
+        setSavedMatrixId(data?.matrix_id || null);
       } catch (err: any) {
         console.error("WeeLMatGenerator: Error details:", err);
         const errorMessage = err.message || "Generation failed";
@@ -125,7 +176,7 @@ const WeeLMatGeneratorWeeLMat = () => {
     return () => {
       timers.forEach((t) => clearTimeout(t));
     };
-  }, [navigate, values]);
+  };
 
   const downloadFile = async (url: string, filename: string) => {
     try {

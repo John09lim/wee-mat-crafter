@@ -20,6 +20,7 @@ import MyAccount from "./pages/MyAccount";
 import TeacherSubmission from "./pages/TeacherSubmission";
 import PrincipalDashboard from "./pages/PrincipalDashboard";
 import SupervisorDashboard from "./pages/SupervisorDashboard";
+import WeeLMatHistory from "./pages/WeeLMatHistory";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +47,7 @@ const App = () => {
           <Route path="/teacher-submission" element={<TeacherSubmission />} />
           <Route path="/principal-dashboard" element={<PrincipalDashboard />} />
           <Route path="/supervisor-dashboard" element={<SupervisorDashboard />} />
+          <Route path="/weelmat-history" element={<WeeLMatHistory />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
