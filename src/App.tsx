@@ -39,10 +39,10 @@ const App = () => {
           <Route path="/learn-more" element={<LearnMore />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/weelmatgenerator" element={<WeeLMatGenerator />} />
-          <Route path="/weelmatgeneratorpremium" element={<WeeLMatGeneratorPremium />} />
-          <Route path="/weelmatgeneratorpremium/weelmat" element={<WeeLMatGeneratorWeeLMat />} />
-          <Route path="/weelmatgeneratorpremium/lessonplan" element={<LessonPlanGenerator />} />
-          <Route path="/weelmatgeneratorpremium/test" element={<PeriodicalTestGenerator />} />
+          <Route path="/premium" element={<WeeLMatGeneratorPremium />} />
+          <Route path="/premium/weelmat" element={<WeeLMatGeneratorWeeLMat />} />
+          <Route path="/premium/lesson-plan" element={<LessonPlanGenerator />} />
+          <Route path="/premium/periodical-test" element={<PeriodicalTestGenerator />} />
           <Route path="/my-account" element={<MyAccount />} />
           <Route path="/teacher-submission" element={<TeacherSubmission />} />
           <Route path="/principal-dashboard" element={<PrincipalDashboard />} />

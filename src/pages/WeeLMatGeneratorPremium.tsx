@@ -27,7 +27,7 @@ const WeeLMatGeneratorPremium = () => {
         "Automatic competency analysis",
         "Instant DOCX download"
       ],
-      route: "/weelmatgeneratorpremium/weelmat",
+      route: "/premium/weelmat",
       color: "text-primary"
     },
     {
@@ -41,7 +41,7 @@ const WeeLMatGeneratorPremium = () => {
         "Assessment strategies included",
         "Customizable by subject"
       ],
-      route: "/weelmatgeneratorpremium/lessonplan",
+      route: "/premium/lesson-plan",
       color: "text-primary"
     },
     {
@@ -55,7 +55,7 @@ const WeeLMatGeneratorPremium = () => {
         "Answer key included",
         "Aligned to competencies"
       ],
-      route: "/weelmatgeneratorpremium/test",
+      route: "/premium/periodical-test",
       color: "text-primary"
     }
   ];
