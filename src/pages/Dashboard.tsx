@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -58,6 +58,7 @@ const Step = ({active, text}:{active:boolean;text:string}) => (
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [showPasscodeDialog, setShowPasscodeDialog] = useState(false);
@@ -111,6 +112,15 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
     fridayExamType: "Multiple Choice",
   }
 });
+
+// Check for prefill data from history regeneration
+useEffect(() => {
+  const prefillData = location.state?.prefillData;
+  if (prefillData) {
+    reset(prefillData);
+    toast.success("Form pre-filled from saved WeeLMat");
+  }
+}, [location.state, reset]);
 
 const [customCounts, setCustomCounts] = useState<Record<string, number>>({});
 
