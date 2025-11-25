@@ -341,7 +341,7 @@ const watchedValues = watch();
       
       {/* Extracted Text Preview Dialog */}
       <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
-        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Extracted Text Preview</DialogTitle>
             <DialogDescription>
@@ -351,7 +351,7 @@ const watchedValues = watch();
           <div className="space-y-4">
             <div className="bg-muted/50 p-4 rounded-lg border">
               <h4 className="font-medium mb-2 text-sm text-muted-foreground">Raw Extracted Text:</h4>
-              <div className="text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">
+              <div className="text-sm whitespace-pre-wrap max-h-80 overflow-y-auto">
                 {extractedTextPreview || "No text extracted"}
               </div>
             </div>
@@ -361,7 +361,7 @@ const watchedValues = watch();
             </div>
             <div className="bg-muted/50 p-4 rounded-lg border">
               <h4 className="font-medium mb-2 text-sm text-muted-foreground">Auto-filled Daily Content:</h4>
-              <div className="space-y-3 text-sm max-h-60 overflow-y-auto">
+              <div className="space-y-3 text-sm max-h-96 overflow-y-auto">
                 {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((day) => {
                   const dayKey = day.toLowerCase();
                   const competency = watch(`${dayKey}Competency` as any);
@@ -374,9 +374,9 @@ const watchedValues = watch();
                         {dayData?.suggestedMaterials && dayData.suggestedMaterials.length > 0 && (
                           <div><span className="text-muted-foreground">Materials:</span> {dayData.suggestedMaterials.join(', ')}</div>
                         )}
-                        {dayData?.learningTasks && (
-                          <div><span className="text-muted-foreground">Tasks:</span> {dayData.learningTasks.slice(0, 100)}...</div>
-                        )}
+                    {dayData?.learningTasks && (
+                      <div><span className="text-muted-foreground">Tasks:</span> {dayData.learningTasks.slice(0, 200)}...</div>
+                    )}
                       </div>
                     </div>
                   ) : null;
