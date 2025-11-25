@@ -20,6 +20,7 @@ serve(async (req) => {
     console.log("Received file extraction request:", {
       fileType,
       fileName,
+      fileSize: fileData ? fileData.length : 0,
       subject,
       gradeLevel,
       language,
@@ -236,6 +237,16 @@ RULES:
 
 // Extract text from images using OpenAI Vision API
 async function extractImageText(base64Data: string): Promise<string> {
+  console.log("Extracting text from image using OpenAI Vision API...");
+  
+  // Ensure proper data URL format
+  let imageUrl = base64Data;
+  if (!base64Data.startsWith('data:')) {
+    // Add proper prefix if missing
+    imageUrl = `data:image/jpeg;base64,${base64Data}`;
+    console.log("Added data URL prefix to image");
+  }
+  
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -250,11 +261,11 @@ async function extractImageText(base64Data: string): Promise<string> {
           content: [
             {
               type: "text",
-              text: "Extract ALL text from this image. Focus on finding daily learning plans, competencies, objectives, lesson content, and educational materials. Return only the extracted text preserving structure and formatting, no explanations."
+              text: "Extract ALL text from this image. Focus on finding: lesson plans, competencies, learning objectives, daily activities, questions, and educational content. Preserve the structure and formatting. Return only the extracted text, no explanations."
             },
             {
               type: "image_url",
-              image_url: { url: base64Data }
+              image_url: { url: imageUrl }
             }
           ]
         }
@@ -271,6 +282,8 @@ async function extractImageText(base64Data: string): Promise<string> {
 
   const data = await response.json();
   const extractedText = data.choices?.[0]?.message?.content || "";
+  
+  console.log(`Extracted ${extractedText.length} characters from image via OpenAI Vision`);
   
   if (!extractedText || extractedText.length < 10) {
     throw new Error("No text could be extracted from the image");
@@ -326,37 +339,58 @@ async function extractDocxText(base64Data: string): Promise<string> {
   }
 }
 
-// Extract text from PDF files using pdf-parse library
+// Extract text from PDF files using OpenAI Vision API
 async function extractPdfText(base64Data: string): Promise<string> {
-  try {
-    console.log("Extracting text from PDF using pdf-parse library...");
-    
-    // Import pdf-parse dynamically
-    const pdfParse = await import("https://esm.sh/pdf-parse@1.1.1");
-    
-    // Convert base64 to Uint8Array
-    const base64Clean = base64Data.replace(/^data:.*?;base64,/, "");
-    const binary = Uint8Array.from(atob(base64Clean), c => c.charCodeAt(0));
-    
-    // Parse PDF
-    const pdfData = await pdfParse.default(binary);
-    
-    console.log(`Extracted ${pdfData.text.length} characters from PDF`);
-    console.log(`PDF has ${pdfData.numpages} pages`);
-    
-    if (!pdfData.text || pdfData.text.length < 10) {
-      throw new Error("No text could be extracted from the PDF file");
-    }
-    
-    // Clean up the text
-    const cleanedText = pdfData.text
-      .replace(/\r\n/g, '\n')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-    
-    return cleanedText;
-  } catch (error) {
-    console.error("PDF extraction failed:", error);
-    throw new Error("PDF extraction failed");
+  console.log("Extracting text from PDF using OpenAI Vision API...");
+  
+  // Ensure proper data URL format for PDF
+  let pdfDataUrl = base64Data;
+  if (!base64Data.startsWith('data:')) {
+    pdfDataUrl = `data:application/pdf;base64,${base64Data}`;
+    console.log("Added data URL prefix to PDF");
   }
+  
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Extract ALL text from this PDF document. Focus on finding: lesson plans, competencies, learning objectives, daily activities, questions, and educational content. Preserve the structure and formatting. Return only the extracted text, no explanations."
+            },
+            {
+              type: "image_url",
+              image_url: { url: pdfDataUrl }
+            }
+          ]
+        }
+      ],
+      max_tokens: 8000
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("OpenAI PDF extraction error:", response.status, errorText);
+    throw new Error("PDF extraction via OpenAI failed");
+  }
+
+  const data = await response.json();
+  const extractedText = data.choices?.[0]?.message?.content || "";
+  
+  console.log(`Extracted ${extractedText.length} characters from PDF via OpenAI Vision`);
+  
+  if (!extractedText || extractedText.length < 10) {
+    throw new Error("No text could be extracted from the PDF");
+  }
+  
+  return extractedText;
 }
