@@ -5,20 +5,26 @@ import { Target, Clock, Zap, Edit, Sparkles, Download, Building2, Users, CheckCi
 import { TypewriterText } from "@/components/animations/TypewriterText";
 import { ColorWaveText } from "@/components/animations/ColorWaveText";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
-
 const BenefitsSection = () => {
-  const { ref: titleRef, isVisible: titleVisible } = useScrollReveal();
-  const { ref: card1Ref, isVisible: card1Visible } = useScrollReveal();
-  const { ref: card2Ref, isVisible: card2Visible } = useScrollReveal();
-  const { ref: card3Ref, isVisible: card3Visible } = useScrollReveal();
-
-  return (
-    <section className="py-24 bg-muted/30">
+  const {
+    ref: titleRef,
+    isVisible: titleVisible
+  } = useScrollReveal();
+  const {
+    ref: card1Ref,
+    isVisible: card1Visible
+  } = useScrollReveal();
+  const {
+    ref: card2Ref,
+    isVisible: card2Visible
+  } = useScrollReveal();
+  const {
+    ref: card3Ref,
+    isVisible: card3Visible
+  } = useScrollReveal();
+  return <section className="py-24 bg-muted/30">
       <div className="container">
-        <div 
-          ref={titleRef}
-          className={`text-center mb-16 space-y-4 scroll-reveal ${titleVisible ? 'is-visible' : ''}`}
-        >
+        <div ref={titleRef} className={`text-center mb-16 space-y-4 scroll-reveal ${titleVisible ? 'is-visible' : ''}`}>
           <h2 className="text-3xl md:text-4xl font-bold">Why Choose WeeLMat?</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Designed specifically for Filipino educators to streamline weekly planning and ensure continuity
@@ -26,10 +32,7 @@ const BenefitsSection = () => {
         </div>
         
         <div className="grid md:grid-cols-3 gap-8">
-          <Card 
-            ref={card1Ref}
-            className={`p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 scroll-reveal ${card1Visible ? 'is-visible' : ''}`}
-          >
+          <Card ref={card1Ref} className={`p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 scroll-reveal ${card1Visible ? 'is-visible' : ''}`}>
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-6">
               <Target className="w-6 h-6 text-primary" />
             </div>
@@ -39,10 +42,7 @@ const BenefitsSection = () => {
             </p>
           </Card>
           
-          <Card 
-            ref={card2Ref}
-            className={`p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 scroll-reveal scroll-reveal-delay-2 ${card2Visible ? 'is-visible' : ''}`}
-          >
+          <Card ref={card2Ref} className={`p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 scroll-reveal scroll-reveal-delay-2 ${card2Visible ? 'is-visible' : ''}`}>
             <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center mb-6">
               <Clock className="w-6 h-6 text-secondary" />
             </div>
@@ -52,10 +52,7 @@ const BenefitsSection = () => {
             </p>
           </Card>
           
-          <Card 
-            ref={card3Ref}
-            className={`p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 scroll-reveal scroll-reveal-delay-4 ${card3Visible ? 'is-visible' : ''}`}
-          >
+          <Card ref={card3Ref} className={`p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 scroll-reveal scroll-reveal-delay-4 ${card3Visible ? 'is-visible' : ''}`}>
             <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mb-6">
               <Zap className="w-6 h-6 text-accent" />
             </div>
@@ -66,23 +63,28 @@ const BenefitsSection = () => {
           </Card>
         </div>
       </div>
-    </section>
-  );
+    </section>;
 };
-
 const HowItWorksSection = () => {
-  const { ref: titleRef, isVisible: titleVisible } = useScrollReveal();
-  const { ref: card1Ref, isVisible: card1Visible } = useScrollReveal();
-  const { ref: card2Ref, isVisible: card2Visible } = useScrollReveal();
-  const { ref: card3Ref, isVisible: card3Visible } = useScrollReveal();
-
-  return (
-    <section className="py-24">
+  const {
+    ref: titleRef,
+    isVisible: titleVisible
+  } = useScrollReveal();
+  const {
+    ref: card1Ref,
+    isVisible: card1Visible
+  } = useScrollReveal();
+  const {
+    ref: card2Ref,
+    isVisible: card2Visible
+  } = useScrollReveal();
+  const {
+    ref: card3Ref,
+    isVisible: card3Visible
+  } = useScrollReveal();
+  return <section className="py-24">
       <div className="container">
-        <div 
-          ref={titleRef}
-          className={`text-center mb-16 space-y-4 scroll-reveal ${titleVisible ? 'is-visible' : ''}`}
-        >
+        <div ref={titleRef} className={`text-center mb-16 space-y-4 scroll-reveal ${titleVisible ? 'is-visible' : ''}`}>
           <h2 className="text-3xl md:text-4xl font-bold">How It Works</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Three simple steps to generate your professional WeeLMat documents
@@ -92,10 +94,7 @@ const HowItWorksSection = () => {
         <div className="grid md:grid-cols-3 gap-8 relative">
           <div className="hidden md:block absolute top-1/4 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-primary via-secondary to-accent -z-10" />
           
-          <Card 
-            ref={card1Ref}
-            className={`p-8 relative bg-card border-2 scroll-reveal ${card1Visible ? 'is-visible' : ''}`}
-          >
+          <Card ref={card1Ref} className={`p-8 relative bg-card border-2 scroll-reveal ${card1Visible ? 'is-visible' : ''}`}>
             <div className="absolute -top-6 left-8 w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-bold shadow-lg">
               1
             </div>
@@ -110,10 +109,7 @@ const HowItWorksSection = () => {
             </div>
           </Card>
           
-          <Card 
-            ref={card2Ref}
-            className={`p-8 relative bg-card border-2 scroll-reveal scroll-reveal-delay-2 ${card2Visible ? 'is-visible' : ''}`}
-          >
+          <Card ref={card2Ref} className={`p-8 relative bg-card border-2 scroll-reveal scroll-reveal-delay-2 ${card2Visible ? 'is-visible' : ''}`}>
             <div className="absolute -top-6 left-8 w-12 h-12 rounded-full bg-secondary text-primary-foreground flex items-center justify-center text-xl font-bold shadow-lg">
               2
             </div>
@@ -128,10 +124,7 @@ const HowItWorksSection = () => {
             </div>
           </Card>
           
-          <Card 
-            ref={card3Ref}
-            className={`p-8 relative bg-card border-2 scroll-reveal scroll-reveal-delay-4 ${card3Visible ? 'is-visible' : ''}`}
-          >
+          <Card ref={card3Ref} className={`p-8 relative bg-card border-2 scroll-reveal scroll-reveal-delay-4 ${card3Visible ? 'is-visible' : ''}`}>
             <div className="absolute -top-6 left-8 w-12 h-12 rounded-full bg-accent text-primary-foreground flex items-center justify-center text-xl font-bold shadow-lg">
               3
             </div>
@@ -147,22 +140,25 @@ const HowItWorksSection = () => {
           </Card>
         </div>
       </div>
-    </section>
-  );
+    </section>;
 };
-
-const SchoolHeadsSection = ({ navigate }: { navigate: ReturnType<typeof useNavigate> }) => {
-  const { ref: contentRef, isVisible: contentVisible } = useScrollReveal();
-  const { ref: cardRef, isVisible: cardVisible } = useScrollReveal();
-
-  return (
-    <section className="py-24 bg-gradient-to-br from-primary/5 via-secondary/5 to-background">
+const SchoolHeadsSection = ({
+  navigate
+}: {
+  navigate: ReturnType<typeof useNavigate>;
+}) => {
+  const {
+    ref: contentRef,
+    isVisible: contentVisible
+  } = useScrollReveal();
+  const {
+    ref: cardRef,
+    isVisible: cardVisible
+  } = useScrollReveal();
+  return <section className="py-24 bg-gradient-to-br from-primary/5 via-secondary/5 to-background">
       <div className="container">
         <div className="grid md:grid-cols-2 gap-12 items-center">
-          <div 
-            ref={contentRef}
-            className={`space-y-6 scroll-reveal ${contentVisible ? 'is-visible' : ''}`}
-          >
+          <div ref={contentRef} className={`space-y-6 scroll-reveal ${contentVisible ? 'is-visible' : ''}`}>
             <div className="inline-flex items-center gap-2 text-sm rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-primary font-medium">
               <Building2 className="w-4 h-4" />
               For School Administrators
@@ -178,45 +174,28 @@ const SchoolHeadsSection = ({ navigate }: { navigate: ReturnType<typeof useNavig
             </p>
             
             <ul className="space-y-4">
-              {[
-                "Monitor all teacher WeeLMat submissions",
-                "Access school-wide planning reports",
-                "Manage standardized templates",
-                "Track compliance and progress"
-              ].map((benefit, idx) => (
-                <li key={idx} className="flex items-start gap-3">
+              {["Monitor all teacher WeeLMat submissions", "Access school-wide planning reports", "Manage standardized templates", "Track compliance and progress"].map((benefit, idx) => <li key={idx} className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <span className="text-muted-foreground">{benefit}</span>
-                </li>
-              ))}
+                </li>)}
             </ul>
           </div>
           
-          <Card 
-            ref={cardRef}
-            className={`p-8 bg-card border-2 shadow-xl scroll-reveal scroll-reveal-delay-3 ${cardVisible ? 'is-visible' : ''}`}
-          >
+          <Card ref={cardRef} className={`p-8 bg-card border-2 shadow-xl scroll-reveal scroll-reveal-delay-3 ${cardVisible ? 'is-visible' : ''}`}>
             <div className="space-y-6">
               <div>
                 <h3 className="text-2xl font-bold mb-2">Create School Head Account</h3>
                 <p className="text-sm text-muted-foreground">Join as a school administrator to access advanced management features</p>
               </div>
               
-              <Button 
-                size="lg" 
-                className="w-full text-base transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20"
-                onClick={() => navigate("/auth?role=school_head")}
-              >
+              <Button size="lg" className="w-full text-base transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20" onClick={() => navigate("/auth?role=school_head")}>
                 <Building2 className="mr-2 w-5 h-5" />
                 Sign Up as School Head
               </Button>
               
               <p className="text-xs text-center text-muted-foreground">
                 Already have an account?{" "}
-                <button 
-                  onClick={() => navigate("/auth")}
-                  className="text-primary hover:underline font-medium"
-                >
+                <button onClick={() => navigate("/auth")} className="text-primary hover:underline font-medium">
                   Sign in here
                 </button>
               </p>
@@ -224,53 +203,46 @@ const SchoolHeadsSection = ({ navigate }: { navigate: ReturnType<typeof useNavig
           </Card>
         </div>
       </div>
-    </section>
-  );
+    </section>;
 };
-
-const SupervisorsSection = ({ navigate }: { navigate: ReturnType<typeof useNavigate> }) => {
-  const { ref: cardRef, isVisible: cardVisible } = useScrollReveal();
-  const { ref: contentRef, isVisible: contentVisible } = useScrollReveal();
-
-  return (
-    <section className="py-24 bg-gradient-to-br from-accent/5 via-primary/5 to-background">
+const SupervisorsSection = ({
+  navigate
+}: {
+  navigate: ReturnType<typeof useNavigate>;
+}) => {
+  const {
+    ref: cardRef,
+    isVisible: cardVisible
+  } = useScrollReveal();
+  const {
+    ref: contentRef,
+    isVisible: contentVisible
+  } = useScrollReveal();
+  return <section className="py-24 bg-gradient-to-br from-accent/5 via-primary/5 to-background">
       <div className="container">
         <div className="grid md:grid-cols-2 gap-12 items-center">
-          <Card 
-            ref={cardRef}
-            className={`p-8 bg-card border-2 shadow-xl md:order-1 order-2 scroll-reveal ${cardVisible ? 'is-visible' : ''}`}
-          >
+          <Card ref={cardRef} className={`p-8 bg-card border-2 shadow-xl md:order-1 order-2 scroll-reveal ${cardVisible ? 'is-visible' : ''}`}>
             <div className="space-y-6">
               <div>
                 <h3 className="text-2xl font-bold mb-2">Create Supervisor Account</h3>
                 <p className="text-sm text-muted-foreground">Oversee multiple schools with district-wide analytics and reporting</p>
               </div>
               
-              <Button 
-                size="lg" 
-                className="w-full text-base transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-secondary/20"
-                onClick={() => navigate("/auth?role=supervisor")}
-              >
+              <Button size="lg" className="w-full text-base transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-secondary/20" onClick={() => navigate("/auth?role=supervisor")}>
                 <Users className="mr-2 w-5 h-5" />
                 Sign Up as Supervisor
               </Button>
               
               <p className="text-xs text-center text-muted-foreground">
                 Already have an account?{" "}
-                <button 
-                  onClick={() => navigate("/auth")}
-                  className="text-primary hover:underline font-medium"
-                >
+                <button onClick={() => navigate("/auth")} className="text-primary hover:underline font-medium">
                   Sign in here
                 </button>
               </p>
             </div>
           </Card>
           
-          <div 
-            ref={contentRef}
-            className={`space-y-6 md:order-2 order-1 scroll-reveal scroll-reveal-delay-3 ${contentVisible ? 'is-visible' : ''}`}
-          >
+          <div ref={contentRef} className={`space-y-6 md:order-2 order-1 scroll-reveal scroll-reveal-delay-3 ${contentVisible ? 'is-visible' : ''}`}>
             <div className="inline-flex items-center gap-2 text-sm rounded-full border border-secondary/20 bg-secondary/10 px-4 py-2 text-secondary font-medium">
               <Users className="w-4 h-4" />
               For District Supervisors
@@ -286,35 +258,26 @@ const SupervisorsSection = ({ navigate }: { navigate: ReturnType<typeof useNavig
             </p>
             
             <ul className="space-y-4">
-              {[
-                "Monitor multiple schools and divisions",
-                "Access district-wide analytics dashboard",
-                "Review and approve planning templates",
-                "Generate consolidated compliance reports"
-              ].map((benefit, idx) => (
-                <li key={idx} className="flex items-start gap-3">
+              {["Monitor multiple schools and divisions", "Access district-wide analytics dashboard", "Review and approve planning templates", "Generate consolidated compliance reports"].map((benefit, idx) => <li key={idx} className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" />
                   <span className="text-muted-foreground">{benefit}</span>
-                </li>
-              ))}
+                </li>)}
             </ul>
           </div>
         </div>
       </div>
-    </section>
-  );
+    </section>;
 };
-
 const Index = () => {
   const navigate = useNavigate();
-  
-  return (
-    <main className="min-h-[calc(100vh-160px)] flex flex-col bg-background">
+  return <main className="min-h-[calc(100vh-160px)] flex flex-col bg-background">
       {/* Hero Section - Enhanced */}
-      <section className="relative overflow-hidden py-24">
+      <section className="relative overflow-hidden py-[50px]">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/5 pointer-events-none" />
         <div className="absolute top-20 left-10 w-72 h-72 bg-secondary/20 rounded-full blur-3xl animate-pulse pointer-events-none" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse pointer-events-none" style={{
+        animationDelay: '1s'
+      }} />
         
         <div className="container relative grid md:grid-cols-2 gap-16 items-center">
           <div className="space-y-8 animate-fade-in">
@@ -323,7 +286,7 @@ const Index = () => {
               Built for Teachers • WeeLMat Generator
             </div>
             
-            <h1 className="text-5xl md:text-6xl font-extrabold leading-tight">
+            <h1 className="text-5xl md:text-6xl font-extrabold leading-tight py-[10px]">
               <span className="block bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/80 to-secondary">
                 <TypewriterText text="WeeLMat Generator" />
               </span>
@@ -338,20 +301,11 @@ const Index = () => {
             </p>
 
             <div className="flex flex-wrap gap-4">
-              <Button 
-                size="lg" 
-                className="text-base transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20" 
-                onClick={() => navigate("/auth")}
-              >
+              <Button size="lg" className="text-base transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20" onClick={() => navigate("/auth")}>
                 Get Started Free
                 <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
-              <Button 
-                variant="outline" 
-                size="lg" 
-                className="text-base transition-all duration-300 hover:scale-105" 
-                onClick={() => navigate("/learn-more")}
-              >
+              <Button variant="outline" size="lg" className="text-base transition-all duration-300 hover:scale-105" onClick={() => navigate("/learn-more")}>
                 Learn More
               </Button>
             </div>
@@ -374,12 +328,7 @@ const Index = () => {
 
           <div className="rounded-3xl border-2 border-primary/10 bg-card p-4 shadow-2xl animate-fade-in hover-scale">
             <div className="w-full overflow-hidden rounded-2xl border bg-muted/30">
-              <img
-                src="/weelmat-logo.png"
-                alt="WeeLMat Generator preview showing sample weekly planning matrix"
-                className="w-full h-auto object-contain"
-                loading="eager"
-              />
+              <img src="/weelmat-logo.png" alt="WeeLMat Generator preview showing sample weekly planning matrix" className="w-full h-auto object-contain" loading="eager" />
             </div>
           </div>
         </div>
@@ -438,8 +387,6 @@ const Index = () => {
           </div>
         </div>
       </section>
-    </main>
-  );
+    </main>;
 };
-
 export default Index;
