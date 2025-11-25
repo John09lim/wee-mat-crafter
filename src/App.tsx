@@ -23,6 +23,7 @@ import SupervisorDashboard from "./pages/SupervisorDashboard";
 import WeeLMatHistory from "./pages/WeeLMatHistory";
 import AuthSchoolHead from "./pages/AuthSchoolHead";
 import AuthSupervisor from "./pages/AuthSupervisor";
+import MyAccount from "./pages/MyAccount";
 
 const queryClient = new QueryClient();
 
@@ -47,7 +48,7 @@ const App = () => {
           <Route path="/premium/weelmat" element={<WeeLMatGeneratorWeeLMat />} />
           <Route path="/premium/lesson-plan" element={<LessonPlanGenerator />} />
           <Route path="/premium/periodical-test" element={<PeriodicalTestGenerator />} />
-          <Route path="/my-account" element={<Navigate to="/weelmat-history" replace />} />
+          <Route path="/my-account" element={<MyAccount />} />
           <Route path="/teacher-submission" element={<TeacherSubmission />} />
           <Route path="/principal-dashboard" element={<PrincipalDashboard />} />
           <Route path="/supervisor-dashboard" element={<SupervisorDashboard />} />

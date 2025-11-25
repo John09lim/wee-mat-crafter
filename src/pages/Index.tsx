@@ -312,10 +312,6 @@ const Index = () => {
             <div className="flex flex-wrap gap-6 text-sm text-muted-foreground pt-4">
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-primary" />
-                <span>No credit card required</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-primary" />
                 <span>DepEd aligned</span>
               </div>
               <div className="flex items-center gap-2">
