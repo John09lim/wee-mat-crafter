@@ -13,6 +13,7 @@ import { toast } from "@/components/ui/sonner";
 import { PasscodeDialog } from "@/components/PasscodeDialog";
 import { Upload, FileText, Check, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const examTypes = ["Identification", "Matching Type", "True/False", "Multiple Choice", "Essay", "Performance Task", "HOLIDAY"] as const;
 const questionCounts = [5, 10, 15] as const;
@@ -68,8 +69,10 @@ const Dashboard = () => {
   const [matrixMode, setMatrixMode] = useState<"automatic" | "manual">("manual");
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [extractedData, setExtractedData] = useState<any>(null);
+  const [showPreviewDialog, setShowPreviewDialog] = useState(false);
+  const [extractedTextPreview, setExtractedTextPreview] = useState<string>("");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const steps = useMemo(() => [
     "Planning daily competencies…",
     "Selecting trusted references…",
@@ -276,20 +279,12 @@ const watchedValues = watch();
         });
 
         setUploadedFile(file);
+        setExtractedTextPreview(data.extractedText || "");
         toast.success("File processed! Competencies auto-filled for Monday-Friday");
         
-        // Auto-generate WeeLMat if all fields are complete in automatic mode
+        // Show preview dialog in automatic mode
         if (matrixMode === "automatic") {
-          setTimeout(() => {
-            const currentValues = watch();
-            if (isFormComplete(currentValues)) {
-              setLoading(true);
-              toast.success("All fields complete! Auto-generating WeeLMat...");
-              handleSubmit(onSubmit)();
-            } else {
-              toast.info("Please fill in the remaining fields and click Generate.");
-            }
-          }, 500);
+          setShowPreviewDialog(true);
         }
       }
       
@@ -302,12 +297,72 @@ const watchedValues = watch();
     }
   };
 
+  const handleConfirmGeneration = () => {
+    setShowPreviewDialog(false);
+    const currentValues = watch();
+    if (isFormComplete(currentValues)) {
+      setLoading(true);
+      toast.success("Generating WeeLMat...");
+      handleSubmit(onSubmit)();
+    } else {
+      toast.info("Please fill in the remaining fields and click Generate.");
+    }
+  };
+
   return (
     <>
       <PasscodeDialog 
         open={showPasscodeDialog} 
         onPasscodeVerified={handlePasscodeVerified}
       />
+      
+      {/* Extracted Text Preview Dialog */}
+      <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Extracted Text Preview</DialogTitle>
+            <DialogDescription>
+              Review the extracted content before generating the WeeLMat
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-muted/50 p-4 rounded-lg border">
+              <h4 className="font-medium mb-2 text-sm text-muted-foreground">Raw Extracted Text:</h4>
+              <div className="text-sm whitespace-pre-wrap max-h-60 overflow-y-auto">
+                {extractedTextPreview || "No text extracted"}
+              </div>
+            </div>
+            <div className="bg-muted/50 p-4 rounded-lg border">
+              <h4 className="font-medium mb-2 text-sm text-muted-foreground">Auto-filled Competencies:</h4>
+              <div className="space-y-2 text-sm">
+                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((day) => {
+                  const dayKey = day.toLowerCase();
+                  const competency = watch(`${dayKey}Competency` as any);
+                  return competency ? (
+                    <div key={day}>
+                      <span className="font-semibold">{day}:</span> {competency}
+                    </div>
+                  ) : null;
+                })}
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowPreviewDialog(false)}
+            >
+              Edit Manually
+            </Button>
+            <Button
+              onClick={handleConfirmGeneration}
+              className="bg-[#236130] hover:bg-[#236130]/90"
+            >
+              Confirm & Generate
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       
       {/* Loading Overlay for Auto-Generation */}
       {loading && (
