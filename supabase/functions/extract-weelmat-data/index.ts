@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEYS");
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
