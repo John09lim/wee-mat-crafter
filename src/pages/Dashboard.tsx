@@ -172,6 +172,11 @@ const watchedValues = watch();
 
   const [result, setResult] = useState<{subject:string;grade:string;section:string;dates:string;docx?:string;pdf?:string}|null>(null);
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/");
+  };
+
   return (
     <>
       <PasscodeDialog 
@@ -181,6 +186,13 @@ const watchedValues = watch();
       
       {passcodeVerified && (
         <main className="min-h-[calc(100vh-160px)] py-12 bg-background">
+          <div className="container mb-4">
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={handleLogout}>
+                Logout
+              </Button>
+            </div>
+          </div>
           <section className="container grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2">
           <div className="rounded-2xl border bg-card p-6 shadow-sm">
