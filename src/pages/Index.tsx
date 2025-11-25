@@ -286,15 +286,14 @@ const Index = () => {
               Built for Teachers • WeeLMat Generator
             </div>
             
-            <h1 className="text-5xl md:text-6xl font-extrabold leading-tight py-[10px]">
-              <span className="block bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/80 to-secondary">
-                <TypewriterText text="WeeLMat Generator" />
-              </span>
-              <br />
-              <span className="block text-foreground mt-2">
-                <ColorWaveText text="Weekly planning, instantly clear" />
-              </span>
-            </h1>
+          <h1 className="text-5xl md:text-6xl font-extrabold leading-tight">
+            <span className="block bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/80 to-secondary">
+              <TypewriterText text="WeeLMat Generator" />
+            </span>
+            <span className="block text-foreground mt-1">
+              <ColorWaveText text="Weekly planning, instantly clear" />
+            </span>
+          </h1>
             
             <p className="text-lg text-muted-foreground max-w-prose leading-relaxed">
               Transform your weekly competencies into clear, learner‑friendly plans. Generate polished DOCX/PDF output ready for class use or contingency days—fast, consistent, and aligned with DepEd guidance.
