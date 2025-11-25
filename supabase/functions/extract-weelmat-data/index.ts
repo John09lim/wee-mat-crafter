@@ -147,7 +147,7 @@ RULES:
       JSON.stringify({
         success: true,
         dailyPlan: parsedData.dailyPlan,
-        extractedTextPreview: extractedText.slice(0, 500)
+        extractedText: extractedText
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
