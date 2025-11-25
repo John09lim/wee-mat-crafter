@@ -111,6 +111,16 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
   defaultValues: {
     gradeLevel: "",
     language: "English",
+    mondayExamType: "Multiple Choice",
+    tuesdayExamType: "Multiple Choice",
+    wednesdayExamType: "Multiple Choice",
+    thursdayExamType: "Multiple Choice",
+    fridayExamType: "Multiple Choice",
+    mondayQuestionCount: 5,
+    tuesdayQuestionCount: 5,
+    wednesdayQuestionCount: 5,
+    thursdayQuestionCount: 5,
+    fridayQuestionCount: 5,
   }
 });
 
