@@ -255,11 +255,17 @@ const watchedValues = watch();
 
       if (error) throw error;
 
+      // Check if API returned an error
+      if (!data.success) {
+        toast.error(data.error || "Failed to process file. Please try manual mode.");
+        return;
+      }
+
       // Auto-fill form fields with extracted data
       if (data.success) {
         setExtractedData(data);
         
-        // Pre-fill Monday-Friday data
+        // Pre-fill Monday-Friday data from new structure
         const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
         const dayNames: Record<string, string> = {
           monday: 'Monday',
@@ -270,11 +276,14 @@ const watchedValues = watch();
         };
         
         days.forEach((day) => {
-          const dayData = data.dailyPlan?.[dayNames[day]];
+          const dayData = data.days?.[dayNames[day]];
           if (dayData) {
             setValue(`${day}Competency` as any, dayData.competency || '');
             setValue(`${day}ExamType` as any, dayData.examType || 'Multiple Choice');
             setValue(`${day}QuestionCount` as any, dayData.questionCount || 10);
+            
+            // Store additional data for later use (suggestedMaterials and learningTasks)
+            // These can be passed to the generator if needed
           }
         });
 
@@ -289,9 +298,23 @@ const watchedValues = watch();
       }
       
       setUploadProgress(100);
-    } catch (error) {
+    } catch (error: any) {
       console.error('File upload error:', error);
-      toast.error("Failed to process file. Please try manual mode or upload a different file.");
+      
+      // Display user-friendly error messages
+      let errorMessage = "Failed to process file. Please try manual mode or upload a different file.";
+      
+      if (error?.error) {
+        errorMessage = error.error;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error instanceof Error) {
+        if (error.message.includes("network") || error.message.includes("fetch")) {
+          errorMessage = "Network error. Please check your connection and try again.";
+        }
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setUploading(false);
     }
@@ -333,14 +356,28 @@ const watchedValues = watch();
               </div>
             </div>
             <div className="bg-muted/50 p-4 rounded-lg border">
-              <h4 className="font-medium mb-2 text-sm text-muted-foreground">Auto-filled Competencies:</h4>
-              <div className="space-y-2 text-sm">
+              <h4 className="font-medium mb-2 text-sm text-muted-foreground">Weekly Competency:</h4>
+              <p className="text-sm">{extractedData?.weekCompetency || "N/A"}</p>
+            </div>
+            <div className="bg-muted/50 p-4 rounded-lg border">
+              <h4 className="font-medium mb-2 text-sm text-muted-foreground">Auto-filled Daily Content:</h4>
+              <div className="space-y-3 text-sm max-h-60 overflow-y-auto">
                 {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((day) => {
                   const dayKey = day.toLowerCase();
                   const competency = watch(`${dayKey}Competency` as any);
+                  const dayData = extractedData?.days?.[day];
                   return competency ? (
-                    <div key={day}>
-                      <span className="font-semibold">{day}:</span> {competency}
+                    <div key={day} className="border-b pb-2 last:border-b-0">
+                      <div className="font-semibold mb-1">{day}:</div>
+                      <div className="pl-2 space-y-1">
+                        <div><span className="text-muted-foreground">Competency:</span> {competency}</div>
+                        {dayData?.suggestedMaterials && dayData.suggestedMaterials.length > 0 && (
+                          <div><span className="text-muted-foreground">Materials:</span> {dayData.suggestedMaterials.join(', ')}</div>
+                        )}
+                        {dayData?.learningTasks && (
+                          <div><span className="text-muted-foreground">Tasks:</span> {dayData.learningTasks.slice(0, 100)}...</div>
+                        )}
+                      </div>
                     </div>
                   ) : null;
                 })}
