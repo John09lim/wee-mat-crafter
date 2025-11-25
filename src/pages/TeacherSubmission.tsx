@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Upload, CheckCircle, Clock, XCircle, Eye, FileText } from "lucide-react";
-import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 
 export default function TeacherSubmission() {
@@ -122,7 +121,6 @@ export default function TeacherSubmission() {
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: "#f9f0eb" }}>
-      <Header />
       <main className="flex-1 py-12">
         <div className="container max-w-6xl mx-auto">
           <div className="text-center mb-8">
