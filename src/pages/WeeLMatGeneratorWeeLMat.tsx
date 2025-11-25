@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/sonner";
+import { Download, Share2, Copy } from "lucide-react";
 
 // Form values passed from Dashboard or Premium page
 type FormValues = {
@@ -49,6 +50,7 @@ const WeeLMatGeneratorWeeLMat = () => {
   const [stepIndex, setStepIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [docxUrl, setDocxUrl] = useState<string | null>(null);
+  const [studentDocxUrl, setStudentDocxUrl] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [aiJson, setAiJson] = useState<any | null>(null);
   const [matrixId, setMatrixId] = useState<string | null>(null);
@@ -107,6 +109,7 @@ const WeeLMatGeneratorWeeLMat = () => {
         console.log("WeeLMatGenerator: Success! Received data:", data);
 
         setDocxUrl(data?.docx_url || null);
+        setStudentDocxUrl(data?.student_docx_url || null);
         setPdfUrl(data?.pdf_url || null);
         setAiJson(data?.ai_json || null);
         setMatrixId(data?.matrix_id || null);
@@ -142,9 +145,37 @@ const WeeLMatGeneratorWeeLMat = () => {
     }
   };
 
-  const buildFilename = (ext: string) => {
+  const buildFilename = (ext: string, prefix: string = "weelmat") => {
     const safe = (s?: string) => (s || "").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").toLowerCase();
-    return `weelmat-${safe(values?.subject)}-${safe(values?.gradeLevel)}-${safe(values?.section)}-${values?.dateFrom || ""}-${values?.dateTo || ""}.${ext}`;
+    return `${prefix}-${safe(values?.subject)}-${safe(values?.gradeLevel)}-${safe(values?.section)}-${values?.dateFrom || ""}-${values?.dateTo || ""}.${ext}`;
+  };
+
+  const handleShare = async () => {
+    if (!docxUrl) return;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `WeeLMat - ${values?.subject} ${values?.gradeLevel}`,
+          text: `Weekly Learning Matrix for ${values?.subject}, ${values?.gradeLevel}, Section ${values?.section}`,
+          url: docxUrl
+        });
+        toast("Shared successfully!");
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          handleCopyLink();
+        }
+      }
+    } else {
+      handleCopyLink();
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (docxUrl) {
+      navigator.clipboard.writeText(docxUrl);
+      toast("Download link copied to clipboard!");
+    }
   };
 
   if (loading) {
@@ -204,15 +235,51 @@ const WeeLMatGeneratorWeeLMat = () => {
             </Button>
           </div>
           <div className="p-6 space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button onClick={() => downloadFile(docxUrl, buildFilename("docx"))} className="flex-1">
-                📄 Download DOCX
-              </Button>
-              {pdfUrl && (
-                <Button variant="outline" onClick={() => downloadFile(pdfUrl, buildFilename("pdf"))} className="flex-1">
-                  📑 Download PDF
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button 
+                  onClick={() => downloadFile(docxUrl, buildFilename("docx", "teacher"))} 
+                  className="flex-1"
+                  style={{ backgroundColor: "#236130", color: "white" }}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download for Teachers (Full Version)
                 </Button>
-              )}
+                
+                {studentDocxUrl && (
+                  <Button 
+                    onClick={() => downloadFile(studentDocxUrl, buildFilename("docx", "student"))} 
+                    variant="outline"
+                    className="flex-1"
+                    style={{ borderColor: "#236130", color: "#236130" }}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download for Students (Simplified)
+                  </Button>
+                )}
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                {pdfUrl && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => downloadFile(pdfUrl, buildFilename("pdf"))} 
+                    className="flex-1"
+                  >
+                    📑 Download PDF
+                  </Button>
+                )}
+                
+                <Button 
+                  onClick={handleShare}
+                  variant="secondary"
+                  style={{ backgroundColor: "#f5ca47", color: "#236130" }}
+                  className="flex-1"
+                >
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share Output
+                </Button>
+              </div>
             </div>
             
             {aiJson && (
