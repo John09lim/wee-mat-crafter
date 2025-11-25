@@ -97,7 +97,7 @@ const WeeLMatHistory = () => {
   };
 
   const handleViewPreview = (matrixId: string) => {
-    navigate(`/weelmatgeneratorpremium/weelmat?matrixId=${matrixId}`);
+    navigate(`/premium/weelmat?matrixId=${matrixId}`);
   };
 
   const handleDownload = async (url: string | null, filename: string) => {

@@ -82,7 +82,7 @@ const PeriodicalTestGenerator = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
       <div className="container mx-auto py-8 px-4">
         <div className="mb-6">
-          <Button variant="ghost" onClick={() => navigate("/weelmatgeneratorpremium")} className="gap-2">
+          <Button variant="ghost" onClick={() => navigate("/premium")} className="gap-2">
             <ArrowLeft className="w-4 h-4" />
             Back to Premium
           </Button>
@@ -237,7 +237,7 @@ const PeriodicalTestGenerator = () => {
                 <Button variant="secondary" onClick={() => setData(null)} className="flex-1">
                   Generate Another
                 </Button>
-                <Button variant="outline" onClick={() => navigate("/weelmatgeneratorpremium")} className="flex-1">
+                <Button variant="outline" onClick={() => navigate("/premium")} className="flex-1">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Back to Premium
                 </Button>
