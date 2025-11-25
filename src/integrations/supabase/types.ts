@@ -258,6 +258,7 @@ export type Database = {
       principal_weekly_reports: {
         Row: {
           created_at: string | null
+          district_name: string | null
           id: string
           notes: string | null
           principal_id: string
@@ -272,6 +273,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          district_name?: string | null
           id?: string
           notes?: string | null
           principal_id: string
@@ -286,6 +288,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          district_name?: string | null
           id?: string
           notes?: string | null
           principal_id?: string
@@ -303,6 +306,7 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          district_name: string | null
           email: string
           school: string
           teacher_name: string
@@ -311,6 +315,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          district_name?: string | null
           email: string
           school: string
           teacher_name: string
@@ -319,6 +324,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          district_name?: string | null
           email?: string
           school?: string
           teacher_name?: string
@@ -354,6 +360,7 @@ export type Database = {
       school_assignments: {
         Row: {
           created_at: string | null
+          district_name: string | null
           id: string
           principal_id: string | null
           school_name: string
@@ -362,6 +369,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          district_name?: string | null
           id?: string
           principal_id?: string | null
           school_name: string
@@ -370,6 +378,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          district_name?: string | null
           id?: string
           principal_id?: string | null
           school_name?: string
@@ -428,12 +437,14 @@ export type Database = {
       teacher_submissions: {
         Row: {
           created_at: string | null
+          district_name: string | null
           file_type: string
           file_url: string
           grade_level: string
           id: string
           principal_id: string | null
           principal_notes: string | null
+          school_name: string | null
           section: string
           status: string
           subject: string
@@ -445,12 +456,14 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          district_name?: string | null
           file_type: string
           file_url: string
           grade_level: string
           id?: string
           principal_id?: string | null
           principal_notes?: string | null
+          school_name?: string | null
           section: string
           status?: string
           subject: string
@@ -462,12 +475,14 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          district_name?: string | null
           file_type?: string
           file_url?: string
           grade_level?: string
           id?: string
           principal_id?: string | null
           principal_notes?: string | null
+          school_name?: string | null
           section?: string
           status?: string
           subject?: string
@@ -705,6 +720,14 @@ export type Database = {
     }
     Functions: {
       cleanup_test_data: { Args: never; Returns: undefined }
+      get_user_context: {
+        Args: never
+        Returns: {
+          district_name: string
+          role: Database["public"]["Enums"]["app_role"]
+          school_name: string
+        }[]
+      }
       has_premium_access: { Args: { check_user_id?: string }; Returns: boolean }
       has_role: {
         Args: {

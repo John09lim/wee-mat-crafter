@@ -101,7 +101,30 @@ serve(async (req) => {
 
     console.log("File uploaded successfully:", urlData.publicUrl);
 
-    // Insert submission record
+    // Fetch teacher's profile to get school and district
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("school, district_name")
+      .eq("user_id", user.id)
+      .single();
+
+    if (profileError || !profile) {
+      console.error("Profile error:", profileError);
+      return new Response(JSON.stringify({ error: "Teacher profile not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    // Auto-fetch principal_id from school_assignments
+    const { data: assignment } = await supabase
+      .from("school_assignments")
+      .select("principal_id")
+      .eq("school_name", profile.school)
+      .eq("district_name", profile.district_name || '')
+      .single();
+
+    // Insert submission record with auto-populated school/district
     const { data: submissionData, error: insertError } = await supabase
       .from("teacher_submissions")
       .insert({
@@ -114,7 +137,9 @@ serve(async (req) => {
         week_end: weekEnd,
         file_url: urlData.publicUrl,
         file_type: fileExt,
-        principal_id: principalId || null,
+        school_name: profile.school,
+        district_name: profile.district_name,
+        principal_id: assignment?.principal_id || principalId || null,
         status: "pending"
       })
       .select()

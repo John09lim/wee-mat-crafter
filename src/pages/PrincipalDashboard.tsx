@@ -18,18 +18,46 @@ export default function PrincipalDashboard() {
   }, []);
 
   const fetchSubmissions = async () => {
-    const { data, error } = await supabase
-      .from("teacher_submissions")
-      .select("*")
-      .order("created_at", { ascending: false });
+    try {
+      // Get principal's profile to filter by their school
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Not authenticated");
+        setLoading(false);
+        return;
+      }
 
-    if (error) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("school, district_name")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile) {
+        toast.error("Profile not found");
+        setLoading(false);
+        return;
+      }
+
+      // Query ONLY submissions from principal's school
+      const { data, error } = await supabase
+        .from("teacher_submissions")
+        .select("*")
+        .eq("school_name", profile.school)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error:", error);
+        toast.error("Failed to load submissions");
+      } else {
+        setSubmissions(data || []);
+      }
+    } catch (error: any) {
       console.error("Error:", error);
       toast.error("Failed to load submissions");
-    } else {
-      setSubmissions(data || []);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const updateStatus = async (id: string, newStatus: string, notes?: string) => {
@@ -56,6 +84,18 @@ export default function PrincipalDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Fetch principal's profile for school and district information
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("school, district_name")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile) {
+        toast.error("Profile not found");
+        return;
+      }
+
       const today = new Date();
       const startOfWeek = new Date(today);
       startOfWeek.setDate(today.getDate() - today.getDay());
@@ -66,7 +106,8 @@ export default function PrincipalDashboard() {
         .from("principal_weekly_reports")
         .insert({
           principal_id: user.id,
-          school_name: "Your School", // Should be fetched from profile
+          school_name: profile.school,
+          district_name: profile.district_name,
           week_start: startOfWeek.toISOString().split('T')[0],
           week_end: endOfWeek.toISOString().split('T')[0],
           status: "completed",

@@ -17,18 +17,39 @@ export default function SupervisorDashboard() {
 
   const fetchData = async () => {
     try {
-      // Fetch principal weekly reports
+      // Get supervisor's profile to filter by their district
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("district_name")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!profile || !profile.district_name) {
+        console.error("Supervisor profile or district not found");
+        setLoading(false);
+        return;
+      }
+
+      // Fetch ONLY reports from supervisor's district
       const { data: reportsData, error: reportsError } = await supabase
         .from("principal_weekly_reports")
         .select("*")
+        .eq("district_name", profile.district_name)
         .order("created_at", { ascending: false });
 
       if (reportsError) throw reportsError;
 
-      // Fetch school assignments
+      // Fetch ONLY school assignments in supervisor's district
       const { data: schoolsData, error: schoolsError } = await supabase
         .from("school_assignments")
-        .select("*");
+        .select("*")
+        .eq("district_name", profile.district_name);
 
       if (schoolsError) throw schoolsError;
 
