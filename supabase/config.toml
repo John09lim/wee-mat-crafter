@@ -8,3 +8,6 @@ verify_jwt = true
 
 [functions.generate-periodical-test]
 verify_jwt = true
+
+[functions.extract-weelmat-data]
+verify_jwt = true
