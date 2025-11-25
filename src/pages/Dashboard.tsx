@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { PasscodeDialog } from "@/components/PasscodeDialog";
+import { ExtractedTextPreviewModal } from "@/components/ExtractedTextPreviewModal";
 import { Upload, FileText, Check, Loader2 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -261,40 +262,14 @@ const watchedValues = watch();
         return;
       }
 
-      // Auto-fill form fields with extracted data
+      // Store extracted data and show preview modal BEFORE auto-filling
       if (data.success) {
         setExtractedData(data);
-        
-        // Pre-fill Monday-Friday data from new structure
-        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-        const dayNames: Record<string, string> = {
-          monday: 'Monday',
-          tuesday: 'Tuesday',
-          wednesday: 'Wednesday',
-          thursday: 'Thursday',
-          friday: 'Friday'
-        };
-        
-        days.forEach((day) => {
-          const dayData = data.days?.[dayNames[day]];
-          if (dayData) {
-            setValue(`${day}Competency` as any, dayData.competency || '');
-            setValue(`${day}ExamType` as any, dayData.examType || 'Multiple Choice');
-            setValue(`${day}QuestionCount` as any, dayData.questionCount || 10);
-            
-            // Store additional data for later use (suggestedMaterials and learningTasks)
-            // These can be passed to the generator if needed
-          }
-        });
-
         setUploadedFile(file);
         setExtractedTextPreview(data.extractedText || "");
-        toast.success("File processed! Competencies auto-filled for Monday-Friday");
         
-        // Show preview dialog in automatic mode
-        if (matrixMode === "automatic") {
-          setShowPreviewDialog(true);
-        }
+        // Show preview modal for user to verify extracted content
+        setShowPreviewDialog(true);
       }
       
       setUploadProgress(100);
@@ -320,16 +295,40 @@ const watchedValues = watch();
     }
   };
 
-  const handleConfirmGeneration = () => {
-    setShowPreviewDialog(false);
-    const currentValues = watch();
-    if (isFormComplete(currentValues)) {
-      setLoading(true);
-      toast.success("Generating WeeLMat...");
-      handleSubmit(onSubmit)();
-    } else {
-      toast.info("Please fill in the remaining fields and click Generate.");
+  const handleConfirmExtraction = () => {
+    // User confirmed, now auto-fill the form fields
+    if (extractedData) {
+      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+      const dayNames: Record<string, string> = {
+        monday: 'Monday',
+        tuesday: 'Tuesday',
+        wednesday: 'Wednesday',
+        thursday: 'Thursday',
+        friday: 'Friday'
+      };
+      
+      days.forEach((day) => {
+        const dayData = extractedData.days?.[dayNames[day]];
+        if (dayData) {
+          setValue(`${day}Competency` as any, dayData.competency || '');
+          setValue(`${day}ExamType` as any, dayData.examType || 'Multiple Choice');
+          setValue(`${day}QuestionCount` as any, dayData.questionCount || 10);
+        }
+      });
+
+      toast.success("Content verified and auto-filled successfully!");
     }
+    
+    setShowPreviewDialog(false);
+  };
+
+  const handleCancelExtraction = () => {
+    // User wants to try a different file
+    setShowPreviewDialog(false);
+    setExtractedData(null);
+    setExtractedTextPreview("");
+    setUploadedFile(null);
+    toast.info("Upload cancelled. You can try uploading a different file.");
   };
 
   return (
@@ -339,67 +338,15 @@ const watchedValues = watch();
         onPasscodeVerified={handlePasscodeVerified}
       />
       
-      {/* Extracted Text Preview Dialog */}
-      <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Extracted Text Preview</DialogTitle>
-            <DialogDescription>
-              Review the extracted content before generating the WeeLMat
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="bg-muted/50 p-4 rounded-lg border">
-              <h4 className="font-medium mb-2 text-sm text-muted-foreground">Raw Extracted Text:</h4>
-              <div className="text-sm whitespace-pre-wrap max-h-80 overflow-y-auto">
-                {extractedTextPreview || "No text extracted"}
-              </div>
-            </div>
-            <div className="bg-muted/50 p-4 rounded-lg border">
-              <h4 className="font-medium mb-2 text-sm text-muted-foreground">Weekly Competency:</h4>
-              <p className="text-sm">{extractedData?.weekCompetency || "N/A"}</p>
-            </div>
-            <div className="bg-muted/50 p-4 rounded-lg border">
-              <h4 className="font-medium mb-2 text-sm text-muted-foreground">Auto-filled Daily Content:</h4>
-              <div className="space-y-3 text-sm max-h-96 overflow-y-auto">
-                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map((day) => {
-                  const dayKey = day.toLowerCase();
-                  const competency = watch(`${dayKey}Competency` as any);
-                  const dayData = extractedData?.days?.[day];
-                  return competency ? (
-                    <div key={day} className="border-b pb-2 last:border-b-0">
-                      <div className="font-semibold mb-1">{day}:</div>
-                      <div className="pl-2 space-y-1">
-                        <div><span className="text-muted-foreground">Competency:</span> {competency}</div>
-                        {dayData?.suggestedMaterials && dayData.suggestedMaterials.length > 0 && (
-                          <div><span className="text-muted-foreground">Materials:</span> {dayData.suggestedMaterials.join(', ')}</div>
-                        )}
-                    {dayData?.learningTasks && (
-                      <div><span className="text-muted-foreground">Tasks:</span> {dayData.learningTasks.slice(0, 200)}...</div>
-                    )}
-                      </div>
-                    </div>
-                  ) : null;
-                })}
-              </div>
-            </div>
-          </div>
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setShowPreviewDialog(false)}
-            >
-              Edit Manually
-            </Button>
-            <Button
-              onClick={handleConfirmGeneration}
-              className="bg-[#236130] hover:bg-[#236130]/90"
-            >
-              Confirm & Generate
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Extracted Text Preview Modal */}
+      <ExtractedTextPreviewModal
+        open={showPreviewDialog}
+        onOpenChange={setShowPreviewDialog}
+        extractedText={extractedTextPreview}
+        fileName={uploadedFile?.name || "uploaded file"}
+        onConfirm={handleConfirmExtraction}
+        onCancel={handleCancelExtraction}
+      />
       
       {/* Loading Overlay for Auto-Generation */}
       {loading && (
