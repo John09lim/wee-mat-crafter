@@ -47,6 +47,9 @@ serve(async (req) => {
     const weekStart = formData.get("weekStart") as string;
     const weekEnd = formData.get("weekEnd") as string;
     const principalId = formData.get("principalId") as string;
+    const schoolHeadName = formData.get("schoolHeadName") as string;
+    const schoolName = formData.get("schoolName") as string;
+    const districtName = formData.get("districtName") as string;
 
     // Validate required fields
     if (!file || !teacherName || !gradeLevel || !section || !subject || !weekStart || !weekEnd) {
@@ -124,7 +127,7 @@ serve(async (req) => {
       .eq("district_name", profile.district_name || '')
       .single();
 
-    // Insert submission record with auto-populated school/district
+    // Insert submission record with form-provided or auto-populated school/district
     const { data: submissionData, error: insertError } = await supabase
       .from("teacher_submissions")
       .insert({
@@ -137,8 +140,8 @@ serve(async (req) => {
         week_end: weekEnd,
         file_url: urlData.publicUrl,
         file_type: fileExt,
-        school_name: profile.school,
-        district_name: profile.district_name,
+        school_name: schoolName || profile.school,
+        district_name: districtName || profile.district_name,
         principal_id: assignment?.principal_id || principalId || null,
         status: "pending"
       })
