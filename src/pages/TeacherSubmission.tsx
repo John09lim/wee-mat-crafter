@@ -16,6 +16,9 @@ export default function TeacherSubmission() {
   const [file, setFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     teacherName: "",
+    schoolHeadName: "",
+    schoolName: "",
+    districtName: "",
     gradeLevel: "",
     section: "",
     subject: "",
@@ -46,12 +49,18 @@ export default function TeacherSubmission() {
         setUserProfile(profileData);
         setFormData(prev => ({
           ...prev,
-          teacherName: profileData.teacher_name || ""
+          teacherName: (profileData.teacher_name || "").toUpperCase(),
+          schoolName: (profileData.school || "").toUpperCase(),
+          districtName: (profileData.district_name || "").toUpperCase()
         }));
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
     }
+  };
+
+  const handleUppercaseInput = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value.toUpperCase() }));
   };
 
   const checkAuth = async () => {
@@ -90,20 +99,15 @@ export default function TeacherSubmission() {
       const submitFormData = new FormData();
       submitFormData.append("file", file);
       submitFormData.append("teacherName", formData.teacherName);
+      submitFormData.append("schoolHeadName", formData.schoolHeadName);
+      submitFormData.append("schoolName", formData.schoolName);
+      submitFormData.append("districtName", formData.districtName);
       submitFormData.append("gradeLevel", formData.gradeLevel);
       submitFormData.append("section", formData.section);
       submitFormData.append("subject", formData.subject);
       submitFormData.append("weekStart", formData.weekStart);
       submitFormData.append("weekEnd", formData.weekEnd);
       submitFormData.append("principalId", formData.principalId);
-      
-      // Auto-populate school and district from profile
-      if (userProfile?.school) {
-        submitFormData.append("schoolName", userProfile.school);
-      }
-      if (userProfile?.district_name) {
-        submitFormData.append("districtName", userProfile.district_name);
-      }
 
       const response = await fetch(
         `https://velpueasbsrptocrjljg.supabase.co/functions/v1/submit-weelmat`,
@@ -126,6 +130,9 @@ export default function TeacherSubmission() {
       setFile(null);
       setFormData({
         teacherName: "",
+        schoolHeadName: "",
+        schoolName: "",
+        districtName: "",
         gradeLevel: "",
         section: "",
         subject: "",
@@ -177,68 +184,106 @@ export default function TeacherSubmission() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-4">
-            <div>
-              <Label>Teacher Name</Label>
-              <Input
-                value={formData.teacherName}
-                onChange={(e) => setFormData({ ...formData, teacherName: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <Label>Grade Level</Label>
-              <Input
-                value={formData.gradeLevel}
-                onChange={(e) => setFormData({ ...formData, gradeLevel: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <Label>Section</Label>
-              <Input
-                value={formData.section}
-                onChange={(e) => setFormData({ ...formData, section: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <Label>Subject</Label>
-              <Input
-                value={formData.subject}
-                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <Label>Week Start</Label>
-              <Input
-                type="date"
-                value={formData.weekStart}
-                onChange={(e) => setFormData({ ...formData, weekStart: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <Label>Week End</Label>
-              <Input
-                type="date"
-                value={formData.weekEnd}
-                onChange={(e) => setFormData({ ...formData, weekEnd: e.target.value })}
-                required
-              />
-            </div>
-          </div>
+                <div>
+                  <Label>Teacher Name</Label>
+                  <Input
+                    value={formData.teacherName}
+                    onChange={(e) => handleUppercaseInput("teacherName", e.target.value)}
+                    placeholder="ENTER YOUR NAME"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">All text will be converted to CAPS</p>
+                </div>
+                <div>
+                  <Label>Name of School Head/Principal</Label>
+                  <Input
+                    value={formData.schoolHeadName}
+                    onChange={(e) => handleUppercaseInput("schoolHeadName", e.target.value)}
+                    placeholder="ENTER COMPLETE NAME"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Enter complete name in ALL CAPS (e.g., JUAN DELA CRUZ)</p>
+                </div>
+                <div>
+                  <Label>School Name</Label>
+                  <Input
+                    value={formData.schoolName}
+                    onChange={(e) => handleUppercaseInput("schoolName", e.target.value)}
+                    placeholder="ENTER SCHOOL NAME"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">All text will be converted to CAPS</p>
+                </div>
+                <div>
+                  <Label>District Name</Label>
+                  <Input
+                    value={formData.districtName}
+                    onChange={(e) => handleUppercaseInput("districtName", e.target.value)}
+                    placeholder="ENTER DISTRICT NAME"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">All text will be converted to CAPS</p>
+                </div>
+                <div>
+                  <Label>Grade Level</Label>
+                  <Input
+                    value={formData.gradeLevel}
+                    onChange={(e) => handleUppercaseInput("gradeLevel", e.target.value)}
+                    placeholder="GRADE 7"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">All text will be converted to CAPS</p>
+                </div>
+                <div>
+                  <Label>Section</Label>
+                  <Input
+                    value={formData.section}
+                    onChange={(e) => handleUppercaseInput("section", e.target.value)}
+                    placeholder="SECTION A"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">All text will be converted to CAPS</p>
+                </div>
+                <div>
+                  <Label>Subject</Label>
+                  <Input
+                    value={formData.subject}
+                    onChange={(e) => handleUppercaseInput("subject", e.target.value)}
+                    placeholder="MATHEMATICS"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">All text will be converted to CAPS</p>
+                </div>
+                <div>
+                  <Label>Week Start</Label>
+                  <Input
+                    type="date"
+                    value={formData.weekStart}
+                    onChange={(e) => setFormData({ ...formData, weekStart: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Week End</Label>
+                  <Input
+                    type="date"
+                    value={formData.weekEnd}
+                    onChange={(e) => setFormData({ ...formData, weekEnd: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
 
-          <div>
-            <Label>Upload WeeLMat (DOCX or PDF)</Label>
-            <Input
-              type="file"
-              accept=".docx,.pdf"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-              required
-            />
-            <p className="text-sm text-muted-foreground mt-1">Maximum file size: 10MB</p>
-          </div>
+              <div>
+                <Label>Upload WeeLMat (DOCX or PDF)</Label>
+                <Input
+                  type="file"
+                  accept=".docx,.pdf"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  required
+                />
+                <p className="text-sm text-muted-foreground mt-1">Maximum file size: 10MB</p>
+              </div>
 
               <Button 
                 type="submit" 
