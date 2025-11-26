@@ -12,6 +12,8 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Ba
 import DocumentViewer from "@/components/DocumentViewer";
 import Footer from "@/components/layout/Footer";
 
+import { TeacherManagement } from "@/components/TeacherManagement";
+
 export default function PrincipalDashboard() {
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +22,7 @@ export default function PrincipalDashboard() {
   const [allTeachers, setAllTeachers] = useState<any[]>([]);
   const [newSubmissionsCount, setNewSubmissionsCount] = useState(0);
   const initialLoadComplete = useRef(false);
+  const [managedTeachers, setManagedTeachers] = useState<any[]>([]);
 
   useEffect(() => {
     fetchSubmissions();
@@ -83,6 +86,15 @@ export default function PrincipalDashboard() {
       }
 
       setProfile(profileData);
+
+      // Fetch managed teachers from school_assignments
+      const { data: managedTeachersData } = await supabase
+        .from("school_assignments")
+        .select("*")
+        .eq("school_name", profileData.school)
+        .eq("principal_id", user.id);
+      
+      setManagedTeachers(managedTeachersData || []);
 
       // Fetch all teachers from this school with their profiles
       const { data: teachersData } = await supabase
@@ -275,6 +287,19 @@ export default function PrincipalDashboard() {
             </div>
           </div>
         </Card>
+      )}
+
+      {/* Teacher Management Section */}
+      {profile && (
+        <div className="mb-6">
+          <TeacherManagement 
+            schoolName={profile.school}
+            districtName={profile.district_name || ""}
+            principalId={profile.user_id}
+            teachers={managedTeachers}
+            onRefresh={fetchSubmissions}
+          />
+        </div>
       )}
 
       <div className="flex justify-between items-center mb-6">
