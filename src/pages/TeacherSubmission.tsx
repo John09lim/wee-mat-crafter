@@ -150,6 +150,7 @@ export default function TeacherSubmission() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case "submitted": return <CheckCircle className="h-5 w-5 text-blue-600" />;
       case "accepted": return <CheckCircle className="h-5 w-5 text-green-600" />;
       case "pending": return <Clock className="h-5 w-5 text-yellow-600" />;
       case "returned": return <XCircle className="h-5 w-5 text-red-600" />;

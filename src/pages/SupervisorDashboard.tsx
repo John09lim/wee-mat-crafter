@@ -10,12 +10,15 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Ba
 import DocumentViewer from "@/components/DocumentViewer";
 import Footer from "@/components/layout/Footer";
 
+import { SchoolManagement } from "@/components/SchoolManagement";
+
 export default function SupervisorDashboard() {
   const [reports, setReports] = useState<any[]>([]);
   const [schools, setSchools] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [teacherSubmissions, setTeacherSubmissions] = useState<any[]>([]);
+  const [managedSchools, setManagedSchools] = useState<any[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -43,6 +46,15 @@ export default function SupervisorDashboard() {
       }
 
       setProfile(profileData);
+
+      // Fetch managed schools from schools table
+      const { data: managedSchoolsData } = await supabase
+        .from("schools")
+        .select("*")
+        .eq("district_name", profileData.district_name)
+        .eq("supervisor_id", user.id);
+      
+      setManagedSchools(managedSchoolsData || []);
 
       // Fetch ONLY reports from supervisor's district
       const { data: reportsData, error: reportsError } = await supabase
@@ -179,6 +191,18 @@ export default function SupervisorDashboard() {
             </div>
           </div>
         </Card>
+      )}
+
+      {/* School Management Section */}
+      {profile && profile.district_name && (
+        <div className="mb-6">
+          <SchoolManagement 
+            districtName={profile.district_name}
+            supervisorId={profile.user_id}
+            schools={managedSchools}
+            onRefresh={fetchData}
+          />
+        </div>
       )}
 
       <div className="mb-8">

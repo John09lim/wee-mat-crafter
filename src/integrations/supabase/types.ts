@@ -361,29 +361,83 @@ export type Database = {
         Row: {
           created_at: string | null
           district_name: string | null
+          grade_level: string | null
           id: string
           principal_id: string | null
+          profile_image_url: string | null
           school_name: string
+          section: string | null
           supervisor_id: string | null
-          user_id: string
+          teacher_email: string | null
+          teacher_name: string | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
           district_name?: string | null
+          grade_level?: string | null
           id?: string
           principal_id?: string | null
+          profile_image_url?: string | null
           school_name: string
+          section?: string | null
           supervisor_id?: string | null
-          user_id: string
+          teacher_email?: string | null
+          teacher_name?: string | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
           district_name?: string | null
+          grade_level?: string | null
           id?: string
           principal_id?: string | null
+          profile_image_url?: string | null
+          school_name?: string
+          section?: string | null
+          supervisor_id?: string | null
+          teacher_email?: string | null
+          teacher_name?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      schools: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          district_name: string
+          id: string
+          principal_email: string | null
+          principal_id: string | null
+          principal_name: string | null
+          school_name: string
+          supervisor_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          district_name: string
+          id?: string
+          principal_email?: string | null
+          principal_id?: string | null
+          principal_name?: string | null
+          school_name: string
+          supervisor_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          district_name?: string
+          id?: string
+          principal_email?: string | null
+          principal_id?: string | null
+          principal_name?: string | null
           school_name?: string
           supervisor_id?: string | null
-          user_id?: string
+          updated_at?: string | null
         }
         Relationships: []
       }

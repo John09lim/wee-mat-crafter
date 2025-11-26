@@ -111,18 +111,27 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .single();
 
-    // Auto-fetch principal_id from school_assignments (use form values or profile)
+    // Auto-fetch principal_id from school_assignments with improved logic
     const lookupSchool = schoolName || profile?.school || '';
     const lookupDistrict = districtName || profile?.district_name || '';
     
-    const { data: assignment } = await supabase
-      .from("school_assignments")
-      .select("principal_id")
-      .eq("school_name", lookupSchool)
-      .eq("district_name", lookupDistrict)
-      .single();
+    let finalPrincipalId = principalId || null;
+    
+    if (lookupSchool && !finalPrincipalId) {
+      const { data: assignment } = await supabase
+        .from("school_assignments")
+        .select("principal_id")
+        .eq("school_name", lookupSchool)
+        .not("principal_id", "is", null)
+        .limit(1)
+        .maybeSingle();
+      
+      if (assignment?.principal_id) {
+        finalPrincipalId = assignment.principal_id;
+      }
+    }
 
-    // Insert submission record with form-provided or auto-populated school/district
+    // Insert submission record with status 'submitted' by default
     const { data: submissionData, error: insertError } = await supabase
       .from("teacher_submissions")
       .insert({
@@ -137,8 +146,8 @@ serve(async (req) => {
         file_type: fileExt,
         school_name: schoolName || profile?.school || '',
         district_name: districtName || profile?.district_name || '',
-        principal_id: assignment?.principal_id || principalId || null,
-        status: "pending"
+        principal_id: finalPrincipalId,
+        status: "submitted"
       })
       .select()
       .single();
