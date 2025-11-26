@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Upload, CheckCircle, Clock, XCircle, Eye, FileText } from "lucide-react";
-import Footer from "@/components/layout/Footer";
 
 export default function TeacherSubmission() {
   const navigate = useNavigate();
@@ -352,7 +351,6 @@ export default function TeacherSubmission() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }
