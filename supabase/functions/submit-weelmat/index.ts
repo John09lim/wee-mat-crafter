@@ -111,12 +111,15 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .single();
 
-    // Auto-fetch principal_id from school_assignments
+    // Auto-fetch principal_id from school_assignments (use form values or profile)
+    const lookupSchool = schoolName || profile?.school || '';
+    const lookupDistrict = districtName || profile?.district_name || '';
+    
     const { data: assignment } = await supabase
       .from("school_assignments")
       .select("principal_id")
-      .eq("school_name", profile.school)
-      .eq("district_name", profile.district_name || '')
+      .eq("school_name", lookupSchool)
+      .eq("district_name", lookupDistrict)
       .single();
 
     // Insert submission record with form-provided or auto-populated school/district
