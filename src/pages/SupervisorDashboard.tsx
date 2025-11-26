@@ -4,7 +4,9 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { School, Users, CheckCircle, TrendingUp, UserCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { School, Users, CheckCircle, TrendingUp, UserCircle, ExternalLink } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import DocumentViewer from "@/components/DocumentViewer";
 import Footer from "@/components/layout/Footer";
 
@@ -104,6 +106,36 @@ export default function SupervisorDashboard() {
   const totalTeachersTracked = reports.reduce((sum, r) => sum + (r.total_teachers || 0), 0);
   const totalSubmitted = reports.reduce((sum, r) => sum + (r.submitted_teachers || 0), 0);
 
+  // Get unique schools list
+  const uniqueSchools = [...new Set(schools.map(s => s.school_name))];
+  const schoolsWithReports = new Set(reports.map(r => r.school_name));
+  const schoolsSubmitted = uniqueSchools.filter(s => schoolsWithReports.has(s)).length;
+  const schoolsNotSubmitted = uniqueSchools.length - schoolsSubmitted;
+
+  // Data for charts
+  const schoolComplianceData = [
+    { name: "Submitted", value: schoolsSubmitted, color: "#10b981" },
+    { name: "Not Submitted", value: schoolsNotSubmitted, color: "#ef4444" }
+  ];
+
+  const teacherSubmissionData = [
+    { name: "Submitted", value: totalSubmitted, color: "#10b981" },
+    { name: "Not Submitted", value: totalTeachersTracked - totalSubmitted, color: "#ef4444" }
+  ];
+
+  // Bar chart data for schools
+  const schoolBarData = Object.entries(schoolReports).map(([schoolName, reports]) => {
+    const latestReport = reports[0];
+    return {
+      school: schoolName.length > 15 ? schoolName.substring(0, 15) + "..." : schoolName,
+      submitted: latestReport.submitted_teachers,
+      total: latestReport.total_teachers,
+      rate: latestReport.total_teachers > 0 
+        ? Math.round((latestReport.submitted_teachers / latestReport.total_teachers) * 100)
+        : 0
+    };
+  }).slice(0, 10);
+
   if (loading) {
     return (
       <div className="container py-8 flex items-center justify-center">
@@ -156,6 +188,76 @@ export default function SupervisorDashboard() {
         <p className="text-muted-foreground">
           Monitor weekly learning matrix submissions across all schools
         </p>
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+            School Compliance
+          </h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+              <Pie
+                data={schoolComplianceData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {schoolComplianceData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+            Teacher Submissions
+          </h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+              <Pie
+                data={teacherSubmissionData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {teacherSubmissionData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+            Submission Rate by School
+          </h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={schoolBarData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="school" angle={-45} textAnchor="end" height={100} />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="rate" fill="#236130" name="Completion Rate (%)" />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
       </div>
 
       {/* Overview Stats */}
@@ -331,6 +433,16 @@ export default function SupervisorDashboard() {
                         </Badge>
                       </div>
                       <div className="flex gap-2">
+                        <a
+                          href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(submission.file_url)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Button size="sm" style={{ backgroundColor: "#236130", color: "white" }}>
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Open in New Tab
+                          </Button>
+                        </a>
                         <DocumentViewer 
                           fileUrl={submission.file_url}
                           fileName={`${submission.teacher_name}_${submission.subject}`}

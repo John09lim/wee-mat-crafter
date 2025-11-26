@@ -23,16 +23,20 @@ export default function DocumentViewer({ fileUrl, fileName, onClose }: DocumentV
 
   const viewerUrl = viewerType === "microsoft" ? getMicrosoftViewerUrl() : getGoogleViewerUrl();
 
+  const openInNewTab = () => {
+    window.open(getMicrosoftViewerUrl(), '_blank');
+  };
+
   return (
     <>
       <Button
         size="sm"
         variant="outline"
-        onClick={() => setIsOpen(true)}
+        onClick={openInNewTab}
         className="gap-2"
       >
         <ExternalLink className="h-4 w-4" />
-        View Online
+        View in Modal
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>

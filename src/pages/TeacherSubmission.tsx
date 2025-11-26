@@ -23,11 +23,36 @@ export default function TeacherSubmission() {
     weekEnd: "",
     principalId: ""
   });
+  const [userProfile, setUserProfile] = useState<any>(null);
 
   useEffect(() => {
     checkAuth();
     fetchSubmissions();
+    fetchUserProfile();
   }, []);
+
+  const fetchUserProfile = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("school, district_name, teacher_name")
+        .eq("user_id", user.id)
+        .single();
+
+      if (profileData) {
+        setUserProfile(profileData);
+        setFormData(prev => ({
+          ...prev,
+          teacherName: profileData.teacher_name || ""
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    }
+  };
 
   const checkAuth = async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -71,6 +96,14 @@ export default function TeacherSubmission() {
       submitFormData.append("weekStart", formData.weekStart);
       submitFormData.append("weekEnd", formData.weekEnd);
       submitFormData.append("principalId", formData.principalId);
+      
+      // Auto-populate school and district from profile
+      if (userProfile?.school) {
+        submitFormData.append("schoolName", userProfile.school);
+      }
+      if (userProfile?.district_name) {
+        submitFormData.append("districtName", userProfile.district_name);
+      }
 
       const response = await fetch(
         `https://velpueasbsrptocrjljg.supabase.co/functions/v1/submit-weelmat`,
