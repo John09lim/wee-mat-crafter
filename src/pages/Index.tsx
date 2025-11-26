@@ -188,14 +188,14 @@ const SchoolHeadsSection = ({
                 <p className="text-sm text-muted-foreground">Join as a school administrator to access advanced management features</p>
               </div>
               
-              <Button size="lg" className="w-full text-base transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20" onClick={() => navigate("/auth?role=school_head")}>
+              <Button size="lg" className="w-full text-base transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20" onClick={() => navigate("/auth-school-head")}>
                 <Building2 className="mr-2 w-5 h-5" />
                 Sign Up as School Head
               </Button>
               
               <p className="text-xs text-center text-muted-foreground">
                 Already have an account?{" "}
-                <button onClick={() => navigate("/auth")} className="text-primary hover:underline font-medium">
+                <button onClick={() => navigate("/auth-school-head")} className="text-primary hover:underline font-medium">
                   Sign in here
                 </button>
               </p>
@@ -228,14 +228,14 @@ const SupervisorsSection = ({
                 <p className="text-sm text-muted-foreground">Oversee multiple schools with district-wide analytics and reporting</p>
               </div>
               
-              <Button size="lg" className="w-full text-base transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-secondary/20" onClick={() => navigate("/auth?role=supervisor")}>
+              <Button size="lg" className="w-full text-base transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-secondary/20" onClick={() => navigate("/auth-supervisor")}>
                 <Users className="mr-2 w-5 h-5" />
                 Sign Up as Supervisor
               </Button>
               
               <p className="text-xs text-center text-muted-foreground">
                 Already have an account?{" "}
-                <button onClick={() => navigate("/auth")} className="text-primary hover:underline font-medium">
+                <button onClick={() => navigate("/auth-supervisor")} className="text-primary hover:underline font-medium">
                   Sign in here
                 </button>
               </p>
