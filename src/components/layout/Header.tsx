@@ -30,6 +30,12 @@ const Header = () => {
     }
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUserRole(null);
+    window.location.href = "/";
+  };
+
   return (
     <header className="bg-primary text-primary-foreground border-b-2 border-accent">
       <div className="container flex items-center gap-3 py-4 rounded-lg">
@@ -43,12 +49,11 @@ const Header = () => {
           <p className="text-lg font-semibold leading-tight">WeeLMat • Weekly Learning Matrix</p>
         </div>
         <nav className="flex items-center gap-4 text-sm">
-          <Link to="/weelmat-history" className="hover:underline underline-offset-4">
-            History
-          </Link>
-          
           {!loading && userRole === 'teacher' && (
             <>
+              <Link to="/weelmat-history" className="hover:underline underline-offset-4">
+                History
+              </Link>
               <Link to="/teacher-submission" className="hover:underline underline-offset-4">
                 Submit WeeLMat
               </Link>
@@ -70,8 +75,16 @@ const Header = () => {
             </Link>
           )}
           
-          {location.pathname !== "/auth" && (
-            <Link to="/auth" className="hover:underline underline-offset-4">Login</Link>
+          {!loading && !userRole && location.pathname !== "/auth" && (
+            <Link to="/auth" className="hover:underline underline-offset-4">
+              Login
+            </Link>
+          )}
+          
+          {!loading && userRole && (
+            <button onClick={handleLogout} className="hover:underline underline-offset-4">
+              Logout
+            </button>
           )}
         </nav>
       </div>
