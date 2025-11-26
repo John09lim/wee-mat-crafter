@@ -61,6 +61,9 @@ export default function AuthSchoolHead() {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/principal-dashboard`,
+            data: {
+              role: 'school_head'
+            }
           },
         });
 
@@ -73,11 +76,6 @@ export default function AuthSchoolHead() {
             teacher_name: name,
             school: school,
             district_name: district,
-          });
-
-          await supabase.from("user_roles").insert({
-            user_id: data.user.id,
-            role: "school_head",
           });
 
           toast.success("Account created successfully!");
@@ -95,9 +93,10 @@ export default function AuthSchoolHead() {
           .from("user_roles")
           .select("role")
           .eq("user_id", data.user.id)
-          .single();
+          .eq("role", "school_head")
+          .maybeSingle();
 
-        if (roleData?.role !== "school_head") {
+        if (!roleData) {
           await supabase.auth.signOut();
           toast.error("This account is not registered as a School Head");
           setLoading(false);
