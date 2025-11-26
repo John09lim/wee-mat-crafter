@@ -9,7 +9,7 @@ import { Users, Mail, Lock, User, MapPin } from "lucide-react";
 
 export default function AuthSupervisor() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [loading, setLoading] = useState(false);
   
   const [email, setEmail] = useState("");
@@ -34,6 +34,27 @@ export default function AuthSupervisor() {
       if (role?.role === "supervisor") {
         navigate("/supervisor-dashboard");
       }
+    }
+  };
+
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth-supervisor`,
+      });
+
+      if (error) throw error;
+
+      toast.success("Password reset email sent! Check your inbox.");
+      setMode("login");
+    } catch (error: any) {
+      console.error("Password reset error:", error);
+      toast.error(error.message || "Failed to send password reset email");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -122,11 +143,15 @@ export default function AuthSupervisor() {
             Supervisor Portal
           </h1>
           <p className="text-muted-foreground text-center mt-2">
-            {mode === "login" ? "Sign in to your account" : "Create your Supervisor account"}
+            {mode === "login" 
+              ? "Sign in to your account" 
+              : mode === "signup" 
+                ? "Create your Supervisor account"
+                : "Reset your password"}
           </p>
         </div>
 
-        <form onSubmit={handleAuth} className="space-y-4">
+        <form onSubmit={mode === "reset" ? handlePasswordReset : handleAuth} className="space-y-4">
           {mode === "signup" && (
             <>
               <div className="space-y-2">
@@ -173,6 +198,7 @@ export default function AuthSupervisor() {
             />
           </div>
 
+          {mode === "reset" ? null : (
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center gap-2">
               <Lock className="h-4 w-4" />
@@ -186,6 +212,7 @@ export default function AuthSupervisor() {
               required
             />
           </div>
+          )}
 
           {mode === "signup" && (
             <div className="space-y-2">
@@ -209,11 +236,20 @@ export default function AuthSupervisor() {
             style={{ backgroundColor: "#236130", color: "white" }}
             disabled={loading}
           >
-            {loading ? "Processing..." : mode === "login" ? "Sign In" : "Create Account"}
+            {loading ? "Processing..." : mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : "Send Reset Email"}
           </Button>
         </form>
 
-        <div className="mt-4 text-center">
+        <div className="mt-4 text-center space-y-2">
+          {mode === "login" && (
+            <button
+              onClick={() => setMode("reset")}
+              className="text-sm hover:underline block w-full"
+              style={{ color: "#236130" }}
+            >
+              Forgot password?
+            </button>
+          )}
           <button
             onClick={() => setMode(mode === "login" ? "signup" : "login")}
             className="text-sm hover:underline"
@@ -221,7 +257,9 @@ export default function AuthSupervisor() {
           >
             {mode === "login" 
               ? "Don't have an account? Sign up" 
-              : "Already have an account? Sign in"}
+              : mode === "signup"
+                ? "Already have an account? Sign in"
+                : "Back to sign in"}
           </button>
         </div>
 
