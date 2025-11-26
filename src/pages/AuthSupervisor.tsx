@@ -60,6 +60,9 @@ export default function AuthSupervisor() {
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/supervisor-dashboard`,
+            data: {
+              role: 'supervisor'
+            }
           },
         });
 
@@ -72,11 +75,6 @@ export default function AuthSupervisor() {
             teacher_name: name,
             school: "District Office",
             district_name: district,
-          });
-
-          await supabase.from("user_roles").insert({
-            user_id: data.user.id,
-            role: "supervisor",
           });
 
           toast.success("Account created successfully!");
@@ -94,9 +92,10 @@ export default function AuthSupervisor() {
           .from("user_roles")
           .select("role")
           .eq("user_id", data.user.id)
-          .single();
+          .eq("role", "supervisor")
+          .maybeSingle();
 
-        if (roleData?.role !== "supervisor") {
+        if (!roleData) {
           await supabase.auth.signOut();
           toast.error("This account is not registered as a Supervisor");
           setLoading(false);

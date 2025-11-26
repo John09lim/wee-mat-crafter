@@ -47,13 +47,6 @@ const Auth = () => {
     if (error) throw error;
   };
 
-  const insertUserRole = async (uid: string, userRole: UserRole) => {
-    const { error } = await supabase.from("user_roles").insert({
-      user_id: uid,
-      role: userRole,
-    });
-    if (error) throw error;
-  };
 
   const handleAuth = async () => {
     setLoading(true);
@@ -80,6 +73,11 @@ const Auth = () => {
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            role: role
+          }
+        }
       });
       if (signUpError) throw signUpError;
 
@@ -92,7 +90,6 @@ const Auth = () => {
         
         if (!signInError && signInData.session?.user) {
           await insertOrUpdateProfile(signInData.session.user.id);
-          await insertUserRole(signInData.session.user.id, role);
           toast(`Welcome, ${teacherName}!`);
           navigate("/my-account");
           return;
@@ -102,7 +99,6 @@ const Auth = () => {
       // If we have a session from signup
       if (signUpData.session?.user) {
         await insertOrUpdateProfile(signUpData.session.user.id);
-        await insertUserRole(signUpData.session.user.id, role);
         toast(`Welcome, ${teacherName}!`);
         navigate("/my-account");
       } else {
