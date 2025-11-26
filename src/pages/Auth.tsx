@@ -15,7 +15,7 @@ const Auth = () => {
   const [searchParams] = useSearchParams();
   const roleParam = searchParams.get("role") as UserRole | null;
   
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [role, setRole] = useState<UserRole>(roleParam || "teacher");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -47,6 +47,24 @@ const Auth = () => {
     if (error) throw error;
   };
 
+
+  const handlePasswordReset = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth`,
+      });
+
+      if (error) throw error;
+
+      toast("Password reset email sent! Check your inbox.");
+      setMode("login");
+    } catch (e: any) {
+      toast(e.message || "Failed to send password reset email");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAuth = async () => {
     setLoading(true);
@@ -142,7 +160,11 @@ const Auth = () => {
             )}
             
             <h1 className="text-2xl font-semibold mb-6">
-              {mode === "login" ? "Login to WeeLMat" : `Create ${getRoleLabel()} Account`}
+              {mode === "login" 
+                ? "Login to WeeLMat" 
+                : mode === "signup"
+                  ? `Create ${getRoleLabel()} Account`
+                  : "Reset your password"}
             </h1>
             
             <div className="space-y-4">
@@ -203,6 +225,8 @@ const Auth = () => {
                 <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
               </div>
               
+              {mode === "reset" ? null : (
+              <>
               <div>
                 <Label htmlFor="password">Password</Label>
                 <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
@@ -214,20 +238,38 @@ const Auth = () => {
                   <Input id="password2" type="password" value={password2} onChange={(e) => setPassword2(e.target.value)} />
                 </div>
               )}
+              </>
+              )}
               
-              <Button className="w-full" onClick={handleAuth} disabled={loading}>
-                {loading ? "Please wait…" : mode === "login" ? "Login" : "Sign up"}
+              <Button className="w-full" onClick={mode === "reset" ? handlePasswordReset : handleAuth} disabled={loading}>
+                {loading ? "Please wait…" : mode === "login" ? "Login" : mode === "signup" ? "Sign up" : "Send Reset Email"}
               </Button>
               
-              <p className="text-sm text-muted-foreground text-center">
-                {mode === "login" ? "No account?" : "Already have an account?"}{" "}
-                <button
-                  className="underline text-primary font-medium"
-                  onClick={() => setMode(mode === "login" ? "signup" : "login")}
-                >
-                  {mode === "login" ? "Sign up" : "Login"}
-                </button>
-              </p>
+              <div className="space-y-2 text-center">
+                {mode === "login" && (
+                  <p className="text-sm text-muted-foreground">
+                    <button
+                      className="underline text-primary font-medium"
+                      onClick={() => setMode("reset")}
+                    >
+                      Forgot password?
+                    </button>
+                  </p>
+                )}
+                <p className="text-sm text-muted-foreground">
+                  {mode === "login" 
+                    ? "No account?" 
+                    : mode === "signup"
+                      ? "Already have an account?"
+                      : "Remember your password?"}{" "}
+                  <button
+                    className="underline text-primary font-medium"
+                    onClick={() => setMode(mode === "login" ? "signup" : "login")}
+                  >
+                    {mode === "login" ? "Sign up" : mode === "signup" ? "Login" : "Login"}
+                  </button>
+                </p>
+              </div>
 
             </div>
           </div>
