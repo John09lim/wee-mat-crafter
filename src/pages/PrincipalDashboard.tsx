@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Download, CheckCircle, Users, BookOpen, Calendar, UserCircle, CheckCircle2, XCircle, Bell } from "lucide-react";
+import { Download, CheckCircle, Users, BookOpen, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import DocumentViewer from "@/components/DocumentViewer";
 import Footer from "@/components/layout/Footer";
 
@@ -83,13 +84,31 @@ export default function PrincipalDashboard() {
 
       setProfile(profileData);
 
-      // Fetch all teachers from this school
+      // Fetch all teachers from this school with their profiles
       const { data: teachersData } = await supabase
         .from("school_assignments")
-        .select("*")
+        .select("user_id, school_name")
         .eq("school_name", profileData.school);
-      
-      setAllTeachers(teachersData || []);
+
+      // Fetch teacher profiles to get names
+      if (teachersData && teachersData.length > 0) {
+        const teacherIds = teachersData.map(t => t.user_id);
+        const { data: teacherProfiles } = await supabase
+          .from("profiles")
+          .select("user_id, teacher_name")
+          .in("user_id", teacherIds);
+
+        const enrichedTeachers = teachersData.map(t => {
+          const profile = teacherProfiles?.find(p => p.user_id === t.user_id);
+          return {
+            ...t,
+            teacher_name: profile?.teacher_name || "Unknown Teacher"
+          };
+        });
+        setAllTeachers(enrichedTeachers || []);
+      } else {
+        setAllTeachers([]);
+      }
 
       // Query ONLY submissions from principal's school
       const { data, error } = await supabase
@@ -207,6 +226,18 @@ export default function PrincipalDashboard() {
   const submittedTeachers = allTeachers.filter(t => submittedTeacherIds.has(t.user_id));
   const notSubmittedTeachers = allTeachers.filter(t => !submittedTeacherIds.has(t.user_id));
 
+  // Data for charts
+  const statusChartData = [
+    { name: "Accepted", value: stats.accepted, color: "#10b981" },
+    { name: "Pending", value: stats.pending, color: "#f59e0b" },
+    { name: "Returned", value: stats.returned, color: "#ef4444" }
+  ];
+
+  const submissionCompletionData = [
+    { name: "Submitted", value: submittedTeachers.length, color: "#10b981" },
+    { name: "Not Submitted", value: notSubmittedTeachers.length, color: "#ef4444" }
+  ];
+
   if (loading) {
     return (
       <div className="container py-8 flex items-center justify-center">
@@ -297,9 +328,9 @@ export default function PrincipalDashboard() {
                 <p className="text-sm text-muted-foreground">No submissions yet</p>
               ) : (
                 submittedTeachers.map((teacher) => (
-                  <div key={teacher.id} className="flex items-center gap-2 text-sm p-2 bg-green-50 rounded">
+                  <div key={teacher.user_id} className="flex items-center gap-2 text-sm p-2 bg-green-50 rounded">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span>{teacher.user_id}</span>
+                    <span>{teacher.teacher_name}</span>
                   </div>
                 ))
               )}
@@ -315,9 +346,9 @@ export default function PrincipalDashboard() {
                 <p className="text-sm text-muted-foreground">All teachers have submitted!</p>
               ) : (
                 notSubmittedTeachers.map((teacher) => (
-                  <div key={teacher.id} className="flex items-center gap-2 text-sm p-2 bg-red-50 rounded">
+                  <div key={teacher.user_id} className="flex items-center gap-2 text-sm p-2 bg-red-50 rounded">
                     <XCircle className="h-4 w-4 text-red-600" />
-                    <span>{teacher.user_id}</span>
+                    <span>{teacher.teacher_name}</span>
                   </div>
                 ))
               )}
@@ -330,6 +361,61 @@ export default function PrincipalDashboard() {
             : 0}%
         </div>
       </Card>
+
+      {/* Charts Section */}
+      <div className="grid md:grid-cols-2 gap-6 mb-6">
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+            Submission Status Distribution
+          </h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+              <Pie
+                data={statusChartData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {statusChartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+            Teacher Completion Rate
+          </h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+              <Pie
+                data={submissionCompletionData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {submissionCompletionData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </Card>
+      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -488,6 +574,16 @@ function SubmissionCard({ submission, onStatusUpdate }: { submission: any; onSta
           </Select>
           
           <div className="flex gap-2">
+            <Button size="sm" style={{ backgroundColor: "#236130", color: "white" }} asChild>
+              <a
+                href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(submission.file_url)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLink className="h-4 w-4 mr-1" />
+                Open
+              </a>
+            </Button>
             <DocumentViewer 
               fileUrl={submission.file_url}
               fileName={`${submission.teacher_name}_${submission.subject}`}
