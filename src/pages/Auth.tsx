@@ -116,8 +116,39 @@ const Auth = () => {
 
       // If we have a session from signup
       if (signUpData.session?.user) {
-        await insertOrUpdateProfile(signUpData.session.user.id);
-        toast(`Welcome, ${teacherName}!`);
+        const userId = signUpData.session.user.id;
+        
+        // Check if this email was pre-registered by a principal
+        const { data: assignmentMatch } = await supabase
+          .from("school_assignments")
+          .select("id, school_name, district_name, principal_id, grade_level, section")
+          .eq("teacher_email", email.toLowerCase())
+          .is("user_id", null)
+          .maybeSingle();
+
+        if (assignmentMatch) {
+          // Link this teacher to the school assignment
+          await supabase
+            .from("school_assignments")
+            .update({ user_id: userId })
+            .eq("id", assignmentMatch.id);
+          
+          // Create profile with school info from pre-registered record
+          await supabase.from("profiles").upsert({
+            user_id: userId,
+            email: email,
+            teacher_name: teacherName,
+            school: assignmentMatch.school_name,
+            district_name: assignmentMatch.district_name,
+          }, { onConflict: "user_id" });
+          
+          toast(`Welcome! You've been linked to ${assignmentMatch.school_name}!`);
+        } else {
+          // No pre-registration found, use user-provided info
+          await insertOrUpdateProfile(userId);
+          toast(`Welcome, ${teacherName}!`);
+        }
+        
         navigate("/my-account");
       } else {
         // Fallback - should not happen with email confirmation disabled

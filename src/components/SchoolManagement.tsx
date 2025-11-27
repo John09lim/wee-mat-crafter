@@ -53,7 +53,7 @@ export function SchoolManagement({
           address: address || null,
           district_name: districtName,
           principal_name: principalName,
-          principal_email: principalEmail,
+          principal_email: principalEmail.toLowerCase(),
           supervisor_id: supervisorId,
         });
 

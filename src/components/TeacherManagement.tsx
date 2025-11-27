@@ -81,7 +81,7 @@ export function TeacherManagement({
           district_name: districtName,
           principal_id: principalId,
           teacher_name: teacherName,
-          teacher_email: teacherEmail,
+          teacher_email: teacherEmail.toLowerCase(),
           grade_level: gradeLevel,
           section: section,
           profile_image_url: profileImageUrl,
