@@ -77,59 +77,68 @@ export default function AuthSchoolHead() {
           return;
         }
 
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/principal-dashboard`,
-            data: {
-              role: 'school_head'
+        try {
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/principal-dashboard`,
+              data: {
+                full_name: name,
+                role: 'school_head'
+              }
+            },
+          });
+
+          if (error) {
+            if (error.message.includes("already registered") || error.message.includes("User already registered")) {
+              toast.error("This email is already registered. Please log in instead.");
+              setMode("login");
+              return;
             }
-          },
-        });
-
-        if (error) throw error;
-
-        if (data.user) {
-          // Check if this email was pre-registered by a supervisor
-          const { data: schoolMatch } = await supabase
-            .from("schools")
-            .select("id, school_name, district_name, supervisor_id")
-            .eq("principal_email", email.toLowerCase())
-            .is("principal_id", null)
-            .maybeSingle();
-
-          if (schoolMatch) {
-            // Link this principal to the school
-            await supabase
-              .from("schools")
-              .update({ principal_id: data.user.id })
-              .eq("id", schoolMatch.id);
-            
-            // Update profile with school info from pre-registered record
-            await supabase.from("profiles").upsert({
-              user_id: data.user.id,
-              email: email,
-              teacher_name: name,
-              school: schoolMatch.school_name,
-              district_name: schoolMatch.district_name,
-            }, { onConflict: "user_id" });
-            
-            toast.success(`Welcome! You've been linked to ${schoolMatch.school_name}!`);
-          } else {
-            // No pre-registration found, use user-provided info
-            await supabase.from("profiles").insert({
-              user_id: data.user.id,
-              email: email,
-              teacher_name: name,
-              school: school,
-              district_name: district,
-            });
-            
-            toast.success("Account created successfully!");
+            throw error;
           }
-          
-          navigate("/principal-dashboard");
+
+          if (data.user) {
+            const { data: schoolMatch } = await supabase
+              .from("schools")
+              .select("id, school_name, district_name, supervisor_id")
+              .eq("principal_email", email.toLowerCase())
+              .is("principal_id", null)
+              .maybeSingle();
+
+            if (schoolMatch) {
+              await supabase
+                .from("schools")
+                .update({ principal_id: data.user.id })
+                .eq("id", schoolMatch.id);
+              
+              await supabase.from("profiles").upsert({
+                user_id: data.user.id,
+                email: email,
+                teacher_name: name,
+                school: schoolMatch.school_name,
+                district_name: schoolMatch.district_name,
+              }, { onConflict: "user_id" });
+              
+              toast.success(`Welcome! You've been linked to ${schoolMatch.school_name}!`);
+            } else {
+              await supabase.from("profiles").insert({
+                user_id: data.user.id,
+                email: email,
+                teacher_name: name,
+                school: school,
+                district_name: district,
+              });
+              
+              toast.success("Account created successfully!");
+            }
+            
+            navigate("/principal-dashboard");
+          }
+        } catch (profileError) {
+          console.error("Error creating profile:", profileError);
+          toast.error("Account created but there was an error setting up your profile. Please contact support.");
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -137,7 +146,32 @@ export default function AuthSchoolHead() {
           password,
         });
 
-        if (error) throw error;
+        if (error) {
+          if (error.message.includes("Invalid login credentials")) {
+            toast.error("Invalid email or password. Please try again.");
+          } else {
+            toast.error("Login failed. Please try again.");
+          }
+          return;
+        }
+
+        // Check if profile exists, create if missing
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+
+        if (!profile) {
+          await supabase.from("profiles").insert({
+            user_id: data.user.id,
+            email: data.user.email!,
+            teacher_name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'School Head',
+            school: 'Please update',
+            district_name: 'Please update'
+          });
+          toast("Profile created. Please update your school information.");
+        }
 
         const { data: roleData } = await supabase
           .from("user_roles")
@@ -148,12 +182,12 @@ export default function AuthSchoolHead() {
 
         if (!roleData) {
           await supabase.auth.signOut();
-          toast.error("This account is not registered as a School Head");
+          toast.error("Access denied. This login is for school heads only.");
           setLoading(false);
           return;
         }
 
-        toast.success("Logged in successfully!");
+        toast.success("Login successful!");
         navigate("/principal-dashboard");
       }
     } catch (error: any) {
