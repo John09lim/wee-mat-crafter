@@ -91,15 +91,44 @@ export default function AuthSchoolHead() {
         if (error) throw error;
 
         if (data.user) {
-          await supabase.from("profiles").insert({
-            user_id: data.user.id,
-            email: email,
-            teacher_name: name,
-            school: school,
-            district_name: district,
-          });
+          // Check if this email was pre-registered by a supervisor
+          const { data: schoolMatch } = await supabase
+            .from("schools")
+            .select("id, school_name, district_name, supervisor_id")
+            .eq("principal_email", email.toLowerCase())
+            .is("principal_id", null)
+            .maybeSingle();
 
-          toast.success("Account created successfully!");
+          if (schoolMatch) {
+            // Link this principal to the school
+            await supabase
+              .from("schools")
+              .update({ principal_id: data.user.id })
+              .eq("id", schoolMatch.id);
+            
+            // Update profile with school info from pre-registered record
+            await supabase.from("profiles").upsert({
+              user_id: data.user.id,
+              email: email,
+              teacher_name: name,
+              school: schoolMatch.school_name,
+              district_name: schoolMatch.district_name,
+            }, { onConflict: "user_id" });
+            
+            toast.success(`Welcome! You've been linked to ${schoolMatch.school_name}!`);
+          } else {
+            // No pre-registration found, use user-provided info
+            await supabase.from("profiles").insert({
+              user_id: data.user.id,
+              email: email,
+              teacher_name: name,
+              school: school,
+              district_name: district,
+            });
+            
+            toast.success("Account created successfully!");
+          }
+          
           navigate("/principal-dashboard");
         }
       } else {
