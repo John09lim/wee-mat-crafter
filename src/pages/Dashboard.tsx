@@ -74,6 +74,7 @@ const Dashboard = () => {
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [extractedTextPreview, setExtractedTextPreview] = useState<string>("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [extractionSuccess, setExtractionSuccess] = useState(false);
   const steps = useMemo(() => [
     "Planning daily competencies…",
     "Selecting trusted references…",
@@ -315,7 +316,8 @@ const watchedValues = watch();
         }
       });
 
-      toast.success("Content verified and auto-filled successfully!");
+      setExtractionSuccess(true);
+      toast.success("File content extracted successfully! Form auto-filled. You can now generate WeeLMat.");
     }
     
     setShowPreviewDialog(false);
@@ -327,6 +329,7 @@ const watchedValues = watch();
     setExtractedData(null);
     setExtractedTextPreview("");
     setUploadedFile(null);
+    setExtractionSuccess(false);
     toast.info("Upload cancelled. You can try uploading a different file.");
   };
 
@@ -491,21 +494,56 @@ const watchedValues = watch();
                     type="file"
                     accept=".doc,.docx,image/*"
                     onChange={handleFileUpload}
-                    disabled={uploading}
+                    disabled={uploading || extractionSuccess}
                   />
                   
-                  {uploadedFile && (
-                    <div className="flex items-center gap-2 text-sm text-green-600">
-                      <Check className="h-4 w-4" />
-                      <span>File uploaded: {uploadedFile.name}</span>
+                  {uploadedFile && !extractionSuccess && (
+                    <div className="flex items-center gap-2 text-sm text-blue-600">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>File uploaded: {uploadedFile.name} - Processing...</span>
+                    </div>
+                  )}
+                  
+                  {extractionSuccess && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-medium text-green-600 bg-green-50 p-3 rounded-md border border-green-200">
+                        <Check className="h-5 w-5" />
+                        <span>File Content Extracted Successfully!</span>
+                      </div>
+                      <div className="bg-background p-4 rounded-md border">
+                        <p className="text-sm font-medium mb-2">Extracted Text Preview:</p>
+                        <div className="max-h-32 overflow-y-auto text-xs text-muted-foreground whitespace-pre-wrap">
+                          {extractedTextPreview.slice(0, 500)}...
+                        </div>
+                        <Button
+                          type="button"
+                          variant="link"
+                          size="sm"
+                          className="mt-2 h-auto p-0 text-xs"
+                          onClick={() => setShowPreviewDialog(true)}
+                        >
+                          View Full Extracted Text
+                        </Button>
+                      </div>
+                      <p className="text-sm text-green-600 font-medium">
+                        ✓ Form fields have been auto-filled with extracted content. You can now generate WeeLMat below.
+                      </p>
                     </div>
                   )}
                   
                   {uploading && (
                     <div className="space-y-2">
                       <Progress value={uploadProgress} />
-                      <p className="text-sm text-muted-foreground text-center">Processing file...</p>
+                      <p className="text-sm text-muted-foreground text-center">
+                        {uploadProgress < 30 ? "Uploading file..." : uploadProgress < 70 ? "Extracting text from document..." : "Processing content..."}
+                      </p>
                     </div>
+                  )}
+                  
+                  {!extractionSuccess && !uploading && (
+                    <p className="text-sm text-amber-600">
+                      ⚠ Please upload and extract a file before generating WeeLMat.
+                    </p>
                   )}
                 </div>
               )}
@@ -618,7 +656,7 @@ const watchedValues = watch();
               <div className="flex items-center gap-3">
                 <Button 
                   type="submit" 
-                  disabled={loading || !isFormComplete(watchedValues)}
+                  disabled={loading || !isFormComplete(watchedValues) || (matrixMode === "automatic" && !extractionSuccess)}
                   className="relative"
                 >
                   {loading ? "Generating…" : "Generate WeeLMat (DOCX)"}
@@ -626,12 +664,26 @@ const watchedValues = watch();
                 <Button type="button" variant="outline" onClick={() => {
                   reset();
                   setCustomCounts({});
+                  setExtractedData(null);
+                  setExtractedTextPreview("");
+                  setUploadedFile(null);
+                  setExtractionSuccess(false);
                 }} disabled={loading}>
                   Reset
                 </Button>
-                {!isFormComplete(watchedValues) && (
+                {matrixMode === "automatic" && !extractionSuccess && (
+                  <p className="text-sm text-amber-600">
+                    ⚠ Upload and extract a file first to enable generation
+                  </p>
+                )}
+                {matrixMode === "manual" && !isFormComplete(watchedValues) && (
                   <p className="text-sm text-muted-foreground">
                     Complete all daily configurations to generate
+                  </p>
+                )}
+                {matrixMode === "automatic" && extractionSuccess && isFormComplete(watchedValues) && (
+                  <p className="text-sm text-green-600 font-medium">
+                    ✓ Ready to generate WeeLMat!
                   </p>
                 )}
               </div>

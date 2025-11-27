@@ -60,19 +60,32 @@ const Header = () => {
               <Link to="/dashboard" className="hover:underline underline-offset-4">
                 Dashboard
               </Link>
+              <Link to="/my-account" className="hover:underline underline-offset-4">
+                My Account
+              </Link>
             </>
           )}
           
           {!loading && userRole === 'school_head' && (
-            <Link to="/principal-dashboard" className="hover:underline underline-offset-4">
-              Principal Dashboard
-            </Link>
+            <>
+              <Link to="/principal-dashboard" className="hover:underline underline-offset-4">
+                Principal Dashboard
+              </Link>
+              <Link to="/my-account" className="hover:underline underline-offset-4">
+                My Account
+              </Link>
+            </>
           )}
           
           {!loading && userRole === 'supervisor' && (
-            <Link to="/supervisor-dashboard" className="hover:underline underline-offset-4">
-              Supervisor Dashboard
-            </Link>
+            <>
+              <Link to="/supervisor-dashboard" className="hover:underline underline-offset-4">
+                Supervisor Dashboard
+              </Link>
+              <Link to="/my-account" className="hover:underline underline-offset-4">
+                My Account
+              </Link>
+            </>
           )}
           
           {!loading && !userRole && location.pathname !== "/auth" && (
