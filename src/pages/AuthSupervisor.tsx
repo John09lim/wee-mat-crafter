@@ -76,30 +76,43 @@ export default function AuthSupervisor() {
           return;
         }
 
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/supervisor-dashboard`,
-            data: {
-              role: 'supervisor'
-            }
-          },
-        });
-
-        if (error) throw error;
-
-        if (data.user) {
-          await supabase.from("profiles").insert({
-            user_id: data.user.id,
-            email: email,
-            teacher_name: name,
-            school: "District Office",
-            district_name: district,
+        try {
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/supervisor-dashboard`,
+              data: {
+                full_name: name,
+                role: 'supervisor'
+              }
+            },
           });
 
-          toast.success("Account created successfully!");
-          navigate("/supervisor-dashboard");
+          if (error) {
+            if (error.message.includes("already registered") || error.message.includes("User already registered")) {
+              toast.error("This email is already registered. Please log in instead.");
+              setMode("login");
+              return;
+            }
+            throw error;
+          }
+
+          if (data.user) {
+            await supabase.from("profiles").insert({
+              user_id: data.user.id,
+              email: email,
+              teacher_name: name,
+              school: "N/A - Supervisor",
+              district_name: district,
+            });
+
+            toast.success("Account created successfully!");
+            navigate("/supervisor-dashboard");
+          }
+        } catch (profileError) {
+          console.error("Error creating profile:", profileError);
+          toast.error("Account created but there was an error setting up your profile. Please contact support.");
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -107,7 +120,32 @@ export default function AuthSupervisor() {
           password,
         });
 
-        if (error) throw error;
+        if (error) {
+          if (error.message.includes("Invalid login credentials")) {
+            toast.error("Invalid email or password. Please try again.");
+          } else {
+            toast.error("Login failed. Please try again.");
+          }
+          return;
+        }
+
+        // Check if profile exists, create if missing
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+
+        if (!profile) {
+          await supabase.from("profiles").insert({
+            user_id: data.user.id,
+            email: data.user.email!,
+            teacher_name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'Supervisor',
+            school: 'N/A - Supervisor',
+            district_name: 'Please update'
+          });
+          toast("Profile created. Please update your district information.");
+        }
 
         const { data: roleData } = await supabase
           .from("user_roles")
@@ -118,12 +156,12 @@ export default function AuthSupervisor() {
 
         if (!roleData) {
           await supabase.auth.signOut();
-          toast.error("This account is not registered as a Supervisor");
+          toast.error("Access denied. This login is for supervisors only.");
           setLoading(false);
           return;
         }
 
-        toast.success("Logged in successfully!");
+        toast.success("Login successful!");
         navigate("/supervisor-dashboard");
       }
     } catch (error: any) {

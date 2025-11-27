@@ -70,10 +70,51 @@ const Auth = () => {
     setLoading(true);
     try {
       if (mode === "login") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        toast("Logged in");
-        navigate("/my-account");
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        
+        if (error) {
+          if (error.message.includes("Invalid login credentials")) {
+            toast.error("Invalid email or password. Please try again.");
+          } else {
+            toast.error("Login failed. Please try again.");
+          }
+          return;
+        }
+
+        // Check if profile exists, create if missing
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+
+        if (!profile) {
+          await supabase.from("profiles").insert({
+            user_id: data.user.id,
+            email: data.user.email!,
+            teacher_name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'Teacher',
+            school: 'Please update',
+            district_name: 'Please update'
+          });
+          toast("Profile created. Please update your information.");
+        }
+
+        // Check if user has teacher role
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id)
+          .eq("role", "teacher")
+          .maybeSingle();
+
+        if (!roleData) {
+          await supabase.auth.signOut();
+          toast.error("Access denied. This login is for teachers only.");
+          return;
+        }
+
+        toast("Welcome back!");
+        navigate("/dashboard");
         return;
       }
 
@@ -88,72 +129,67 @@ const Auth = () => {
       }
 
       // Create auth user
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            role: role
-          }
-        }
-      });
-      if (signUpError) throw signUpError;
-
-      // If user is created but not confirmed, try to sign them in immediately
-      if (signUpData.user && !signUpData.session) {
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      try {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              full_name: teacherName,
+              role: 'teacher'
+            },
+            emailRedirectTo: `${window.location.origin}/dashboard`
+          }
         });
-        
-        if (!signInError && signInData.session?.user) {
-          await insertOrUpdateProfile(signInData.session.user.id);
-          toast(`Welcome, ${teacherName}!`);
-          navigate("/my-account");
-          return;
+
+        if (signUpError) {
+          if (signUpError.message.includes("already registered") || signUpError.message.includes("User already registered")) {
+            toast.error("This email is already registered. Please log in instead.");
+            setMode("login");
+            return;
+          }
+          throw signUpError;
         }
-      }
 
-      // If we have a session from signup
-      if (signUpData.session?.user) {
-        const userId = signUpData.session.user.id;
-        
-        // Check if this email was pre-registered by a principal
-        const { data: assignmentMatch } = await supabase
-          .from("school_assignments")
-          .select("id, school_name, district_name, principal_id, grade_level, section")
-          .eq("teacher_email", email.toLowerCase())
-          .is("user_id", null)
-          .maybeSingle();
-
-        if (assignmentMatch) {
-          // Link this teacher to the school assignment
-          await supabase
+        // If we have a session from signup
+        if (signUpData.session?.user) {
+          const userId = signUpData.session.user.id;
+          
+          // Check if this email was pre-registered by a principal
+          const { data: assignmentMatch } = await supabase
             .from("school_assignments")
-            .update({ user_id: userId })
-            .eq("id", assignmentMatch.id);
+            .select("id, school_name, district_name, principal_id, grade_level, section")
+            .eq("teacher_email", email.toLowerCase())
+            .is("user_id", null)
+            .maybeSingle();
+
+          if (assignmentMatch) {
+            await supabase
+              .from("school_assignments")
+              .update({ user_id: userId })
+              .eq("id", assignmentMatch.id);
+            
+            await supabase.from("profiles").upsert({
+              user_id: userId,
+              email: email,
+              teacher_name: teacherName,
+              school: assignmentMatch.school_name,
+              district_name: assignmentMatch.district_name,
+            }, { onConflict: "user_id" });
+            
+            toast(`Welcome! You've been linked to ${assignmentMatch.school_name}!`);
+          } else {
+            await insertOrUpdateProfile(userId);
+            toast(`Welcome, ${teacherName}!`);
+          }
           
-          // Create profile with school info from pre-registered record
-          await supabase.from("profiles").upsert({
-            user_id: userId,
-            email: email,
-            teacher_name: teacherName,
-            school: assignmentMatch.school_name,
-            district_name: assignmentMatch.district_name,
-          }, { onConflict: "user_id" });
-          
-          toast(`Welcome! You've been linked to ${assignmentMatch.school_name}!`);
+          navigate("/dashboard");
         } else {
-          // No pre-registration found, use user-provided info
-          await insertOrUpdateProfile(userId);
-          toast(`Welcome, ${teacherName}!`);
+          toast("Account created! Please check your email to verify.");
         }
-        
-        navigate("/my-account");
-      } else {
-        // Fallback - should not happen with email confirmation disabled
-        toast("Account created. Please log in to continue.");
-        setMode("login");
+      } catch (profileError) {
+        console.error("Error creating profile:", profileError);
+        toast.error("Account created but there was an error setting up your profile. Please contact support.");
       }
     } catch (e: any) {
       toast(e.message || "Authentication error");
