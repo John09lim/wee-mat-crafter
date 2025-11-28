@@ -216,20 +216,64 @@ const Index = () => {
       {/* How it Works - Enhanced */}
       <HowItWorksSection />
 
-      {/* Disclaimers Button */}
-      <section className="py-12 bg-amber-50/50 border-t-4 border-amber-500">
+      {/* Create & Submit WeeLMat Section */}
+      <section className="py-20 bg-gradient-to-br from-primary/5 to-secondary/5">
         <div className="container">
-          <div className="max-w-4xl mx-auto text-center">
+          <div className="text-center mb-12 space-y-4">
+            <h2 className="text-3xl md:text-4xl font-bold">Get Started with WeeLMat</h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Choose your action to begin creating or submitting your weekly learning matrix
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+            <Card className="p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 cursor-pointer group" onClick={() => navigate("/auth")}>
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
+                <Edit className="w-8 h-8 text-primary" />
+              </div>
+              <h3 className="text-2xl font-semibold mb-3">Create WeeLMat</h3>
+              <p className="text-muted-foreground leading-relaxed mb-6">
+                Generate your weekly learning matrix instantly with AI-powered assistance. Input your competencies and get professional DOCX files in seconds.
+              </p>
+              <Button className="w-full group-hover:bg-primary/90">
+                Get Started
+                <ArrowRight className="ml-2 w-4 h-4" />
+              </Button>
+            </Card>
+
+            <Card className="p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 cursor-pointer group" onClick={() => navigate("/auth")}>
+              <div className="w-16 h-16 rounded-full bg-secondary/10 flex items-center justify-center mb-6 group-hover:bg-secondary/20 transition-colors">
+                <Download className="w-8 h-8 text-secondary" />
+              </div>
+              <h3 className="text-2xl font-semibold mb-3">Submit WeeLMat</h3>
+              <p className="text-muted-foreground leading-relaxed mb-6">
+                Submit your completed WeeLMat to your school head for review and tracking. Keep your submissions organized and accessible.
+              </p>
+              <Button variant="secondary" className="w-full group-hover:bg-secondary/90">
+                Submit Now
+                <ArrowRight className="ml-2 w-4 h-4" />
+              </Button>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Disclaimers Button */}
+      <section className="py-12 bg-primary/5">
+        <div className="container">
+          <div className="max-w-4xl mx-auto text-center space-y-4">
+            <h3 className="text-2xl font-bold text-foreground">Before You Begin</h3>
+            <p className="text-muted-foreground">Please review the important disclaimers about AI-generated content and teacher responsibilities</p>
             <Button 
               variant="outline" 
               size="lg"
-              className="border-amber-500 text-amber-900 hover:bg-amber-100"
+              className="border-primary text-primary hover:bg-primary/10 mt-4"
               onClick={() => setDisclaimerOpen(true)}
             >
               <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
-              Important Disclaimers - Read Before Using
+              Read Important Disclaimers
             </Button>
           </div>
         </div>
@@ -290,11 +334,11 @@ const Index = () => {
                 </div>
 
                 <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center">
-                    <Target className="w-6 h-6 text-amber-700" />
+                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Target className="w-6 h-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg mb-1 text-amber-900">Only Submit After Complete Validation</h3>
+                    <h3 className="font-semibold text-lg mb-1 text-primary">Only Submit After Complete Validation</h3>
                     <p className="text-muted-foreground">Submit your WeeLMat to <strong>learners, parents, and school heads</strong> only after you have verified all content is accurate, appropriate, and aligned with curriculum standards.</p>
                   </div>
                 </div>
@@ -350,7 +394,7 @@ const Index = () => {
       <Dialog open={disclaimerOpen} onOpenChange={setDisclaimerOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-2xl text-amber-900">
+            <DialogTitle className="flex items-center gap-2 text-2xl text-primary">
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
               </svg>
@@ -362,9 +406,9 @@ const Index = () => {
           </DialogHeader>
           
           <div className="grid gap-4 mt-4">
-            <Card className="p-6 bg-white border-l-4 border-amber-500">
+            <Card className="p-6 bg-white border-l-4 border-primary">
               <div className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold">1</div>
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">1</div>
                 <div>
                   <h3 className="font-semibold text-lg mb-2">AI-Generated Content</h3>
                   <p className="text-muted-foreground">The WeeLMat outputs are generated by AI and may contain errors, inaccuracies, or inappropriate content. This tool assists but does not replace human judgment.</p>
@@ -372,9 +416,9 @@ const Index = () => {
               </div>
             </Card>
 
-            <Card className="p-6 bg-white border-l-4 border-amber-500">
+            <Card className="p-6 bg-white border-l-4 border-primary">
               <div className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold">2</div>
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">2</div>
                 <div>
                   <h3 className="font-semibold text-lg mb-2">Teacher Responsibility</h3>
                   <p className="text-muted-foreground">Teachers are fully responsible for reviewing, validating, and approving all content before distributing to learners, parents, or school administrators.</p>
@@ -382,9 +426,9 @@ const Index = () => {
               </div>
             </Card>
 
-            <Card className="p-6 bg-white border-l-4 border-amber-500">
+            <Card className="p-6 bg-white border-l-4 border-primary">
               <div className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold">3</div>
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">3</div>
                 <div>
                   <h3 className="font-semibold text-lg mb-2">Curriculum Alignment Required</h3>
                   <p className="text-muted-foreground">Always ensure the generated output aligns with your specific curriculum, DepEd guidelines, and grade-level standards before use.</p>
@@ -392,9 +436,9 @@ const Index = () => {
               </div>
             </Card>
 
-            <Card className="p-6 bg-white border-l-4 border-amber-500">
+            <Card className="p-6 bg-white border-l-4 border-primary">
               <div className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold">4</div>
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">4</div>
                 <div>
                   <h3 className="font-semibold text-lg mb-2">Not a Replacement for Professional Judgment</h3>
                   <p className="text-muted-foreground">This tool is a planning assistant. It does not replace your professional expertise, pedagogical knowledge, or teaching experience.</p>
@@ -402,9 +446,9 @@ const Index = () => {
               </div>
             </Card>
 
-            <Card className="p-6 bg-white border-l-4 border-amber-500">
+            <Card className="p-6 bg-white border-l-4 border-primary">
               <div className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-bold">5</div>
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">5</div>
                 <div>
                   <h3 className="font-semibold text-lg mb-2">Privacy and Data Security</h3>
                   <p className="text-muted-foreground">Your submitted data is processed securely. Do not include sensitive personal information about students in your inputs.</p>
