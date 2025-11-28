@@ -142,126 +142,6 @@ const HowItWorksSection = () => {
       </div>
     </section>;
 };
-const SchoolHeadsSection = ({
-  navigate
-}: {
-  navigate: ReturnType<typeof useNavigate>;
-}) => {
-  const {
-    ref: contentRef,
-    isVisible: contentVisible
-  } = useScrollReveal();
-  const {
-    ref: cardRef,
-    isVisible: cardVisible
-  } = useScrollReveal();
-  return <section className="py-24 bg-gradient-to-br from-primary/5 via-secondary/5 to-background">
-      <div className="container">
-        <div className="grid md:grid-cols-2 gap-12 items-center">
-          <div ref={contentRef} className={`space-y-6 scroll-reveal ${contentVisible ? 'is-visible' : ''}`}>
-            <div className="inline-flex items-center gap-2 text-sm rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-primary font-medium">
-              <Building2 className="w-4 h-4" />
-              For School Administrators
-            </div>
-            
-            <h2 className="text-4xl md:text-5xl font-bold leading-tight">
-              Empower Your School with
-              <span className="block text-primary">Centralized Planning</span>
-            </h2>
-            
-            <p className="text-lg text-muted-foreground leading-relaxed">
-              School Heads can monitor teacher submissions, access comprehensive reports, and ensure consistency across all grade levels and sections.
-            </p>
-            
-            <ul className="space-y-4">
-              {["Monitor all teacher WeeLMat submissions", "Access school-wide planning reports", "Manage standardized templates", "Track compliance and progress"].map((benefit, idx) => <li key={idx} className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                  <span className="text-muted-foreground">{benefit}</span>
-                </li>)}
-            </ul>
-          </div>
-          
-          <Card ref={cardRef} className={`p-8 bg-card border-2 shadow-xl scroll-reveal scroll-reveal-delay-3 ${cardVisible ? 'is-visible' : ''}`}>
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-2xl font-bold mb-2">School Head Portal</h3>
-                <p className="text-sm text-muted-foreground">Discover comprehensive management tools and district oversight features</p>
-              </div>
-              
-              <Button size="lg" className="w-full text-base transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20" onClick={() => navigate("/principal")}>
-                <Building2 className="mr-2 w-5 h-5" />
-                Learn More & Create Account
-              </Button>
-              
-              <p className="text-xs text-center text-muted-foreground">
-                Explore features, benefits, and sign up as a School Head
-              </p>
-            </div>
-          </Card>
-        </div>
-      </div>
-    </section>;
-};
-const SupervisorsSection = ({
-  navigate
-}: {
-  navigate: ReturnType<typeof useNavigate>;
-}) => {
-  const {
-    ref: cardRef,
-    isVisible: cardVisible
-  } = useScrollReveal();
-  const {
-    ref: contentRef,
-    isVisible: contentVisible
-  } = useScrollReveal();
-  return <section className="py-24 bg-gradient-to-br from-accent/5 via-primary/5 to-background">
-      <div className="container">
-        <div className="grid md:grid-cols-2 gap-12 items-center">
-          <Card ref={cardRef} className={`p-8 bg-card border-2 shadow-xl md:order-1 order-2 scroll-reveal ${cardVisible ? 'is-visible' : ''}`}>
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-2xl font-bold mb-2">Supervisor Portal</h3>
-                <p className="text-sm text-muted-foreground">Oversee multiple schools with district-wide analytics and reporting</p>
-              </div>
-              
-              <Button size="lg" className="w-full text-base transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-secondary/20" onClick={() => navigate("/supervisor")}>
-                <Users className="mr-2 w-5 h-5" />
-                Learn More & Create Account
-              </Button>
-              
-              <p className="text-xs text-center text-muted-foreground">
-                Explore features, benefits, and sign up as a Supervisor
-              </p>
-            </div>
-          </Card>
-          
-          <div ref={contentRef} className={`space-y-6 md:order-2 order-1 scroll-reveal scroll-reveal-delay-3 ${contentVisible ? 'is-visible' : ''}`}>
-            <div className="inline-flex items-center gap-2 text-sm rounded-full border border-secondary/20 bg-secondary/10 px-4 py-2 text-secondary font-medium">
-              <Users className="w-4 h-4" />
-              For District Supervisors
-            </div>
-            
-            <h2 className="text-4xl md:text-5xl font-bold leading-tight">
-              Oversee Multiple Schools with
-              <span className="block text-secondary">District-Wide Insights</span>
-            </h2>
-            
-            <p className="text-lg text-muted-foreground leading-relaxed">
-              Supervisors gain comprehensive visibility across schools, enabling data-driven decisions and consistent quality standards.
-            </p>
-            
-            <ul className="space-y-4">
-              {["Monitor multiple schools and divisions", "Access district-wide analytics dashboard", "Review and approve planning templates", "Generate consolidated compliance reports"].map((benefit, idx) => <li key={idx} className="flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-secondary mt-0.5 flex-shrink-0" />
-                  <span className="text-muted-foreground">{benefit}</span>
-                </li>)}
-            </ul>
-          </div>
-        </div>
-      </div>
-    </section>;
-};
 const Index = () => {
   const navigate = useNavigate();
   return <main className="min-h-[calc(100vh-160px)] flex flex-col bg-background">
@@ -331,12 +211,6 @@ const Index = () => {
 
       {/* How it Works - Enhanced */}
       <HowItWorksSection />
-
-      {/* School Heads Section */}
-      <SchoolHeadsSection navigate={navigate} />
-
-      {/* Supervisors Section */}
-      <SupervisorsSection navigate={navigate} />
 
       {/* Disclaimers Section */}
       <section className="py-20 bg-amber-50/50 border-t-4 border-amber-500">

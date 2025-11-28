@@ -181,17 +181,17 @@ const SupervisorLanding = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
-      <section ref={heroRef} className={`py-24 bg-gradient-to-br from-secondary/10 via-accent/5 to-background scroll-reveal ${heroVisible ? 'is-visible' : ''}`}>
+      <section ref={heroRef} className={`py-24 bg-gradient-to-br from-primary/10 via-accent/5 to-background scroll-reveal ${heroVisible ? 'is-visible' : ''}`}>
         <div className="container">
           <div className="max-w-4xl mx-auto text-center space-y-6">
-            <div className="inline-flex items-center gap-2 text-sm rounded-full border border-secondary/20 bg-secondary/10 px-4 py-2 text-secondary font-medium">
+            <div className="inline-flex items-center gap-2 text-sm rounded-full border border-primary/20 bg-primary/10 px-4 py-2 text-primary font-medium">
               <Users className="w-4 h-4" />
               For District Supervisors
             </div>
             
             <h1 className="text-5xl md:text-6xl font-bold leading-tight">
               Supervisor Portal
-              <span className="block text-secondary mt-2">District-Wide Insights & Oversight</span>
+              <span className="block text-primary mt-2">District-Wide Insights & Oversight</span>
             </h1>
             
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
