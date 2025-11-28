@@ -1,22 +1,16 @@
 
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/sonner";
-import { Building2, Users, GraduationCap } from "lucide-react";
-
-type UserRole = "teacher" | "school_head" | "supervisor";
 
 const Auth = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const roleParam = searchParams.get("role") as UserRole | null;
   
   const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
-  const [role, setRole] = useState<UserRole>(roleParam || "teacher");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
@@ -209,90 +203,28 @@ const Auth = () => {
     }
   };
 
-  const getRoleLabel = () => {
-    switch (role) {
-      case "school_head": return "School Head";
-      case "supervisor": return "Supervisor";
-      default: return "Teacher";
-    }
-  };
-
-  const getRoleIcon = () => {
-    switch (role) {
-      case "school_head": return <Building2 className="w-5 h-5" />;
-      case "supervisor": return <Users className="w-5 h-5" />;
-      default: return <GraduationCap className="w-5 h-5" />;
-    }
-  };
-
   return (
     <main className="min-h-[calc(100vh-160px)] flex items-center py-12">
       <section className="container">
         <div className="max-w-md mx-auto">
           <div className="rounded-2xl border-2 bg-card p-8 shadow-lg">
-            {mode === "signup" && (
-              <div className="flex items-center justify-center gap-2 mb-6 p-3 rounded-lg bg-primary/10 text-primary">
-                {getRoleIcon()}
-                <span className="font-semibold">Signing up as {getRoleLabel()}</span>
-              </div>
-            )}
-            
             <h1 className="text-2xl font-semibold mb-6">
               {mode === "login" 
-                ? "Login to WeeLMat" 
+                ? "Teacher Login" 
                 : mode === "signup"
-                  ? `Create ${getRoleLabel()} Account`
+                  ? "Create Teacher Account"
                   : "Reset your password"}
             </h1>
             
             <div className="space-y-4">
-              {mode === "signup" && !roleParam && (
-                <div className="space-y-2">
-                  <Label>I am a</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <Button
-                      type="button"
-                      variant={role === "teacher" ? "default" : "outline"}
-                      className="flex flex-col h-auto py-3"
-                      onClick={() => setRole("teacher")}
-                    >
-                      <GraduationCap className="w-5 h-5 mb-1" />
-                      <span className="text-xs">Teacher</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={role === "school_head" ? "default" : "outline"}
-                      className="flex flex-col h-auto py-3"
-                      onClick={() => setRole("school_head")}
-                    >
-                      <Building2 className="w-5 h-5 mb-1" />
-                      <span className="text-xs">School Head</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={role === "supervisor" ? "default" : "outline"}
-                      className="flex flex-col h-auto py-3"
-                      onClick={() => setRole("supervisor")}
-                    >
-                      <Users className="w-5 h-5 mb-1" />
-                      <span className="text-xs">Supervisor</span>
-                    </Button>
-                  </div>
-                </div>
-              )}
-              
               {mode === "signup" && (
                 <>
                   <div>
-                    <Label htmlFor="teacherName">
-                      {role === "teacher" ? "Name of Teacher" : role === "school_head" ? "Name of School Head" : "Name of Supervisor"}
-                    </Label>
+                    <Label htmlFor="teacherName">Teacher Name</Label>
                     <Input id="teacherName" value={teacherName} onChange={(e) => setTeacherName(e.target.value)} />
                   </div>
                   <div>
-                    <Label htmlFor="school">
-                      {role === "supervisor" ? "District/Division" : "School"}
-                    </Label>
+                    <Label htmlFor="school">School Name</Label>
                     <Input id="school" value={school} onChange={(e) => setSchool(e.target.value)} />
                   </div>
                 </>
@@ -349,6 +281,25 @@ const Auth = () => {
                 </p>
               </div>
 
+              <div className="mt-6 pt-6 border-t text-center space-y-2">
+                <p className="text-sm text-muted-foreground">Are you a School Head or Supervisor?</p>
+                <div className="flex gap-2 justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/principal")}
+                  >
+                    School Head Login
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate("/supervisor")}
+                  >
+                    Supervisor Login
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
