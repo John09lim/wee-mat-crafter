@@ -99,7 +99,7 @@ const Auth = () => {
           toast("Profile created. Please update your information.");
         }
 
-        // Check if user has teacher role
+        // Check if user has teacher role, auto-assign if missing (for legacy users)
         const { data: roleData } = await supabase
           .from("user_roles")
           .select("role")
@@ -108,13 +108,24 @@ const Auth = () => {
           .maybeSingle();
 
         if (!roleData) {
-          await supabase.auth.signOut();
-          toast.error("Access denied. This login is for teachers only.");
-          return;
+          // Auto-assign teacher role for legacy users without roles
+          const { error: roleError } = await supabase
+            .from("user_roles")
+            .insert({ user_id: data.user.id, role: "teacher" });
+          
+          if (roleError) {
+            console.error("Role assignment error:", roleError);
+            toast.error("There was an issue with your account. Please contact support.");
+            await supabase.auth.signOut();
+            return;
+          }
+          
+          toast.success("Welcome back! Your account has been updated.");
+        } else {
+          toast.success("Welcome back!");
         }
 
-        toast("Welcome back!");
-        navigate("/dashboard");
+        navigate("/my-account");
         return;
       }
 
