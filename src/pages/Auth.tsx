@@ -278,30 +278,10 @@ const Auth = () => {
                   >
                     {mode === "login" ? "Sign up" : mode === "signup" ? "Login" : "Login"}
                   </button>
-                </p>
-              </div>
-
-              <div className="mt-6 pt-6 border-t text-center space-y-2">
-                <p className="text-sm text-muted-foreground">Are you a School Head or Supervisor?</p>
-                <div className="flex gap-2 justify-center">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate("/principal")}
-                  >
-                    School Head Login
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate("/supervisor")}
-                  >
-                    Supervisor Login
-                  </Button>
-                </div>
-              </div>
+              </p>
             </div>
           </div>
+        </div>
         </div>
       </section>
     </main>
