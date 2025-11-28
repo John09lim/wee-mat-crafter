@@ -111,25 +111,42 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .single();
 
-    // Auto-fetch principal_id from school_assignments with improved logic
+    // Enhanced principal_id lookup: try schools table first, then school_assignments
     const lookupSchool = schoolName || profile?.school || '';
     const lookupDistrict = districtName || profile?.district_name || '';
     
     let finalPrincipalId = principalId || null;
     
     if (lookupSchool && !finalPrincipalId) {
-      const { data: assignment } = await supabase
-        .from("school_assignments")
-        .select("principal_id")
-        .eq("school_name", lookupSchool)
+      // First try: schools table (supervisor-created schools)
+      const { data: schoolData } = await supabase
+        .from("schools")
+        .select("principal_id, principal_name")
+        .ilike("school_name", lookupSchool)
         .not("principal_id", "is", null)
-        .limit(1)
         .maybeSingle();
-      
-      if (assignment?.principal_id) {
-        finalPrincipalId = assignment.principal_id;
+
+      if (schoolData?.principal_id) {
+        finalPrincipalId = schoolData.principal_id;
+        console.log("Principal found in schools table:", schoolData.principal_id);
+      } else {
+        // Fallback: school_assignments table
+        const { data: assignment } = await supabase
+          .from("school_assignments")
+          .select("principal_id")
+          .ilike("school_name", lookupSchool)
+          .not("principal_id", "is", null)
+          .limit(1)
+          .maybeSingle();
+        
+        if (assignment?.principal_id) {
+          finalPrincipalId = assignment.principal_id;
+          console.log("Principal found in school_assignments:", assignment.principal_id);
+        }
       }
     }
+    
+    console.log("Final principal_id for submission:", finalPrincipalId);
 
     // Insert submission record with status 'submitted' by default
     const { data: submissionData, error: insertError } = await supabase

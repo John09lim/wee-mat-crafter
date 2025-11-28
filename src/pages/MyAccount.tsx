@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { FileText, Send, Eye, Download, Plus, User, School, Mail, Edit2, Save, X } from "lucide-react";
+import { FileText, Send, Eye, Upload, Plus, User, School, Mail, Edit2, Save, X, CheckCircle, Clock, XCircle } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -15,18 +15,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-interface WeeLMatMatrix {
-  id: string;
-  subject: string;
-  grade_level: string;
-  section: string;
-  date_from: string;
-  date_to: string;
-  docx_url: string | null;
-  student_docx_url: string | null;
-  created_at: string;
-}
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface UserProfile {
   teacher_name: string;
@@ -35,14 +30,47 @@ interface UserProfile {
   district_name: string | null;
 }
 
+interface TeacherSubmission {
+  id: string;
+  subject: string;
+  grade_level: string;
+  section: string;
+  week_start: string;
+  week_end: string;
+  status: string;
+  file_url: string;
+  created_at: string;
+  principal_notes: string | null;
+}
+
+interface SchoolOption {
+  principal_id: string;
+  principal_name: string;
+  school_name: string;
+}
+
 const MyAccount = () => {
   const navigate = useNavigate();
-  const [history, setHistory] = useState<WeeLMatMatrix[]>([]);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState<UserProfile | null>(null);
+  
+  // Submission form state
+  const [submitting, setSubmitting] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [submissions, setSubmissions] = useState<TeacherSubmission[]>([]);
+  const [schoolOptions, setSchoolOptions] = useState<SchoolOption[]>([]);
+  const [selectedSchool, setSelectedSchool] = useState<SchoolOption | null>(null);
+  const [formData, setFormData] = useState({
+    teacherName: "",
+    gradeLevel: "",
+    section: "",
+    subject: "",
+    weekStart: "",
+    weekEnd: "",
+  });
 
   useEffect(() => {
     checkAuthAndFetchData();
@@ -75,19 +103,32 @@ const MyAccount = () => {
       if (profileData) {
         setProfile(profileData);
         setEditedProfile(profileData);
+        
+        // Pre-fill submission form
+        setFormData(prev => ({
+          ...prev,
+          teacherName: profileData.teacher_name || "",
+        }));
       }
 
-      // Fetch WeeLMat history (only for teachers)
+      // Fetch submission history (only for teachers)
       if (roleData?.role === 'teacher') {
-        const { data, error } = await supabase
-          .from("weelmat_matrices")
+        const { data: submissionsData, error: submissionsError } = await supabase
+          .from("teacher_submissions")
           .select("*")
           .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(5);
+          .order("created_at", { ascending: false });
 
-        if (error) throw error;
-        setHistory(data || []);
+        if (submissionsError) {
+          console.error("Error fetching submissions:", submissionsError);
+        } else {
+          setSubmissions(submissionsData || []);
+        }
+        
+        // Fetch school options for principal lookup
+        if (profileData?.school) {
+          await fetchSchoolOptions(profileData.school);
+        }
       }
     } catch (error: any) {
       console.error("Error:", error);
@@ -124,26 +165,115 @@ const MyAccount = () => {
     }
   };
 
-  const handleDownload = async (url: string | null, filename: string) => {
-    if (!url) {
-      toast.error("Download URL not available");
+  const fetchSchoolOptions = async (schoolName: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("schools")
+        .select("principal_id, principal_name, school_name")
+        .ilike("school_name", `%${schoolName}%`)
+        .not("principal_id", "is", null);
+
+      if (error) throw error;
+      
+      setSchoolOptions(data || []);
+      
+      // Auto-select if exact match
+      const exactMatch = data?.find(s => 
+        s.school_name.toLowerCase() === schoolName.toLowerCase()
+      );
+      if (exactMatch) {
+        setSelectedSchool(exactMatch);
+      }
+    } catch (error) {
+      console.error("Error fetching schools:", error);
+    }
+  };
+
+  const handleSubmitWeelMat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!file) {
+      toast.error("Please select a file to upload");
       return;
     }
 
+    if (!selectedSchool) {
+      toast.error("Please select your school and principal");
+      return;
+    }
+
+    setSubmitting(true);
+
     try {
-      const response = await fetch(url);
-      const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = downloadUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(downloadUrl);
-    } catch (error) {
-      console.error("Download error:", error);
-      toast.error("Failed to download file");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const submitFormData = new FormData();
+      submitFormData.append("file", file);
+      submitFormData.append("teacherName", formData.teacherName);
+      submitFormData.append("gradeLevel", formData.gradeLevel);
+      submitFormData.append("section", formData.section);
+      submitFormData.append("subject", formData.subject);
+      submitFormData.append("weekStart", formData.weekStart);
+      submitFormData.append("weekEnd", formData.weekEnd);
+      submitFormData.append("principalId", selectedSchool.principal_id);
+      submitFormData.append("schoolHeadName", selectedSchool.principal_name);
+      submitFormData.append("schoolName", selectedSchool.school_name);
+      submitFormData.append("districtName", profile?.district_name || "");
+
+      const response = await fetch(
+        `https://velpueasbsrptocrjljg.supabase.co/functions/v1/submit-weelmat`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: submitFormData,
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Submission failed");
+      }
+
+      toast.success("WeeLMat submitted successfully to your School Head!");
+      
+      // Reset form
+      setFile(null);
+      setFormData(prev => ({
+        ...prev,
+        gradeLevel: "",
+        section: "",
+        subject: "",
+        weekStart: "",
+        weekEnd: "",
+      }));
+      
+      // Refresh submissions
+      checkAuthAndFetchData();
+    } catch (error: any) {
+      console.error("Submission error:", error);
+      toast.error(error.message || "Submission failed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleViewFile = (fileUrl: string) => {
+    const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
+    window.open(viewerUrl, '_blank');
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "submitted": return <CheckCircle className="h-5 w-5 text-blue-600" />;
+      case "accepted": return <CheckCircle className="h-5 w-5 text-green-600" />;
+      case "pending": return <Clock className="h-5 w-5 text-yellow-600" />;
+      case "returned": return <XCircle className="h-5 w-5 text-red-600" />;
+      case "reviewed": return <Eye className="h-5 w-5 text-blue-600" />;
+      default: return <FileText className="h-5 w-5" />;
     }
   };
 
@@ -289,86 +419,182 @@ const MyAccount = () => {
           </div>
         </Card>
 
-        {/* Quick Actions - Only for Teachers */}
+        {/* Teacher Hub - Only for Teachers */}
         {userRole === 'teacher' && (
-          <div className="grid md:grid-cols-2 gap-6 mb-12">
+          <div className="grid lg:grid-cols-3 gap-6 mb-8">
+            {/* Create WeeLMat Card */}
             <Card 
-              className="p-8 hover:shadow-xl transition-all cursor-pointer border-2"
+              className="p-6 hover:shadow-xl transition-all cursor-pointer border-2"
               style={{ borderColor: "#236130" }}
               onClick={() => navigate("/dashboard")}
             >
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col items-center text-center gap-4">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "#236130" }}>
                   <Plus className="h-8 w-8 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold mb-1" style={{ color: "#236130" }}>
+                  <h3 className="text-xl font-bold mb-1" style={{ color: "#236130" }}>
                     Create WeeLMat
                   </h3>
-                  <p className="text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     Generate a new Weekly Learning Matrix
                   </p>
                 </div>
               </div>
             </Card>
 
-            <Card 
-              className="p-8 hover:shadow-xl transition-all cursor-pointer border-2"
-              style={{ borderColor: "#f5ca47" }}
-              onClick={() => navigate("/teacher-submission")}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "#f5ca47" }}>
-                  <Send className="h-8 w-8" style={{ color: "#236130" }} />
-                </div>
-                <div>
-                  <h3 className="text-2xl font-bold mb-1" style={{ color: "#236130" }}>
-                    Submit WeeLMat
-                  </h3>
-                  <p className="text-muted-foreground">
-                    Submit your completed WeeLMat to principal
-                  </p>
-                </div>
-              </div>
+            {/* Submit WeeLMat Card */}
+            <Card className="lg:col-span-2 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: "#236130" }}>
+                    <Send className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <div style={{ color: "#236130" }}>Submit WeeLMat</div>
+                    <p className="text-sm font-normal text-muted-foreground">Upload your completed WeeLMat for principal review</p>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmitWeelMat} className="space-y-4">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <Label>Teacher Name</Label>
+                      <Input
+                        value={formData.teacherName}
+                        onChange={(e) => setFormData({...formData, teacherName: e.target.value})}
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label>School & Principal</Label>
+                      <Select
+                        value={selectedSchool?.principal_id || ""}
+                        onValueChange={(value) => {
+                          const school = schoolOptions.find(s => s.principal_id === value);
+                          setSelectedSchool(school || null);
+                        }}
+                        required
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your school head" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {schoolOptions.map((school) => (
+                            <SelectItem key={school.principal_id} value={school.principal_id}>
+                              {school.school_name} - {school.principal_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {schoolOptions.length === 0 && (
+                        <p className="text-xs text-destructive mt-1">No school head found. Please contact admin.</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label>Subject</Label>
+                      <Input
+                        value={formData.subject}
+                        onChange={(e) => setFormData({...formData, subject: e.target.value})}
+                        placeholder="e.g., Mathematics"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Grade & Section</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          value={formData.gradeLevel}
+                          onChange={(e) => setFormData({...formData, gradeLevel: e.target.value})}
+                          placeholder="Grade"
+                          className="flex-1"
+                          required
+                        />
+                        <Input
+                          value={formData.section}
+                          onChange={(e) => setFormData({...formData, section: e.target.value})}
+                          placeholder="Section"
+                          className="flex-1"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Week Start</Label>
+                      <Input
+                        type="date"
+                        value={formData.weekStart}
+                        onChange={(e) => setFormData({...formData, weekStart: e.target.value})}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label>Week End</Label>
+                      <Input
+                        type="date"
+                        value={formData.weekEnd}
+                        onChange={(e) => setFormData({...formData, weekEnd: e.target.value})}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Upload WeeLMat File (DOCX or PDF)</Label>
+                    <div className="mt-2">
+                      <Input
+                        type="file"
+                        accept=".docx,.pdf"
+                        onChange={(e) => setFile(e.target.files?.[0] || null)}
+                        required
+                      />
+                      {file && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Selected: {file.name}
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Maximum file size: 10MB</p>
+                  </div>
+
+                  <Button 
+                    type="submit" 
+                    disabled={submitting}
+                    className="w-full"
+                    style={{ backgroundColor: "#236130", color: "white" }}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {submitting ? "Submitting..." : "Submit to Principal"}
+                  </Button>
+                </form>
+              </CardContent>
             </Card>
           </div>
         )}
 
-        {/* Recent WeeLMats - Only for Teachers */}
+        {/* Submission History - Only for Teachers */}
         {userRole === 'teacher' && (
           <Card className="p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <FileText className="h-6 w-6" style={{ color: "#236130" }} />
-                <h2 className="text-2xl font-bold" style={{ color: "#236130" }}>
-                  Recent WeeLMats
-                </h2>
-              </div>
-              {history.length > 0 && (
-                <Button 
-                  variant="outline" 
-                  onClick={() => navigate("/weelmat-history")}
-                  style={{ borderColor: "#236130", color: "#236130" }}
-                >
-                  View All
-                </Button>
-              )}
+            <div className="flex items-center gap-3 mb-6">
+              <FileText className="h-6 w-6" style={{ color: "#236130" }} />
+              <h2 className="text-2xl font-bold" style={{ color: "#236130" }}>
+                Submission History
+              </h2>
             </div>
 
-            {history.length === 0 ? (
+            {submissions.length === 0 ? (
               <div className="text-center py-12">
                 <FileText className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No WeeLMats Yet</h3>
-                <p className="text-muted-foreground mb-6">
-                  You haven't generated any WeeLMats yet. Create your first one!
+                <h3 className="text-xl font-semibold mb-2">No Submissions Yet</h3>
+                <p className="text-muted-foreground">
+                  You haven't submitted any WeeLMats yet. Fill out the form above to submit your first one!
                 </p>
-                <Button 
-                  onClick={() => navigate("/dashboard")}
-                  style={{ backgroundColor: "#236130", color: "white" }}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Your First WeeLMat
-                </Button>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -379,49 +605,35 @@ const MyAccount = () => {
                       <TableHead>Grade</TableHead>
                       <TableHead>Section</TableHead>
                       <TableHead>Week</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {history.map((item) => (
+                    {submissions.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.subject}</TableCell>
                         <TableCell>{item.grade_level}</TableCell>
                         <TableCell>{item.section}</TableCell>
                         <TableCell>
-                          {new Date(item.date_from).toLocaleDateString()} - {new Date(item.date_to).toLocaleDateString()}
+                          {new Date(item.week_start).toLocaleDateString()} - {new Date(item.week_end).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          <div className="flex justify-end gap-2">
+                          <div className="flex items-center gap-2">
+                            {getStatusIcon(item.status)}
+                            <span className="text-sm capitalize font-medium">{item.status}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex justify-end">
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => navigate(`/premium/weelmat?matrixId=${item.id}`)}
-                              title="View Preview"
+                              onClick={() => handleViewFile(item.file_url)}
+                              title="View in new tab"
                             >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDownload(
-                                item.docx_url,
-                                `WeeLMat_Teacher_${item.subject}_${item.grade_level}.docx`
-                              )}
-                              title="Download Teacher Version"
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDownload(
-                                item.student_docx_url,
-                                `WeeLMat_Student_${item.subject}_${item.grade_level}.docx`
-                              )}
-                              title="Download Student Version"
-                            >
-                              <Download className="h-4 w-4" />
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
                             </Button>
                           </div>
                         </TableCell>
