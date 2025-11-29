@@ -216,19 +216,31 @@ const MyAccount = () => {
       }
       
       if (assignments && assignments.length > 0) {
-        // Get principal names from profiles
+        // Get principal names from profiles first
         const principalIds = [...new Set(assignments.map(a => a.principal_id))];
         const { data: principalProfiles } = await supabase
           .from("profiles")
           .select("user_id, teacher_name")
           .in("user_id", principalIds);
         
+        // Get principal names from schools table as fallback
+        const schoolNames = [...new Set(assignments.map(a => a.school_name))];
+        const { data: schoolsData } = await supabase
+          .from("schools")
+          .select("principal_id, principal_name")
+          .in("school_name", schoolNames);
+        
         // Build options with principal names
         const options = assignments.map(assignment => {
           const principal = principalProfiles?.find(p => p.user_id === assignment.principal_id);
+          const schoolData = schoolsData?.find(s => s.principal_id === assignment.principal_id);
+          
+          // Try profile name first, then school principal_name, then default
+          const principalName = principal?.teacher_name || schoolData?.principal_name || "School Head";
+          
           return {
             principal_id: assignment.principal_id!,
-            principal_name: principal?.teacher_name || "School Head",
+            principal_name: principalName,
             school_name: assignment.school_name
           };
         });
