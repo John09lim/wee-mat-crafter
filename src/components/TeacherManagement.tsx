@@ -171,12 +171,12 @@ export function TeacherManagement({
 
       if (error) throw error;
 
+      onRefresh();
+      
       toast({
         title: "Teacher Removed",
         description: `${teacherName || "Teacher"} has been removed from your school.`,
       });
-
-      onRefresh();
     } catch (error: any) {
       toast({
         title: "Error",
