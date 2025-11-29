@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/sonner";
+import { WeeLMatDownloadModal } from "@/components/WeeLMatDownloadModal";
 
 // Form values passed from Dashboard
 type FormValues = {
@@ -51,9 +52,11 @@ const WeeLMatGenerator = () => {
   const [stepIndex, setStepIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [docxUrl, setDocxUrl] = useState<string | null>(null);
+  const [studentDocxUrl, setStudentDocxUrl] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [aiJson, setAiJson] = useState<any | null>(null);
   const [matrixId, setMatrixId] = useState<string | null>(null);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
 
   useEffect(() => {
     document.title = "WeeLMat Generator | WeeLMat";
@@ -129,6 +132,7 @@ const WeeLMatGenerator = () => {
         console.log("WeeLMatGenerator: Success! Received data:", data);
 
         setDocxUrl(data?.docx_url || null);
+        setStudentDocxUrl(data?.student_docx_url || null);
         setPdfUrl(data?.pdf_url || null);
         setAiJson(data?.ai_json || null);
         setMatrixId(data?.matrix_id || null);
@@ -279,6 +283,73 @@ const WeeLMatGenerator = () => {
   };
 
   const Success = () => {
+    // Handler for downloading teacher version (full DOCX with answer key)
+    const handleDownloadTeacher = async () => {
+      if (docxUrl) {
+        await downloadFile(docxUrl, buildFilename("docx"));
+        toast("Teacher version downloaded successfully!");
+      } else {
+        toast("Teacher DOCX file is not available.");
+      }
+      setShowDownloadModal(false);
+    };
+
+    // Handler for downloading student version (DOCX without answer key)
+    const handleDownloadStudent = async () => {
+      if (studentDocxUrl) {
+        await downloadFile(studentDocxUrl, buildFilename("docx").replace(".docx", "-student.docx"));
+        toast("Student version downloaded successfully!");
+      } else {
+        toast("Student DOCX file is not available.");
+      }
+      setShowDownloadModal(false);
+    };
+
+    // Handler for sharing student version
+    const handleShare = async () => {
+      if (!studentDocxUrl) {
+        toast("Student DOCX file is not available for sharing.");
+        setShowDownloadModal(false);
+        return;
+      }
+
+      // Try Web Share API first (mobile and some desktop browsers)
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'WeeLMat - Student Version',
+            text: `WeeLMat for ${values?.subject} - ${values?.gradeLevel}`,
+            url: studentDocxUrl
+          });
+          toast("Shared successfully!");
+        } catch (error: any) {
+          // User cancelled share or error occurred
+          if (error.name !== 'AbortError') {
+            console.error('Share failed:', error);
+            // Fallback to copy link
+            await copyLinkFallback();
+          }
+        }
+      } else {
+        // Fallback: Copy link to clipboard
+        await copyLinkFallback();
+      }
+      setShowDownloadModal(false);
+    };
+
+    // Fallback function to copy link to clipboard
+    const copyLinkFallback = async () => {
+      if (studentDocxUrl) {
+        try {
+          await navigator.clipboard.writeText(studentDocxUrl);
+          toast("Link copied to clipboard! You can now paste it in Messenger, Email, or other apps.");
+        } catch (error) {
+          console.error('Clipboard copy failed:', error);
+          toast("Unable to copy link. Please try downloading instead.");
+        }
+      }
+    };
+
     // Function to format activity content for HTML display
     const formatActivityForPreview = (content: string) => {
       if (!content) return "";
@@ -441,13 +512,7 @@ const WeeLMatGenerator = () => {
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button 
-                onClick={() => {
-                  if (docxUrl) {
-                    downloadFile(docxUrl, buildFilename("docx"));
-                  } else {
-                    toast("DOCX file is not available. Please try regenerating the WeeLMat.");
-                  }
-                }}
+                onClick={() => setShowDownloadModal(true)}
               >
                 Download DOCX
               </Button>
@@ -457,6 +522,15 @@ const WeeLMatGenerator = () => {
             </div>
           </div>
         </article>
+
+        {/* Download Modal */}
+        <WeeLMatDownloadModal
+          open={showDownloadModal}
+          onOpenChange={setShowDownloadModal}
+          onDownloadTeacher={handleDownloadTeacher}
+          onDownloadStudent={handleDownloadStudent}
+          onShare={handleShare}
+        />
       </section>
     );
   };
@@ -488,6 +562,11 @@ const WeeLMatGenerator = () => {
               ))}
             </div>
             <p className="text-xs text-muted-foreground">This may take ~15–30 seconds for quality results.</p>
+            <div className="mt-4 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800">
+              <p className="text-xs text-yellow-800 dark:text-yellow-200 text-center">
+                ⚠️ <strong>Important:</strong> Always review and validate AI-generated WeeLMat before using in class.
+              </p>
+            </div>
           </div>
         ) : (
           <Success />
