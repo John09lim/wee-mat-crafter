@@ -692,7 +692,7 @@ const MyAccount = () => {
                             {selectedSchool.principal_name}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            School Head • {selectedSchool.school_name}
+                            {selectedSchool.school_name}
                           </p>
                         </div>
                       </div>
