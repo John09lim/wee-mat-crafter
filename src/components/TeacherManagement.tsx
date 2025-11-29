@@ -119,6 +119,13 @@ export function TeacherManagement({
         profileImageUrl = publicUrl;
       }
 
+      // Fetch principal's profile information
+      const { data: principalProfile } = await supabase
+        .from("profiles")
+        .select("teacher_name, profile_image_url")
+        .eq("user_id", principalId)
+        .single();
+
       // Insert teacher into school_assignments
       const { error } = await supabase
         .from("school_assignments")
@@ -127,6 +134,8 @@ export function TeacherManagement({
           school_name: schoolName,
           district_name: districtName,
           principal_id: principalId,
+          principal_name: principalProfile?.teacher_name || null,
+          principal_profile_image_url: principalProfile?.profile_image_url || null,
           teacher_name: teacherName,
           teacher_email: teacherEmail.toLowerCase(),
           grade_level: gradeLevel,

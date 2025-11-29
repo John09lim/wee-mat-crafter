@@ -367,6 +367,8 @@ export type Database = {
           grade_level: string | null
           id: string
           principal_id: string | null
+          principal_name: string | null
+          principal_profile_image_url: string | null
           profile_image_url: string | null
           school_name: string
           section: string | null
@@ -381,6 +383,8 @@ export type Database = {
           grade_level?: string | null
           id?: string
           principal_id?: string | null
+          principal_name?: string | null
+          principal_profile_image_url?: string | null
           profile_image_url?: string | null
           school_name: string
           section?: string | null
@@ -395,6 +399,8 @@ export type Database = {
           grade_level?: string | null
           id?: string
           principal_id?: string | null
+          principal_name?: string | null
+          principal_profile_image_url?: string | null
           profile_image_url?: string | null
           school_name?: string
           section?: string | null

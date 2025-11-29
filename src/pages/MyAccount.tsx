@@ -47,6 +47,7 @@ interface TeacherSubmission {
 interface SchoolOption {
   principal_id: string;
   principal_name: string;
+  principal_profile_image_url: string | null;
   school_name: string;
 }
 
@@ -245,77 +246,38 @@ const MyAccount = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      
-      // First try by user_id
-      let { data: assignments } = await supabase
+
+      // Query school_assignments where this teacher is assigned
+      const { data: assignments, error } = await supabase
         .from("school_assignments")
-        .select("id, principal_id, school_name, district_name, user_id")
-        .eq("user_id", user.id)
+        .select("principal_id, principal_name, principal_profile_image_url, school_name")
+        .or(`user_id.eq.${user.id},teacher_email.ilike.${user.email}`)
         .not("principal_id", "is", null);
-      
-      // If no results, check by email and auto-link
+
+      if (error) throw error;
+
       if (!assignments || assignments.length === 0) {
-        const { data: emailAssignments } = await supabase
-          .from("school_assignments")
-          .select("id, principal_id, school_name, district_name, user_id")
-          .eq("teacher_email", user.email!.toLowerCase())
-          .not("principal_id", "is", null);
-        
-        if (emailAssignments && emailAssignments.length > 0) {
-          // Auto-link any with NULL user_id
-          for (const assignment of emailAssignments) {
-            if (!assignment.user_id) {
-              await supabase
-                .from("school_assignments")
-                .update({ user_id: user.id })
-                .eq("id", assignment.id);
-            }
-          }
-          assignments = emailAssignments;
-        }
-      }
-      
-      if (assignments && assignments.length > 0) {
-        // Get principal names from profiles first
-        const principalIds = [...new Set(assignments.map(a => a.principal_id))];
-        const { data: principalProfiles } = await supabase
-          .from("profiles")
-          .select("user_id, teacher_name")
-          .in("user_id", principalIds);
-        
-        // Get principal names from schools table as fallback
-        const schoolNames = [...new Set(assignments.map(a => a.school_name))];
-        const { data: schoolsData } = await supabase
-          .from("schools")
-          .select("principal_id, principal_name")
-          .in("school_name", schoolNames);
-        
-        // Build options with principal names
-        const options = assignments.map(assignment => {
-          const principal = principalProfiles?.find(p => p.user_id === assignment.principal_id);
-          const schoolData = schoolsData?.find(s => s.principal_id === assignment.principal_id);
-          
-          // Try profile name first, then school principal_name, then default
-          const principalName = principal?.teacher_name || schoolData?.principal_name || "School Head";
-          
-          return {
-            principal_id: assignment.principal_id!,
-            principal_name: principalName,
-            school_name: assignment.school_name
-          };
-        });
-        
-        setSchoolOptions(options);
-        
-        // Auto-select if only one option
-        if (options.length === 1) {
-          setSelectedSchool(options[0]);
-        }
-      } else {
         setSchoolOptions([]);
+        return;
+      }
+
+      // Map assignments directly to school options
+      const options: SchoolOption[] = assignments.map(assignment => ({
+        principal_id: assignment.principal_id!,
+        principal_name: assignment.principal_name || "School Head",
+        principal_profile_image_url: assignment.principal_profile_image_url,
+        school_name: assignment.school_name,
+      }));
+
+      setSchoolOptions(options);
+      
+      // Auto-select if only one option
+      if (options.length === 1) {
+        setSelectedSchool(options[0]);
       }
     } catch (error) {
       console.error("Error fetching assigned principals:", error);
+      setSchoolOptions([]);
     }
   };
 
@@ -792,11 +754,16 @@ const MyAccount = () => {
                       style={{ backgroundColor: "#f9f0eb", borderColor: "#236130" }}
                     >
                       <div className="flex items-center gap-3">
-                        <div 
-                          className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: "#236130" }}
-                        >
-                          <User className="h-6 w-6 text-white" />
+                        <div className="w-12 h-14 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
+                          {selectedSchool.principal_profile_image_url ? (
+                            <img 
+                              src={selectedSchool.principal_profile_image_url} 
+                              alt={selectedSchool.principal_name} 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <User className="h-6 w-6 text-white" style={{ backgroundColor: "#236130" }} />
+                          )}
                         </div>
                         <div className="flex-1">
                           <p className="text-sm font-medium text-muted-foreground mb-1">
