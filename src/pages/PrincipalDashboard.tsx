@@ -479,15 +479,15 @@ export default function PrincipalDashboard() {
           <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
             Submission Status Distribution
           </h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
                 data={statusChartData}
                 cx="50%"
-                cy="50%"
-                labelLine={false}
+                cy="45%"
+                labelLine={true}
                 label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
+                outerRadius={70}
                 fill="#8884d8"
                 dataKey="value"
               >
@@ -496,7 +496,7 @@ export default function PrincipalDashboard() {
                 ))}
               </Pie>
               <Tooltip />
-              <Legend />
+              <Legend verticalAlign="bottom" height={36} />
             </PieChart>
           </ResponsiveContainer>
         </Card>
