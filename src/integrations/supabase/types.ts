@@ -308,6 +308,7 @@ export type Database = {
           created_at: string
           district_name: string | null
           email: string
+          profile_image_url: string | null
           school: string
           teacher_name: string
           updated_at: string
@@ -317,6 +318,7 @@ export type Database = {
           created_at?: string
           district_name?: string | null
           email: string
+          profile_image_url?: string | null
           school: string
           teacher_name: string
           updated_at?: string
@@ -326,6 +328,7 @@ export type Database = {
           created_at?: string
           district_name?: string | null
           email?: string
+          profile_image_url?: string | null
           school?: string
           teacher_name?: string
           updated_at?: string
