@@ -318,7 +318,7 @@ export default function PrincipalDashboard() {
         <Card className="p-6 mb-6" style={{ borderColor: "#236130" }}>
           <div className="flex items-start gap-4">
             <div className="relative">
-              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+              <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
                 {profile.profile_image_url ? (
                   <img 
                     src={profile.profile_image_url} 
