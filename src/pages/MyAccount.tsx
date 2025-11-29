@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { FileText, Send, Eye, Upload, Plus, User, School, Mail, Edit2, Save, X, CheckCircle, Clock, XCircle } from "lucide-react";
+import { FileText, Eye, Upload, Plus, User, School, Mail, Edit2, Save, X, CheckCircle, Clock, XCircle } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -15,13 +15,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface UserProfile {
   teacher_name: string;
@@ -43,12 +36,6 @@ interface TeacherSubmission {
   principal_notes: string | null;
 }
 
-interface SchoolOption {
-  principal_id: string;
-  principal_name: string;
-  school_name: string;
-}
-
 const MyAccount = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -57,20 +44,8 @@ const MyAccount = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState<UserProfile | null>(null);
   
-  // Submission form state
-  const [submitting, setSubmitting] = useState(false);
-  const [file, setFile] = useState<File | null>(null);
+  // Submission history state
   const [submissions, setSubmissions] = useState<TeacherSubmission[]>([]);
-  const [schoolOptions, setSchoolOptions] = useState<SchoolOption[]>([]);
-  const [selectedSchool, setSelectedSchool] = useState<SchoolOption | null>(null);
-  const [formData, setFormData] = useState({
-    teacherName: "",
-    gradeLevel: "",
-    section: "",
-    subject: "",
-    weekStart: "",
-    weekEnd: "",
-  });
 
   useEffect(() => {
     checkAuthAndFetchData();
@@ -121,12 +96,6 @@ const MyAccount = () => {
       if (profileData) {
         setProfile(profileData);
         setEditedProfile(profileData);
-        
-        // Pre-fill submission form
-        setFormData(prev => ({
-          ...prev,
-          teacherName: profileData.teacher_name || "",
-        }));
       }
 
       // Fetch submission history (only for teachers)
@@ -142,9 +111,6 @@ const MyAccount = () => {
         } else {
           setSubmissions(submissionsData || []);
         }
-        
-        // Fetch assigned principals
-        await fetchAssignedPrincipals();
       }
     } catch (error: any) {
       console.error("Error:", error);
@@ -181,155 +147,6 @@ const MyAccount = () => {
     }
   };
 
-  const fetchAssignedPrincipals = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      
-      // First try by user_id
-      let { data: assignments } = await supabase
-        .from("school_assignments")
-        .select("id, principal_id, school_name, district_name, user_id")
-        .eq("user_id", user.id)
-        .not("principal_id", "is", null);
-      
-      // If no results, check by email and auto-link
-      if (!assignments || assignments.length === 0) {
-        const { data: emailAssignments } = await supabase
-          .from("school_assignments")
-          .select("id, principal_id, school_name, district_name, user_id")
-          .eq("teacher_email", user.email!.toLowerCase())
-          .not("principal_id", "is", null);
-        
-        if (emailAssignments && emailAssignments.length > 0) {
-          // Auto-link any with NULL user_id
-          for (const assignment of emailAssignments) {
-            if (!assignment.user_id) {
-              await supabase
-                .from("school_assignments")
-                .update({ user_id: user.id })
-                .eq("id", assignment.id);
-            }
-          }
-          assignments = emailAssignments;
-        }
-      }
-      
-      if (assignments && assignments.length > 0) {
-        // Get principal names from profiles first
-        const principalIds = [...new Set(assignments.map(a => a.principal_id))];
-        const { data: principalProfiles } = await supabase
-          .from("profiles")
-          .select("user_id, teacher_name")
-          .in("user_id", principalIds);
-        
-        // Get principal names from schools table as fallback
-        const schoolNames = [...new Set(assignments.map(a => a.school_name))];
-        const { data: schoolsData } = await supabase
-          .from("schools")
-          .select("principal_id, principal_name")
-          .in("school_name", schoolNames);
-        
-        // Build options with principal names
-        const options = assignments.map(assignment => {
-          const principal = principalProfiles?.find(p => p.user_id === assignment.principal_id);
-          const schoolData = schoolsData?.find(s => s.principal_id === assignment.principal_id);
-          
-          // Try profile name first, then school principal_name, then default
-          const principalName = principal?.teacher_name || schoolData?.principal_name || "School Head";
-          
-          return {
-            principal_id: assignment.principal_id!,
-            principal_name: principalName,
-            school_name: assignment.school_name
-          };
-        });
-        
-        setSchoolOptions(options);
-        
-        // Auto-select if only one option
-        if (options.length === 1) {
-          setSelectedSchool(options[0]);
-        }
-      } else {
-        setSchoolOptions([]);
-      }
-    } catch (error) {
-      console.error("Error fetching assigned principals:", error);
-    }
-  };
-
-  const handleSubmitWeelMat = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!file) {
-      toast.error("Please select a file to upload");
-      return;
-    }
-
-    if (!selectedSchool) {
-      toast.error("Please select your school and principal");
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Not authenticated");
-
-      const submitFormData = new FormData();
-      submitFormData.append("file", file);
-      submitFormData.append("teacherName", formData.teacherName);
-      submitFormData.append("gradeLevel", formData.gradeLevel);
-      submitFormData.append("section", formData.section);
-      submitFormData.append("subject", formData.subject);
-      submitFormData.append("weekStart", formData.weekStart);
-      submitFormData.append("weekEnd", formData.weekEnd);
-      submitFormData.append("principalId", selectedSchool.principal_id);
-      submitFormData.append("schoolHeadName", selectedSchool.principal_name);
-      submitFormData.append("schoolName", selectedSchool.school_name);
-      submitFormData.append("districtName", profile?.district_name || "");
-
-      const response = await fetch(
-        `https://velpueasbsrptocrjljg.supabase.co/functions/v1/submit-weelmat`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: submitFormData,
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Submission failed");
-      }
-
-      toast.success("WeeLMat submitted successfully to your School Head!");
-      
-      // Reset form
-      setFile(null);
-      setFormData(prev => ({
-        ...prev,
-        gradeLevel: "",
-        section: "",
-        subject: "",
-        weekStart: "",
-        weekEnd: "",
-      }));
-      
-      // Refresh submissions
-      checkAuthAndFetchData();
-    } catch (error: any) {
-      console.error("Submission error:", error);
-      toast.error(error.message || "Submission failed");
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const handleViewFile = (fileUrl: string) => {
     const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
@@ -491,238 +308,26 @@ const MyAccount = () => {
 
         {/* Teacher Hub - Only for Teachers */}
         {userRole === 'teacher' && (
-          <div className="grid lg:grid-cols-3 gap-6 mb-8">
+          <div className="mb-8">
             {/* Create WeeLMat Card */}
             <Card 
-              className="p-6 hover:shadow-xl transition-all cursor-pointer border-2"
+              className="p-8 hover:shadow-xl transition-all cursor-pointer border-2"
               style={{ borderColor: "#236130" }}
               onClick={() => navigate("/dashboard")}
             >
               <div className="flex flex-col items-center text-center gap-4">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "#236130" }}>
-                  <Plus className="h-8 w-8 text-white" />
+                <div className="w-20 h-20 rounded-full flex items-center justify-center" style={{ backgroundColor: "#236130" }}>
+                  <Plus className="h-10 w-10 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold mb-1" style={{ color: "#236130" }}>
+                  <h3 className="text-2xl font-bold mb-2" style={{ color: "#236130" }}>
                     Create WeeLMat
                   </h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-base text-muted-foreground">
                     Generate a new Weekly Learning Matrix
                   </p>
                 </div>
               </div>
-            </Card>
-
-            {/* Submit WeeLMat Card */}
-            <Card className="lg:col-span-2 shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: "#236130" }}>
-                    <Send className="h-6 w-6 text-white" />
-                  </div>
-                  <div>
-                    <div style={{ color: "#236130" }}>Submit WeeLMat</div>
-                    <p className="text-sm font-normal text-muted-foreground">Upload your completed WeeLMat for principal review</p>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {schoolOptions.length === 0 ? (
-                  <div className="p-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg text-center">
-                    <XCircle className="h-12 w-12 text-yellow-600 mx-auto mb-3" />
-                    <p className="text-yellow-800 font-semibold text-lg mb-2">
-                      Cannot Submit WeeLMat Yet
-                    </p>
-                    <p className="text-yellow-700">
-                      Please wait for your School Head to add you to their school in the Principal Dashboard.
-                    </p>
-                  </div>
-                ) : (
-                  <form onSubmit={handleSubmitWeelMat} className="space-y-6">
-                    {/* Form Fields */}
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <Label>Teacher Name</Label>
-                        <Input
-                          value={formData.teacherName}
-                          onChange={(e) => setFormData({...formData, teacherName: e.target.value})}
-                          required
-                        />
-                      </div>
-                      
-                      <div>
-                        <Label>School Name</Label>
-                        <Input
-                          value={selectedSchool?.school_name || profile?.school || ""}
-                          readOnly
-                          className="bg-muted"
-                        />
-                      </div>
-
-                      {schoolOptions.length > 1 && (
-                        <div className="md:col-span-2">
-                          <Label>Select School Head (if multiple)</Label>
-                          <Select
-                            value={selectedSchool?.principal_id || ""}
-                            onValueChange={(value) => {
-                              const school = schoolOptions.find(s => s.principal_id === value);
-                              setSelectedSchool(school || null);
-                            }}
-                            required
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select your school head" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {schoolOptions.map((school) => (
-                                <SelectItem key={school.principal_id} value={school.principal_id}>
-                                  {school.principal_name} ({school.school_name})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-
-                    <div>
-                      <Label>Subject</Label>
-                      <Input
-                        value={formData.subject}
-                        onChange={(e) => setFormData({...formData, subject: e.target.value})}
-                        placeholder="e.g., Mathematics"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Grade & Section</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          value={formData.gradeLevel}
-                          onChange={(e) => setFormData({...formData, gradeLevel: e.target.value})}
-                          placeholder="Grade"
-                          className="flex-1"
-                          required
-                        />
-                        <Input
-                          value={formData.section}
-                          onChange={(e) => setFormData({...formData, section: e.target.value})}
-                          placeholder="Section"
-                          className="flex-1"
-                          required
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label>Week Start</Label>
-                      <Input
-                        type="date"
-                        value={formData.weekStart}
-                        onChange={(e) => setFormData({...formData, weekStart: e.target.value})}
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label>Week End</Label>
-                      <Input
-                        type="date"
-                        value={formData.weekEnd}
-                        onChange={(e) => setFormData({...formData, weekEnd: e.target.value})}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Beautiful Upload Area */}
-                  <div>
-                    <Label className="text-base font-semibold">Upload WeeLMat File</Label>
-                    <div className="mt-3">
-                      <label
-                        htmlFor="file-upload"
-                        className="flex flex-col items-center justify-center w-full h-40 border-3 border-dashed rounded-xl cursor-pointer hover:bg-muted/50 transition-all duration-300"
-                        style={{ borderColor: "#236130" }}
-                      >
-                        <input
-                          id="file-upload"
-                          type="file"
-                          accept=".docx,.pdf"
-                          onChange={(e) => setFile(e.target.files?.[0] || null)}
-                          required
-                          className="hidden"
-                        />
-                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                          <div 
-                            className="w-16 h-16 rounded-full flex items-center justify-center mb-4 shadow-lg"
-                            style={{ backgroundColor: "#236130" }}
-                          >
-                            <Upload className="h-8 w-8 text-white" />
-                          </div>
-                          {file ? (
-                            <div className="text-center">
-                              <p className="font-semibold text-lg mb-1" style={{ color: "#236130" }}>
-                                {file.name}
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                Click to change file
-                              </p>
-                            </div>
-                          ) : (
-                            <div className="text-center">
-                              <p className="font-semibold text-lg mb-1" style={{ color: "#236130" }}>
-                                Click to upload or drag and drop
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                DOCX or PDF (Max 10MB)
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* School Head Display */}
-                  {selectedSchool && (
-                    <div 
-                      className="p-5 rounded-xl border-2"
-                      style={{ backgroundColor: "#f9f0eb", borderColor: "#236130" }}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
-                          style={{ backgroundColor: "#236130" }}
-                        >
-                          <User className="h-6 w-6 text-white" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-muted-foreground mb-1">
-                            Submitting to:
-                          </p>
-                          <p className="text-xl font-bold" style={{ color: "#236130" }}>
-                            {selectedSchool.principal_name}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {selectedSchool.school_name}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <Button 
-                    type="submit" 
-                    disabled={submitting || !selectedSchool}
-                    className="w-full h-12 text-base font-semibold hover:shadow-lg transition-all duration-300"
-                    style={{ backgroundColor: "#236130", color: "white" }}
-                  >
-                    <Send className="mr-2 h-5 w-5" />
-                    {submitting ? "Submitting..." : "Submit to School Head"}
-                  </Button>
-                </form>
-                )}
-              </CardContent>
             </Card>
           </div>
         )}
