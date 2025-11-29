@@ -55,7 +55,7 @@ const Header = () => {
                 History
               </Link>
               <Link to="/dashboard" className="hover:underline underline-offset-4">
-                Dashboard
+                Create WeeLMat
               </Link>
               <Link to="/my-account" className="hover:underline underline-offset-4">
                 My Account

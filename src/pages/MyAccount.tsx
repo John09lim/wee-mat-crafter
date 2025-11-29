@@ -28,6 +28,7 @@ interface UserProfile {
   email: string;
   school: string;
   district_name: string | null;
+  profile_image_url: string | null;
 }
 
 interface TeacherSubmission {
@@ -56,6 +57,7 @@ const MyAccount = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState<UserProfile | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   
   // Submission form state
   const [submitting, setSubmitting] = useState(false);
@@ -114,7 +116,7 @@ const MyAccount = () => {
       // Fetch user profile
       const { data: profileData } = await supabase
         .from("profiles")
-        .select("teacher_name, email, school, district_name")
+        .select("teacher_name, email, school, district_name, profile_image_url")
         .eq("user_id", user.id)
         .single();
 
@@ -178,6 +180,64 @@ const MyAccount = () => {
     } catch (error) {
       console.error("Error updating profile:", error);
       toast.error("Failed to update profile");
+    }
+  };
+
+  const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload an image file");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    setUploadingImage(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Upload to storage with user_id in path
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/teacher-profiles/profile-${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError, data } = await supabase.storage
+        .from('weelmat')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('weelmat')
+        .getPublicUrl(fileName);
+
+      // Update profile with new image URL
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ profile_image_url: publicUrl })
+        .eq("user_id", user.id);
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      setProfile(prev => prev ? { ...prev, profile_image_url: publicUrl } : null);
+      setEditedProfile(prev => prev ? { ...prev, profile_image_url: publicUrl } : null);
+
+      toast.success("Profile photo updated successfully!");
+    } catch (error) {
+      console.error("Error uploading profile image:", error);
+      toast.error("Failed to upload profile photo");
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -421,7 +481,48 @@ const MyAccount = () => {
             )}
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="flex gap-8">
+            {/* Profile Photo Section - Left Side */}
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-48 h-56 rounded-lg border-2 border-border overflow-hidden bg-muted flex items-center justify-center">
+                {profile?.profile_image_url ? (
+                  <img 
+                    src={profile.profile_image_url} 
+                    alt="Profile" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="h-24 w-24 text-muted-foreground" />
+                )}
+              </div>
+              {isEditing && (
+                <div className="w-48">
+                  <input
+                    type="file"
+                    id="profile-image"
+                    accept="image/*"
+                    onChange={handleProfileImageUpload}
+                    className="hidden"
+                    disabled={uploadingImage}
+                  />
+                  <label htmlFor="profile-image">
+                    <Button
+                      type="button"
+                      onClick={() => document.getElementById('profile-image')?.click()}
+                      disabled={uploadingImage}
+                      style={{ backgroundColor: "#236130", color: "white" }}
+                      className="w-full"
+                    >
+                      <Upload className="mr-2 h-4 w-4" />
+                      {uploadingImage ? "Uploading..." : "Upload Photo"}
+                    </Button>
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* Profile Information - Right Side */}
+            <div className="flex-1 grid md:grid-cols-2 gap-6">
             <div>
               <Label className="text-sm font-medium text-muted-foreground">Role</Label>
               <div className="mt-1 flex items-center gap-2">
@@ -486,6 +587,7 @@ const MyAccount = () => {
                 )}
               </div>
             )}
+            </div>
           </div>
         </Card>
 
