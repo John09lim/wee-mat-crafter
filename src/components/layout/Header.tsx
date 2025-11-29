@@ -54,9 +54,6 @@ const Header = () => {
               <Link to="/weelmat-history" className="hover:underline underline-offset-4">
                 History
               </Link>
-              <Link to="/teacher-submission" className="hover:underline underline-offset-4">
-                Submit WeeLMat
-              </Link>
               <Link to="/dashboard" className="hover:underline underline-offset-4">
                 Dashboard
               </Link>
