@@ -186,7 +186,7 @@ serve(async (req) => {
     
     console.log("Final principal_id for submission:", finalPrincipalId);
 
-    // Insert submission record with status 'submitted' by default
+    // Insert submission record with status 'pending' by default
     const { data: submissionData, error: insertError } = await supabase
       .from("teacher_submissions")
       .insert({
@@ -202,7 +202,7 @@ serve(async (req) => {
         school_name: schoolName || profile?.school || '',
         district_name: districtName || profile?.district_name || '',
         principal_id: finalPrincipalId,
-        status: "submitted"
+        status: "pending"
       })
       .select()
       .single();
