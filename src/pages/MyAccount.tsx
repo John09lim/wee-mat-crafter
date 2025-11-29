@@ -84,6 +84,24 @@ const MyAccount = () => {
         return;
       }
 
+      // AUTO-LINK: Check if this teacher's email matches any unlinked school_assignments
+      const { data: unlinkedAssignment } = await supabase
+        .from("school_assignments")
+        .select("id, school_name, district_name, principal_id")
+        .eq("teacher_email", user.email!.toLowerCase())
+        .is("user_id", null)
+        .maybeSingle();
+
+      if (unlinkedAssignment) {
+        // Link the teacher to this assignment
+        await supabase
+          .from("school_assignments")
+          .update({ user_id: user.id })
+          .eq("id", unlinkedAssignment.id);
+        
+        toast.success(`You've been linked to ${unlinkedAssignment.school_name}!`);
+      }
+
       // Fetch user role
       const { data: roleData } = await supabase
         .from("user_roles")
@@ -168,12 +186,34 @@ const MyAccount = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       
-      // Get assignments where THIS teacher has been added
-      const { data: assignments } = await supabase
+      // First try by user_id
+      let { data: assignments } = await supabase
         .from("school_assignments")
-        .select("principal_id, school_name, district_name")
+        .select("id, principal_id, school_name, district_name, user_id")
         .eq("user_id", user.id)
         .not("principal_id", "is", null);
+      
+      // If no results, check by email and auto-link
+      if (!assignments || assignments.length === 0) {
+        const { data: emailAssignments } = await supabase
+          .from("school_assignments")
+          .select("id, principal_id, school_name, district_name, user_id")
+          .eq("teacher_email", user.email!.toLowerCase())
+          .not("principal_id", "is", null);
+        
+        if (emailAssignments && emailAssignments.length > 0) {
+          // Auto-link any with NULL user_id
+          for (const assignment of emailAssignments) {
+            if (!assignment.user_id) {
+              await supabase
+                .from("school_assignments")
+                .update({ user_id: user.id })
+                .eq("id", assignment.id);
+            }
+          }
+          assignments = emailAssignments;
+        }
+      }
       
       if (assignments && assignments.length > 0) {
         // Get principal names from profiles
