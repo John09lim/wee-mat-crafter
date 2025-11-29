@@ -279,7 +279,7 @@ export function TeacherManagement({
 
         <div className="grid gap-4">
           {sortedTeachers.map((teacher) => (
-            <div key={teacher.id} className="flex items-start gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow bg-card">
+            <div key={teacher.id} className="relative flex items-start gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow bg-card">
               <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
                 {teacher.profile_image_url ? (
                   <img 
@@ -303,36 +303,39 @@ export function TeacherManagement({
                   </span>
                 </div>
               </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    disabled={deletingId === teacher.id}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Remove Teacher?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to remove <strong>{teacher.teacher_name}</strong> from your school? 
-                      This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => handleDeleteTeacher(teacher.id, teacher.teacher_name)}
-                      className="bg-red-600 hover:bg-red-700"
+              <div className="flex-shrink-0">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      className="text-red-600 border-red-300 hover:bg-red-50 hover:text-red-700 hover:border-red-400"
+                      disabled={deletingId === teacher.id}
                     >
-                      Remove
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Remove Teacher?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to remove <strong>{teacher.teacher_name}</strong> from your school? 
+                        This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => handleDeleteTeacher(teacher.id, teacher.teacher_name)}
+                        className="bg-red-600 hover:bg-red-700"
+                      >
+                        Remove
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </div>
           ))}
           {teachers.length === 0 && !isAdding && (
