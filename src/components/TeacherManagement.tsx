@@ -55,9 +55,12 @@ export function TeacherManagement({
       // Upload profile image if provided
       if (profileImage) {
         setUploading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+
         const fileExt = profileImage.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `teacher-profiles/${fileName}`;
+        const filePath = `${user.id}/teacher-profiles/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('weelmat')
@@ -168,10 +171,26 @@ export function TeacherManagement({
             </div>
             <div className="space-y-2">
               <Label htmlFor="profileImage">Profile Image (Optional)</Label>
+              <label htmlFor="profileImage" className="cursor-pointer">
+                <div className="flex items-center gap-3 p-4 border-2 border-dashed rounded-lg hover:border-[#236130] transition-colors">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: "#236130" }}>
+                    <Upload className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium" style={{ color: "#236130" }}>
+                      {profileImage ? profileImage.name : "Upload Teacher Photo"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Click to choose an image file
+                    </p>
+                  </div>
+                </div>
+              </label>
               <Input
                 id="profileImage"
                 type="file"
                 accept="image/*"
+                className="hidden"
                 onChange={(e) => setProfileImage(e.target.files?.[0] || null)}
               />
             </div>
