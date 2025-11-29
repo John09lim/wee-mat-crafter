@@ -207,8 +207,8 @@ export function TeacherManagement({
 
         <div className="grid gap-4">
           {teachers.map((teacher) => (
-            <div key={teacher.id} className="flex items-center gap-4 p-4 border rounded-lg">
-              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+            <div key={teacher.id} className="flex items-start gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow bg-card">
+              <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
                 {teacher.profile_image_url ? (
                   <img 
                     src={teacher.profile_image_url} 
@@ -216,15 +216,20 @@ export function TeacherManagement({
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <User className="w-6 h-6 text-muted-foreground" />
+                  <User className="w-8 h-8 text-muted-foreground" />
                 )}
               </div>
-              <div className="flex-1">
-                <p className="font-medium">{teacher.teacher_name}</p>
+              <div className="flex-1 space-y-1">
+                <p className="font-semibold text-lg">{teacher.teacher_name}</p>
                 <p className="text-sm text-muted-foreground">{teacher.teacher_email}</p>
-                <p className="text-sm text-muted-foreground">
-                  {teacher.grade_level} - {teacher.section}
-                </p>
+                <div className="flex gap-2 mt-2">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#236130]/10 text-[#236130]">
+                    {teacher.grade_level}
+                  </span>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#f5ca47]/20 text-[#236130]">
+                    Section {teacher.section}
+                  </span>
+                </div>
               </div>
             </div>
           ))}
