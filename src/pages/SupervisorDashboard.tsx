@@ -5,7 +5,8 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { School, Users, CheckCircle, TrendingUp, UserCircle, ExternalLink } from "lucide-react";
+import { School, Users, CheckCircle, TrendingUp, UserCircle, ExternalLink, Upload } from "lucide-react";
+import { toast } from "sonner";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import DocumentViewer from "@/components/DocumentViewer";
 import Footer from "@/components/layout/Footer";
@@ -19,6 +20,7 @@ export default function SupervisorDashboard() {
   const [profile, setProfile] = useState<any>(null);
   const [teacherSubmissions, setTeacherSubmissions] = useState<any[]>([]);
   const [managedSchools, setManagedSchools] = useState<any[]>([]);
+  const [uploadingProfile, setUploadingProfile] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -89,6 +91,43 @@ export default function SupervisorDashboard() {
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleProfileImageUpload = async (file: File) => {
+    try {
+      setUploadingProfile(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${user.id}/supervisor-profile/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('weelmat')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('weelmat')
+        .getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ profile_image_url: publicUrl })
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      setProfile({ ...profile, profile_image_url: publicUrl });
+      toast.success("Profile image updated successfully!");
+    } catch (error: any) {
+      console.error("Error:", error);
+      toast.error(error.message || "Failed to upload profile image");
+    } finally {
+      setUploadingProfile(false);
     }
   };
 
@@ -172,7 +211,40 @@ export default function SupervisorDashboard() {
       {profile && (
         <Card className="p-6 mb-6" style={{ borderColor: "#236130" }}>
           <div className="flex items-start gap-4">
-            <UserCircle className="h-12 w-12" style={{ color: "#236130" }} />
+            <div className="relative">
+              <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
+                {profile.profile_image_url ? (
+                  <img 
+                    src={profile.profile_image_url} 
+                    alt={profile.teacher_name || "Supervisor"} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <UserCircle className="h-12 w-12" style={{ color: "#236130" }} />
+                )}
+              </div>
+              <label 
+                htmlFor="supervisorProfileImage" 
+                className="absolute -bottom-1 -right-1 cursor-pointer"
+              >
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center shadow-lg hover:opacity-80 transition-opacity"
+                  style={{ backgroundColor: "#236130" }}
+                >
+                  <Upload className="w-4 h-4 text-white" />
+                </div>
+              </label>
+              <input
+                id="supervisorProfileImage"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleProfileImageUpload(file);
+                }}
+              />
+            </div>
             <div className="flex-1">
               <h2 className="text-xl font-bold mb-2" style={{ color: "#236130" }}>
                 Account Information
