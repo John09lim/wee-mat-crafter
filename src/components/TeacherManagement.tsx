@@ -5,7 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Upload, User } from "lucide-react";
+import { Plus, Upload, User, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Teacher {
   id: string;
@@ -24,6 +35,31 @@ interface TeacherManagementProps {
   onRefresh: () => void;
 }
 
+// Helper function to get sort order for grade levels
+const getGradeLevelSortOrder = (gradeLevel: string | null): number => {
+  if (!gradeLevel) return 9999;
+  
+  const normalized = gradeLevel.toLowerCase().trim();
+  
+  // SPED comes first
+  if (normalized.includes('sped') || normalized.includes('special education')) return 0;
+  
+  // Kinder comes second
+  if (normalized.includes('kinder')) return 1;
+  
+  // Grades 1-12
+  const gradeMatch = normalized.match(/grade\s*(\d+)|(\d+)/);
+  if (gradeMatch) {
+    const gradeNum = parseInt(gradeMatch[1] || gradeMatch[2]);
+    if (gradeNum >= 1 && gradeNum <= 12) {
+      return 1 + gradeNum; // 2-13 for Grade 1-12
+    }
+  }
+  
+  // Everything else (subject teachers) comes last
+  return 9999;
+};
+
 export function TeacherManagement({ 
   schoolName, 
   districtName, 
@@ -38,6 +74,14 @@ export function TeacherManagement({
   const [section, setSection] = useState("");
   const [uploading, setUploading] = useState(false);
   const [profileImage, setProfileImage] = useState<File | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  
+  // Sort teachers by grade level hierarchy
+  const sortedTeachers = [...teachers].sort((a, b) => {
+    const orderA = getGradeLevelSortOrder(a.grade_level);
+    const orderB = getGradeLevelSortOrder(b.grade_level);
+    return orderA - orderB;
+  });
 
   const handleAddTeacher = async () => {
     if (!teacherName || !teacherEmail || !gradeLevel || !section) {
@@ -113,6 +157,34 @@ export function TeacherManagement({
       });
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleDeleteTeacher = async (teacherId: string, teacherName: string | null) => {
+    try {
+      setDeletingId(teacherId);
+      
+      const { error } = await supabase
+        .from("school_assignments")
+        .delete()
+        .eq("id", teacherId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Teacher Removed",
+        description: `${teacherName || "Teacher"} has been removed from your school.`,
+      });
+
+      onRefresh();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -206,7 +278,7 @@ export function TeacherManagement({
         )}
 
         <div className="grid gap-4">
-          {teachers.map((teacher) => (
+          {sortedTeachers.map((teacher) => (
             <div key={teacher.id} className="flex items-start gap-4 p-4 border rounded-lg hover:shadow-md transition-shadow bg-card">
               <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
                 {teacher.profile_image_url ? (
@@ -231,6 +303,36 @@ export function TeacherManagement({
                   </span>
                 </div>
               </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    disabled={deletingId === teacher.id}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remove Teacher?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to remove <strong>{teacher.teacher_name}</strong> from your school? 
+                      This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => handleDeleteTeacher(teacher.id, teacher.teacher_name)}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      Remove
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           ))}
           {teachers.length === 0 && !isAdding && (
