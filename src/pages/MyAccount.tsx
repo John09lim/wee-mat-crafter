@@ -125,10 +125,8 @@ const MyAccount = () => {
           setSubmissions(submissionsData || []);
         }
         
-        // Fetch school options for principal lookup
-        if (profileData?.school) {
-          await fetchSchoolOptions(profileData.school);
-        }
+        // Fetch assigned principals
+        await fetchAssignedPrincipals();
       }
     } catch (error: any) {
       console.error("Error:", error);
@@ -165,27 +163,47 @@ const MyAccount = () => {
     }
   };
 
-  const fetchSchoolOptions = async (schoolName: string) => {
+  const fetchAssignedPrincipals = async () => {
     try {
-      const { data, error } = await supabase
-        .from("schools")
-        .select("principal_id, principal_name, school_name")
-        .ilike("school_name", `%${schoolName}%`)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      // Get assignments where THIS teacher has been added
+      const { data: assignments } = await supabase
+        .from("school_assignments")
+        .select("principal_id, school_name, district_name")
+        .eq("user_id", user.id)
         .not("principal_id", "is", null);
-
-      if (error) throw error;
       
-      setSchoolOptions(data || []);
-      
-      // Auto-select if exact match
-      const exactMatch = data?.find(s => 
-        s.school_name.toLowerCase() === schoolName.toLowerCase()
-      );
-      if (exactMatch) {
-        setSelectedSchool(exactMatch);
+      if (assignments && assignments.length > 0) {
+        // Get principal names from profiles
+        const principalIds = [...new Set(assignments.map(a => a.principal_id))];
+        const { data: principalProfiles } = await supabase
+          .from("profiles")
+          .select("user_id, teacher_name")
+          .in("user_id", principalIds);
+        
+        // Build options with principal names
+        const options = assignments.map(assignment => {
+          const principal = principalProfiles?.find(p => p.user_id === assignment.principal_id);
+          return {
+            principal_id: assignment.principal_id!,
+            principal_name: principal?.teacher_name || "School Head",
+            school_name: assignment.school_name
+          };
+        });
+        
+        setSchoolOptions(options);
+        
+        // Auto-select if only one option
+        if (options.length === 1) {
+          setSelectedSchool(options[0]);
+        }
+      } else {
+        setSchoolOptions([]);
       }
     } catch (error) {
-      console.error("Error fetching schools:", error);
+      console.error("Error fetching assigned principals:", error);
     }
   };
 
@@ -457,42 +475,59 @@ const MyAccount = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmitWeelMat} className="space-y-4">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <Label>Teacher Name</Label>
-                      <Input
-                        value={formData.teacherName}
-                        onChange={(e) => setFormData({...formData, teacherName: e.target.value})}
-                        required
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label>School & Principal</Label>
-                      <Select
-                        value={selectedSchool?.principal_id || ""}
-                        onValueChange={(value) => {
-                          const school = schoolOptions.find(s => s.principal_id === value);
-                          setSelectedSchool(school || null);
-                        }}
-                        required
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select your school head" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {schoolOptions.map((school) => (
-                            <SelectItem key={school.principal_id} value={school.principal_id}>
-                              {school.school_name} - {school.principal_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {schoolOptions.length === 0 && (
-                        <p className="text-xs text-destructive mt-1">No school head found. Please contact admin.</p>
-                      )}
-                    </div>
+                {schoolOptions.length === 0 ? (
+                  <div className="p-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg text-center">
+                    <XCircle className="h-12 w-12 text-yellow-600 mx-auto mb-3" />
+                    <p className="text-yellow-800 font-semibold text-lg mb-2">
+                      Cannot Submit WeeLMat Yet
+                    </p>
+                    <p className="text-yellow-700">
+                      Please wait for your School Head to add you to their school in the Principal Dashboard.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmitWeelMat} className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Teacher Name</Label>
+                        <Input
+                          value={formData.teacherName}
+                          onChange={(e) => setFormData({...formData, teacherName: e.target.value})}
+                          required
+                        />
+                      </div>
+                      
+                      <div>
+                        <Label>School Name</Label>
+                        <Input
+                          value={selectedSchool?.school_name || profile?.school || ""}
+                          readOnly
+                          className="bg-muted"
+                        />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <Label>Select School Head</Label>
+                        <Select
+                          value={selectedSchool?.principal_id || ""}
+                          onValueChange={(value) => {
+                            const school = schoolOptions.find(s => s.principal_id === value);
+                            setSelectedSchool(school || null);
+                          }}
+                          required
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select your school head" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {schoolOptions.map((school) => (
+                              <SelectItem key={school.principal_id} value={school.principal_id}>
+                                {school.principal_name} ({school.school_name})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
                     <div>
                       <Label>Subject</Label>
@@ -573,6 +608,7 @@ const MyAccount = () => {
                     {submitting ? "Submitting..." : "Submit to Principal"}
                   </Button>
                 </form>
+                )}
               </CardContent>
             </Card>
           </div>

@@ -116,6 +116,44 @@ serve(async (req) => {
     const lookupDistrict = districtName || profile?.district_name || '';
     
     let finalPrincipalId = principalId || null;
+
+    // Verify teacher is assigned to this principal (if principal_id provided)
+    if (principalId) {
+      const { data: assignment } = await supabase
+        .from("school_assignments")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("principal_id", principalId)
+        .maybeSingle();
+
+      if (!assignment) {
+        return new Response(JSON.stringify({ 
+          error: "You must be added by this School Head before submitting. Please ask your School Head to add you to their school first." 
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+    }
+
+    // Verify teacher is assigned to this principal
+    if (finalPrincipalId) {
+      const { data: assignment } = await supabase
+        .from("school_assignments")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("principal_id", finalPrincipalId)
+        .maybeSingle();
+
+      if (!assignment) {
+        return new Response(JSON.stringify({ 
+          error: "You must be added by this School Head before submitting. Please ask your School Head to add you to their school first." 
+        }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+    }
     
     if (lookupSchool && !finalPrincipalId) {
       // First try: schools table (supervisor-created schools)

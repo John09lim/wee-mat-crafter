@@ -111,14 +111,13 @@ export default function PrincipalDashboard() {
           .select("user_id, teacher_name")
           .in("user_id", teacherIds);
 
-        const enrichedTeachers = teachersData.map(t => {
-          const profile = teacherProfiles?.find(p => p.user_id === t.user_id);
-          return {
-            ...t,
-            teacher_name: profile?.teacher_name || "Unknown Teacher"
-          };
-        });
-        setAllTeachers(enrichedTeachers || []);
+        const enrichedTeachers = managedTeachersData?.map(t => ({
+          user_id: t.user_id,
+          teacher_name: t.teacher_name || "Teacher",
+          grade_level: t.grade_level,
+          section: t.section
+        })) || [];
+        setAllTeachers(enrichedTeachers);
       } else {
         setAllTeachers([]);
       }
@@ -264,23 +263,38 @@ export default function PrincipalDashboard() {
     returned: submissions.filter(s => s.status === 'returned').length,
   };
 
-  // Calculate current week's submissions
+  // Calculate current week's submissions and bounds
   const today = new Date();
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - today.getDay());
-  const currentWeekSubmissions = submissions.filter(s => 
-    new Date(s.created_at) >= startOfWeek
-  );
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  endOfWeek.setHours(23, 59, 59, 999);
+
+  const currentWeekSubmissions = submissions.filter(s => {
+    const createdAt = new Date(s.created_at);
+    return createdAt >= startOfWeek && createdAt <= endOfWeek;
+  });
   
   const submittedTeacherIds = new Set(currentWeekSubmissions.map(s => s.user_id));
   const submittedTeachers = allTeachers.filter(t => submittedTeacherIds.has(t.user_id));
   const notSubmittedTeachers = allTeachers.filter(t => !submittedTeacherIds.has(t.user_id));
 
-  // Data for charts
+  // Weekly stats for charts (current week only)
+  const weeklyStats = {
+    total: currentWeekSubmissions.length,
+    pending: currentWeekSubmissions.filter(s => s.status === 'pending' || s.status === 'submitted').length,
+    accepted: currentWeekSubmissions.filter(s => s.status === 'accepted').length,
+    returned: currentWeekSubmissions.filter(s => s.status === 'returned').length,
+  };
+
+  // Data for charts - using weekly stats
   const statusChartData = [
-    { name: "Accepted", value: stats.accepted, color: "#10b981" },
-    { name: "Pending", value: stats.pending, color: "#f59e0b" },
-    { name: "Returned", value: stats.returned, color: "#ef4444" }
+    { name: "Accepted", value: weeklyStats.accepted, color: "#10b981" },
+    { name: "Pending", value: weeklyStats.pending, color: "#f59e0b" },
+    { name: "Returned", value: weeklyStats.returned, color: "#ef4444" }
   ];
 
   const submissionCompletionData = [
