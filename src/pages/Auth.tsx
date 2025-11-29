@@ -93,6 +93,33 @@ const Auth = () => {
           toast("Profile created. Please update your information.");
         }
 
+        // Auto-link to school if principal added this teacher
+        const { data: assignmentMatch } = await supabase
+          .from("school_assignments")
+          .select("id, school_name, district_name, principal_id")
+          .eq("teacher_email", data.user.email!.toLowerCase())
+          .is("user_id", null)
+          .maybeSingle();
+
+        if (assignmentMatch) {
+          // Link the teacher to the school assignment
+          await supabase
+            .from("school_assignments")
+            .update({ user_id: data.user.id })
+            .eq("id", assignmentMatch.id);
+          
+          // Update profile with school info
+          await supabase.from("profiles").upsert({
+            user_id: data.user.id,
+            email: data.user.email!,
+            teacher_name: profile?.teacher_name || data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'Teacher',
+            school: assignmentMatch.school_name,
+            district_name: assignmentMatch.district_name,
+          }, { onConflict: "user_id" });
+          
+          toast.success(`Welcome! You've been linked to ${assignmentMatch.school_name}!`);
+        }
+
         // Check if user has teacher role, auto-assign if missing (for legacy users)
         const { data: roleData } = await supabase
           .from("user_roles")
@@ -115,7 +142,7 @@ const Auth = () => {
           }
           
           toast.success("Welcome back! Your account has been updated.");
-        } else {
+        } else if (!assignmentMatch) {
           toast.success("Welcome back!");
         }
 
