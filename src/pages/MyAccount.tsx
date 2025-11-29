@@ -526,7 +526,8 @@ const MyAccount = () => {
                     </p>
                   </div>
                 ) : (
-                  <form onSubmit={handleSubmitWeelMat} className="space-y-4">
+                  <form onSubmit={handleSubmitWeelMat} className="space-y-6">
+                    {/* Form Fields */}
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
                         <Label>Teacher Name</Label>
@@ -546,28 +547,30 @@ const MyAccount = () => {
                         />
                       </div>
 
-                      <div className="md:col-span-2">
-                        <Label>Select School Head</Label>
-                        <Select
-                          value={selectedSchool?.principal_id || ""}
-                          onValueChange={(value) => {
-                            const school = schoolOptions.find(s => s.principal_id === value);
-                            setSelectedSchool(school || null);
-                          }}
-                          required
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select your school head" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {schoolOptions.map((school) => (
-                              <SelectItem key={school.principal_id} value={school.principal_id}>
-                                {school.principal_name} ({school.school_name})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      {schoolOptions.length > 1 && (
+                        <div className="md:col-span-2">
+                          <Label>Select School Head (if multiple)</Label>
+                          <Select
+                            value={selectedSchool?.principal_id || ""}
+                            onValueChange={(value) => {
+                              const school = schoolOptions.find(s => s.principal_id === value);
+                              setSelectedSchool(school || null);
+                            }}
+                            required
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select your school head" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {schoolOptions.map((school) => (
+                                <SelectItem key={school.principal_id} value={school.principal_id}>
+                                  {school.principal_name} ({school.school_name})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
 
                     <div>
                       <Label>Subject</Label>
@@ -620,32 +623,90 @@ const MyAccount = () => {
                     </div>
                   </div>
 
+                  {/* Beautiful Upload Area */}
                   <div>
-                    <Label>Upload WeeLMat File (DOCX or PDF)</Label>
-                    <div className="mt-2">
-                      <Input
-                        type="file"
-                        accept=".docx,.pdf"
-                        onChange={(e) => setFile(e.target.files?.[0] || null)}
-                        required
-                      />
-                      {file && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Selected: {file.name}
-                        </p>
-                      )}
+                    <Label className="text-base font-semibold">Upload WeeLMat File</Label>
+                    <div className="mt-3">
+                      <label
+                        htmlFor="file-upload"
+                        className="flex flex-col items-center justify-center w-full h-40 border-3 border-dashed rounded-xl cursor-pointer hover:bg-muted/50 transition-all duration-300"
+                        style={{ borderColor: "#236130" }}
+                      >
+                        <input
+                          id="file-upload"
+                          type="file"
+                          accept=".docx,.pdf"
+                          onChange={(e) => setFile(e.target.files?.[0] || null)}
+                          required
+                          className="hidden"
+                        />
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                          <div 
+                            className="w-16 h-16 rounded-full flex items-center justify-center mb-4 shadow-lg"
+                            style={{ backgroundColor: "#236130" }}
+                          >
+                            <Upload className="h-8 w-8 text-white" />
+                          </div>
+                          {file ? (
+                            <div className="text-center">
+                              <p className="font-semibold text-lg mb-1" style={{ color: "#236130" }}>
+                                {file.name}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Click to change file
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="text-center">
+                              <p className="font-semibold text-lg mb-1" style={{ color: "#236130" }}>
+                                Click to upload or drag and drop
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                DOCX or PDF (Max 10MB)
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </label>
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1">Maximum file size: 10MB</p>
                   </div>
+
+                  {/* School Head Display */}
+                  {selectedSchool && (
+                    <div 
+                      className="p-5 rounded-xl border-2"
+                      style={{ backgroundColor: "#f9f0eb", borderColor: "#236130" }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: "#236130" }}
+                        >
+                          <User className="h-6 w-6 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-muted-foreground mb-1">
+                            Submitting to:
+                          </p>
+                          <p className="text-xl font-bold" style={{ color: "#236130" }}>
+                            {selectedSchool.principal_name}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            School Head • {selectedSchool.school_name}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <Button 
                     type="submit" 
-                    disabled={submitting}
-                    className="w-full"
+                    disabled={submitting || !selectedSchool}
+                    className="w-full h-12 text-base font-semibold hover:shadow-lg transition-all duration-300"
                     style={{ backgroundColor: "#236130", color: "white" }}
                   >
-                    <Upload className="mr-2 h-4 w-4" />
-                    {submitting ? "Submitting..." : "Submit to Principal"}
+                    <Send className="mr-2 h-5 w-5" />
+                    {submitting ? "Submitting..." : "Submit to School Head"}
                   </Button>
                 </form>
                 )}
