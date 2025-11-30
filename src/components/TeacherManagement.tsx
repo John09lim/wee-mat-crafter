@@ -73,6 +73,8 @@ export function TeacherManagement({
   const [teacherEmail, setTeacherEmail] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
   const [section, setSection] = useState("");
+  const [subject, setSubject] = useState("");
+  const [teacherType, setTeacherType] = useState<"regular" | "subject">("regular");
   const [uploading, setUploading] = useState(false);
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -85,7 +87,7 @@ export function TeacherManagement({
   });
 
   const handleAddTeacher = async () => {
-    if (!teacherName || !teacherEmail || !gradeLevel || !section) {
+    if (!teacherName || !teacherEmail || !gradeLevel || (teacherType === "regular" ? !section : !subject)) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -165,7 +167,7 @@ export function TeacherManagement({
           teacher_name: teacherName,
           teacher_email: teacherEmail.toLowerCase(),
           grade_level: gradeLevel,
-          section: section,
+          section: teacherType === "regular" ? section : subject,
           profile_image_url: profileImageUrl,
         });
 
@@ -181,6 +183,8 @@ export function TeacherManagement({
       setTeacherEmail("");
       setGradeLevel("");
       setSection("");
+      setSubject("");
+      setTeacherType("regular");
       setProfileImage(null);
       setIsAdding(false);
       onRefresh();
@@ -197,15 +201,18 @@ export function TeacherManagement({
 
   const handleEditTeacher = (teacher: Teacher) => {
     setEditingId(teacher.id);
+    const isSubject = teacher.section && !teacher.section.match(/^(Section |Grade )/i);
+    setTeacherType(isSubject ? "subject" : "regular");
     setTeacherName(teacher.teacher_name || "");
     setTeacherEmail(teacher.teacher_email || "");
     setGradeLevel(teacher.grade_level || "");
-    setSection(teacher.section || "");
+    setSection(isSubject ? "" : (teacher.section || ""));
+    setSubject(isSubject ? (teacher.section || "") : "");
     setIsAdding(false);
   };
 
   const handleUpdateTeacher = async () => {
-    if (!editingId || !teacherName || !teacherEmail || !gradeLevel || !section) {
+    if (!editingId || !teacherName || !teacherEmail || !gradeLevel || (teacherType === "regular" ? !section : !subject)) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
@@ -245,7 +252,7 @@ export function TeacherManagement({
         teacher_name: teacherName,
         teacher_email: teacherEmail.toLowerCase(),
         grade_level: gradeLevel,
-        section: section,
+        section: teacherType === "regular" ? section : subject,
       };
 
       if (profileImageUrl) {
@@ -269,6 +276,8 @@ export function TeacherManagement({
       setTeacherEmail("");
       setGradeLevel("");
       setSection("");
+      setSubject("");
+      setTeacherType("regular");
       setProfileImage(null);
       setEditingId(null);
       onRefresh();
@@ -317,6 +326,8 @@ export function TeacherManagement({
     setTeacherEmail("");
     setGradeLevel("");
     setSection("");
+    setSubject("");
+    setTeacherType("regular");
     setProfileImage(null);
   };
 
@@ -355,6 +366,31 @@ export function TeacherManagement({
                   placeholder="e.g., maria@school.edu"
                 />
               </div>
+              <div className="space-y-2 col-span-2">
+                <Label>Teacher Type *</Label>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="teacherType"
+                      checked={teacherType === "regular"}
+                      onChange={() => setTeacherType("regular")}
+                      className="w-4 h-4"
+                    />
+                    <span>Regular Teacher</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="teacherType"
+                      checked={teacherType === "subject"}
+                      onChange={() => setTeacherType("subject")}
+                      className="w-4 h-4"
+                    />
+                    <span>Subject Teacher</span>
+                  </label>
+                </div>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="gradeLevel">Grade Level *</Label>
                 <Input
@@ -364,15 +400,27 @@ export function TeacherManagement({
                   placeholder="e.g., Grade 7"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="section">Section *</Label>
-                <Input
-                  id="section"
-                  value={section}
-                  onChange={(e) => setSection(e.target.value)}
-                  placeholder="e.g., A"
-                />
-              </div>
+              {teacherType === "regular" ? (
+                <div className="space-y-2">
+                  <Label htmlFor="section">Section *</Label>
+                  <Input
+                    id="section"
+                    value={section}
+                    onChange={(e) => setSection(e.target.value)}
+                    placeholder="e.g., A"
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="subject">Subject *</Label>
+                  <Input
+                    id="subject"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="e.g., MAPEH"
+                  />
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="profileImage">Profile Image (Optional)</Label>
@@ -436,6 +484,31 @@ export function TeacherManagement({
                         placeholder="e.g., maria@school.edu"
                       />
                     </div>
+                    <div className="space-y-2 col-span-2">
+                      <Label>Teacher Type *</Label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="editTeacherType"
+                            checked={teacherType === "regular"}
+                            onChange={() => setTeacherType("regular")}
+                            className="w-4 h-4"
+                          />
+                          <span>Regular Teacher</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="editTeacherType"
+                            checked={teacherType === "subject"}
+                            onChange={() => setTeacherType("subject")}
+                            className="w-4 h-4"
+                          />
+                          <span>Subject Teacher</span>
+                        </label>
+                      </div>
+                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="editGradeLevel">Grade Level *</Label>
                       <Input
@@ -445,15 +518,27 @@ export function TeacherManagement({
                         placeholder="e.g., Grade 7"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="editSection">Section *</Label>
-                      <Input
-                        id="editSection"
-                        value={section}
-                        onChange={(e) => setSection(e.target.value)}
-                        placeholder="e.g., A"
-                      />
-                    </div>
+                    {teacherType === "regular" ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="editSection">Section *</Label>
+                        <Input
+                          id="editSection"
+                          value={section}
+                          onChange={(e) => setSection(e.target.value)}
+                          placeholder="e.g., A"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label htmlFor="editSubject">Subject *</Label>
+                        <Input
+                          id="editSubject"
+                          value={subject}
+                          onChange={(e) => setSubject(e.target.value)}
+                          placeholder="e.g., MAPEH"
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="editProfileImage">Update Profile Image (Optional)</Label>
@@ -510,7 +595,7 @@ export function TeacherManagement({
                         {teacher.grade_level}
                       </span>
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#f5ca47]/20 text-[#236130]">
-                        Section {teacher.section}
+                        {teacher.section || "Subject Teacher"}
                       </span>
                     </div>
                   </div>

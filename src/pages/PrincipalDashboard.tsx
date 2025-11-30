@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Download, CheckCircle, Users, BookOpen, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload } from "lucide-react";
+import { Download, CheckCircle, Users, BookOpen, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload, Share2 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import DocumentViewer from "@/components/DocumentViewer";
 import Footer from "@/components/layout/Footer";
@@ -262,6 +262,33 @@ export default function PrincipalDashboard() {
     }
   };
 
+  const handleShareStatus = async () => {
+    if (!profile?.school) return;
+
+    const shareUrl = `${window.location.origin}/school-status/${encodeURIComponent(profile.school)}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${profile.school} - Weekly Submission Status`,
+          text: `Check the weekly submission status for ${profile.school}`,
+          url: shareUrl,
+        });
+      } catch (error) {
+        console.log("Share cancelled or failed:", error);
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        toast.success("Link copied to clipboard");
+      } catch (error) {
+        console.error("Failed to copy:", error);
+        toast.error("Failed to copy link");
+      }
+    }
+  };
+
   const groupedByTeacher = submissions.reduce((acc, sub) => {
     if (!acc[sub.teacher_name]) acc[sub.teacher_name] = [];
     acc[sub.teacher_name].push(sub);
@@ -310,13 +337,13 @@ export default function PrincipalDashboard() {
 
   // Data for charts - using weekly stats
   const statusChartData = [
-    { name: "Reviewed", value: weeklyStats.reviewed, color: "#22c55e" },
+    { name: "Reviewed", value: weeklyStats.reviewed, color: "#1eba83" },
     { name: "Pending", value: weeklyStats.pending, color: "#f59e0b" },
     { name: "Returned", value: weeklyStats.returned, color: "#ef4444" }
   ];
 
   const submissionCompletionData = [
-    { name: "Submitted", value: submittedTeachers.length, color: "#10b981" },
+    { name: "Submitted", value: submittedTeachers.length, color: "#1eba83" },
     { name: "Not Submitted", value: notSubmittedTeachers.length, color: "#ef4444" }
   ];
 
@@ -470,9 +497,21 @@ export default function PrincipalDashboard() {
 
       {/* Teacher Tracking for Current Week */}
       <Card className="p-6 mb-6">
-        <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
-          This Week's Teacher Submissions
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold" style={{ color: "#236130" }}>
+            This Week's Teacher Submissions
+          </h3>
+          <Button
+            onClick={handleShareStatus}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            style={{ borderColor: "#236130", color: "#236130" }}
+          >
+            <Share2 className="w-4 h-4" />
+            Share Status
+          </Button>
+        </div>
         <div className="grid md:grid-cols-2 gap-6">
           <div>
             <div className="flex items-center gap-2 mb-3">

@@ -26,6 +26,7 @@ import AuthSupervisor from "./pages/AuthSupervisor";
 import MyAccount from "./pages/MyAccount";
 import PrincipalLanding from "./pages/PrincipalLanding";
 import SupervisorLanding from "./pages/SupervisorLanding";
+import PublicSchoolStatus from "./pages/PublicSchoolStatus";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +58,7 @@ const App = () => {
           <Route path="/principal-dashboard" element={<PrincipalDashboard />} />
           <Route path="/supervisor-dashboard" element={<SupervisorDashboard />} />
           <Route path="/weelmat-history" element={<WeeLMatHistory />} />
+          <Route path="/school-status/:schoolName" element={<PublicSchoolStatus />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
