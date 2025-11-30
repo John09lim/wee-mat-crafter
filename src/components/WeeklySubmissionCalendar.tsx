@@ -41,6 +41,7 @@ export default function WeeklySubmissionCalendar({
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const weeksPerPage = 4;
+  const startDate = new Date(2025, 5, 16); // June 16, 2025 (month is 0-indexed)
 
   // Helper to get Monday of the week
   const getMondayOfWeek = (date: Date) => {
@@ -60,6 +61,13 @@ export default function WeeklySubmissionCalendar({
     return friday;
   };
 
+  // Check if a date is in the current week
+  const isCurrentWeek = (monday: Date) => {
+    const today = new Date();
+    const currentMonday = getMondayOfWeek(today);
+    return monday.getTime() === currentMonday.getTime();
+  };
+
   useEffect(() => {
     fetchWeeklyData();
   }, [schoolName, managedTeachers]);
@@ -67,12 +75,22 @@ export default function WeeklySubmissionCalendar({
   const fetchWeeklyData = async () => {
     const weeksData: WeekData[] = [];
     const today = new Date();
+    const currentMonday = getMondayOfWeek(today);
+    const startMonday = getMondayOfWeek(startDate);
 
-    // Fetch last 12 weeks of data
-    for (let i = 0; i < 12; i++) {
-      const weekDate = addWeeks(today, -i);
-      const monday = getMondayOfWeek(weekDate);
+    // Calculate weeks from startDate to 4 weeks into the future
+    let currentWeek = new Date(startMonday);
+    const futureLimit = addWeeks(currentMonday, 4);
+    let currentWeekIndex = -1;
+
+    while (currentWeek <= futureLimit) {
+      const monday = new Date(currentWeek);
       const friday = getFridayOfWeek(monday);
+
+      // Track the index of current week
+      if (monday.getTime() === currentMonday.getTime()) {
+        currentWeekIndex = weeksData.length;
+      }
 
       // Query submissions for this week
       const { data: submissions } = await supabase
@@ -98,9 +116,17 @@ export default function WeeklySubmissionCalendar({
         totalCount,
         percentage,
       });
+
+      // Move to next week
+      currentWeek = addWeeks(currentWeek, 1);
     }
 
-    setWeeks(weeksData.reverse()); // Show oldest to newest
+    setWeeks(weeksData);
+
+    // Set current page to show current week
+    if (currentWeekIndex >= 0) {
+      setCurrentPage(Math.floor(currentWeekIndex / weeksPerPage));
+    }
   };
 
   const handleWeekClick = async (week: WeekData) => {
@@ -153,23 +179,33 @@ export default function WeeklySubmissionCalendar({
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            {displayedWeeks.map((week, idx) => (
-              <button
-                key={idx}
-                onClick={() => handleWeekClick(week)}
-                className={`p-4 rounded-lg border-2 transition-all hover:scale-105 cursor-pointer ${getColorClass(
-                  week.percentage
-                )}`}
-              >
-                <div className="text-sm font-medium mb-2">
-                  {format(week.weekStart, "MMM d")} - {format(week.weekEnd, "MMM d")}
-                </div>
-                <div className="text-2xl font-bold mb-1">{week.percentage}%</div>
-                <div className="text-xs">
-                  {week.submittedCount}/{week.totalCount} teachers
-                </div>
-              </button>
-            ))}
+            {displayedWeeks.map((week, idx) => {
+              const isCurrent = isCurrentWeek(week.weekStart);
+              return (
+                <button
+                  key={idx}
+                  onClick={() => handleWeekClick(week)}
+                  className={`p-4 rounded-lg border-2 transition-all hover:scale-105 cursor-pointer relative ${getColorClass(
+                    week.percentage
+                  )} ${isCurrent ? 'ring-4 ring-[#f5ca47] ring-offset-2' : ''}`}
+                >
+                  {isCurrent && (
+                    <div className="absolute -top-2 left-1/2 transform -translate-x-1/2">
+                      <span className="bg-[#f5ca47] text-[#236130] text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap">
+                        This Week
+                      </span>
+                    </div>
+                  )}
+                  <div className="text-sm font-medium mb-2 mt-2">
+                    {format(week.weekStart, "MMM d")} - {format(week.weekEnd, "MMM d")}
+                  </div>
+                  <div className="text-2xl font-bold mb-1">{week.percentage}%</div>
+                  <div className="text-xs">
+                    {week.submittedCount}/{week.totalCount} teachers
+                  </div>
+                </button>
+              );
+            })}
           </div>
 
           <div className="flex justify-between items-center">
@@ -180,10 +216,10 @@ export default function WeeklySubmissionCalendar({
               disabled={currentPage === 0}
             >
               <ChevronLeft className="w-4 h-4 mr-1" />
-              Earlier
+              Previous
             </Button>
             <span className="text-sm text-muted-foreground">
-              Showing weeks {currentPage * weeksPerPage + 1}-
+              Week {currentPage * weeksPerPage + 1}-
               {Math.min((currentPage + 1) * weeksPerPage, weeks.length)} of {weeks.length}
             </span>
             <Button
@@ -192,7 +228,7 @@ export default function WeeklySubmissionCalendar({
               onClick={() => setCurrentPage(currentPage + 1)}
               disabled={(currentPage + 1) * weeksPerPage >= weeks.length}
             >
-              Later
+              Next
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
