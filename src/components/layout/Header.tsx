@@ -1,6 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { LogOut } from "lucide-react";
 
 const Header = () => {
   const location = useLocation();
@@ -92,9 +94,15 @@ const Header = () => {
           )}
           
           {!loading && userRole && (
-            <button onClick={handleLogout} className="hover:underline underline-offset-4">
+            <Button 
+              onClick={handleLogout} 
+              variant="outline"
+              size="sm"
+              className="border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
               Logout
-            </button>
+            </Button>
           )}
         </nav>
       </div>
