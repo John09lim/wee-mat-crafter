@@ -214,7 +214,7 @@ export default function PrincipalDashboard() {
           week_end: endOfWeek.toISOString().split('T')[0],
           status: "completed",
           total_teachers: submissions.length,
-          submitted_teachers: submissions.filter(s => s.status === 'accepted').length
+          submitted_teachers: submissions.filter(s => s.status === 'reviewed').length
         });
 
       if (error) throw error;
@@ -277,7 +277,7 @@ export default function PrincipalDashboard() {
   const stats = {
     total: submissions.length,
     pending: submissions.filter(s => s.status === 'pending').length,
-    accepted: submissions.filter(s => s.status === 'accepted').length,
+    reviewed: submissions.filter(s => s.status === 'reviewed').length,
     returned: submissions.filter(s => s.status === 'returned').length,
   };
 
@@ -304,13 +304,13 @@ export default function PrincipalDashboard() {
   const weeklyStats = {
     total: currentWeekSubmissions.length,
     pending: currentWeekSubmissions.filter(s => s.status === 'pending' || s.status === 'submitted').length,
-    accepted: currentWeekSubmissions.filter(s => s.status === 'accepted').length,
+    reviewed: currentWeekSubmissions.filter(s => s.status === 'reviewed').length,
     returned: currentWeekSubmissions.filter(s => s.status === 'returned').length,
   };
 
   // Data for charts - using weekly stats
   const statusChartData = [
-    { name: "Accepted", value: weeklyStats.accepted, color: "#10b981" },
+    { name: "Reviewed", value: weeklyStats.reviewed, color: "#22c55e" },
     { name: "Pending", value: weeklyStats.pending, color: "#f59e0b" },
     { name: "Returned", value: weeklyStats.returned, color: "#ef4444" }
   ];
@@ -618,8 +618,8 @@ export default function PrincipalDashboard() {
           <div className="flex items-center gap-3">
             <CheckCircle className="h-8 w-8 text-green-600" />
             <div>
-              <p className="text-2xl font-bold">{stats.accepted}</p>
-              <p className="text-sm text-muted-foreground">Accepted</p>
+              <p className="text-2xl font-bold">{stats.reviewed}</p>
+              <p className="text-sm text-muted-foreground">Reviewed</p>
             </div>
           </div>
         </Card>
@@ -745,7 +745,6 @@ function SubmissionCard({ submission, onStatusUpdate }: { submission: any; onSta
             <SelectContent>
               <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="reviewed">Reviewed</SelectItem>
-              <SelectItem value="accepted">Accepted</SelectItem>
               <SelectItem value="returned">Returned</SelectItem>
             </SelectContent>
           </Select>
