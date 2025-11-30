@@ -87,7 +87,7 @@ const Header = () => {
             </>
           )}
           
-          {!loading && !userRole && location.pathname !== "/auth" && (
+          {!loading && !userRole && location.pathname !== "/auth" && location.pathname !== "/principal-dashboard" && location.pathname !== "/supervisor-dashboard" && (
             <Link to="/auth" className="hover:underline underline-offset-4">
               Login
             </Link>

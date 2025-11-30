@@ -294,15 +294,36 @@ export default function SupervisorDashboard() {
           <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
             School Compliance
           </h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
                 data={schoolComplianceData}
                 cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
+                cy="45%"
+                labelLine={true}
+                label={({ name, percent, cx, cy, midAngle, outerRadius, index }) => {
+                  if (percent === 0) return null;
+                  
+                  const RADIAN = Math.PI / 180;
+                  const radius = outerRadius * 1.5;
+                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                  
+                  return (
+                    <text
+                      x={x}
+                      y={y}
+                      fill={schoolComplianceData[index].color}
+                      textAnchor={x > cx ? 'start' : 'end'}
+                      dominantBaseline="central"
+                      fontSize={14}
+                      fontWeight="600"
+                    >
+                      {`${name}: ${(percent * 100).toFixed(0)}%`}
+                    </text>
+                  );
+                }}
+                outerRadius={70}
                 fill="#8884d8"
                 dataKey="value"
               >
@@ -311,7 +332,11 @@ export default function SupervisorDashboard() {
                 ))}
               </Pie>
               <Tooltip />
-              <Legend />
+              <Legend 
+                verticalAlign="bottom" 
+                height={36}
+                iconType="circle"
+              />
             </PieChart>
           </ResponsiveContainer>
         </Card>
@@ -320,15 +345,36 @@ export default function SupervisorDashboard() {
           <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
             Teacher Submissions
           </h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
                 data={teacherSubmissionData}
                 cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
+                cy="45%"
+                labelLine={true}
+                label={({ name, percent, cx, cy, midAngle, outerRadius, index }) => {
+                  if (percent === 0) return null;
+                  
+                  const RADIAN = Math.PI / 180;
+                  const radius = outerRadius * 1.5;
+                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                  
+                  return (
+                    <text
+                      x={x}
+                      y={y}
+                      fill={teacherSubmissionData[index].color}
+                      textAnchor={x > cx ? 'start' : 'end'}
+                      dominantBaseline="central"
+                      fontSize={14}
+                      fontWeight="600"
+                    >
+                      {`${name}: ${(percent * 100).toFixed(0)}%`}
+                    </text>
+                  );
+                }}
+                outerRadius={70}
                 fill="#8884d8"
                 dataKey="value"
               >
@@ -337,7 +383,11 @@ export default function SupervisorDashboard() {
                 ))}
               </Pie>
               <Tooltip />
-              <Legend />
+              <Legend 
+                verticalAlign="bottom" 
+                height={36}
+                iconType="circle"
+              />
             </PieChart>
           </ResponsiveContainer>
         </Card>
@@ -346,12 +396,25 @@ export default function SupervisorDashboard() {
           <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
             Submission Rate by School
           </h3>
-          <ResponsiveContainer width="100%" height={250}>
+          <ResponsiveContainer width="100%" height={300}>
             <BarChart data={schoolBarData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="school" angle={-45} textAnchor="end" height={100} />
-              <YAxis />
-              <Tooltip />
+              <XAxis 
+                dataKey="school" 
+                angle={-45} 
+                textAnchor="end" 
+                height={120}
+                interval={0}
+                tick={{ fontSize: 11 }}
+              />
+              <YAxis 
+                label={{ value: 'Completion Rate (%)', angle: -90, position: 'insideLeft' }}
+                tick={{ fontSize: 12 }}
+              />
+              <Tooltip 
+                contentStyle={{ fontSize: 12 }}
+                formatter={(value: any) => `${value}%`}
+              />
               <Bar dataKey="rate" fill="#236130" name="Completion Rate (%)" />
             </BarChart>
           </ResponsiveContainer>
