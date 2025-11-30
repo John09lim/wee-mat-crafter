@@ -2,34 +2,96 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, XCircle, School } from "lucide-react";
-import { format, startOfWeek, endOfWeek } from "date-fns";
+import { CheckCircle2, XCircle, School, User } from "lucide-react";
+import { format, addWeeks } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface TeacherStatus {
   teacher_name: string;
   submitted: boolean;
 }
 
+interface WeekOption {
+  weekStart: Date;
+  weekEnd: Date;
+  label: string;
+}
+
+interface SchoolInfo {
+  name: string;
+  district: string;
+  principal_name: string | null;
+}
+
 export default function PublicSchoolStatus() {
   const { schoolName } = useParams<{ schoolName: string }>();
   const [teachers, setTeachers] = useState<TeacherStatus[]>([]);
   const [loading, setLoading] = useState(true);
-  const [schoolInfo, setSchoolInfo] = useState<{ name: string; district: string } | null>(null);
+  const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);
+  const [weekOptions, setWeekOptions] = useState<WeekOption[]>([]);
+  const [selectedWeekIndex, setSelectedWeekIndex] = useState(0);
+  const [weeklyHistory, setWeeklyHistory] = useState<
+    Array<{ week: string; percentage: number }>
+  >([]);
 
-  const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 0 });
-  const currentWeekEnd = endOfWeek(new Date(), { weekStartsOn: 0 });
+  // Helper to get Monday of the week
+  const getMondayOfWeek = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  // Helper to get Friday of the week
+  const getFridayOfWeek = (monday: Date) => {
+    const friday = new Date(monday);
+    friday.setDate(monday.getDate() + 4);
+    friday.setHours(23, 59, 59, 999);
+    return friday;
+  };
+
+  // Generate week options (last 8 weeks)
+  useEffect(() => {
+    const options: WeekOption[] = [];
+    const today = new Date();
+    
+    for (let i = 0; i < 8; i++) {
+      const weekDate = addWeeks(today, -i);
+      const monday = getMondayOfWeek(weekDate);
+      const friday = getFridayOfWeek(monday);
+      
+      options.push({
+        weekStart: monday,
+        weekEnd: friday,
+        label: `${format(monday, "MMM dd")} - ${format(friday, "MMM dd, yyyy")}`,
+      });
+    }
+    
+    setWeekOptions(options);
+  }, []);
+
+  const currentWeekStart = weekOptions[selectedWeekIndex]?.weekStart;
+  const currentWeekEnd = weekOptions[selectedWeekIndex]?.weekEnd;
 
   useEffect(() => {
     const fetchSchoolStatus = async () => {
-      if (!schoolName) return;
+      if (!schoolName || !currentWeekStart || !currentWeekEnd) return;
 
       try {
         const decodedSchoolName = decodeURIComponent(schoolName);
 
-        // Fetch school info
+        // Fetch school info with principal name
         const { data: schoolData } = await supabase
           .from("schools")
-          .select("school_name, district_name")
+          .select("school_name, district_name, principal_name")
           .eq("school_name", decodedSchoolName)
           .single();
 
@@ -37,6 +99,7 @@ export default function PublicSchoolStatus() {
           setSchoolInfo({
             name: schoolData.school_name,
             district: schoolData.district_name,
+            principal_name: schoolData.principal_name,
           });
         }
 
@@ -69,6 +132,36 @@ export default function PublicSchoolStatus() {
         }));
 
         setTeachers(teacherStatuses);
+
+        // Fetch weekly history for past 4 weeks
+        const historyData: Array<{ week: string; percentage: number }> = [];
+        for (let i = 0; i < Math.min(4, weekOptions.length); i++) {
+          const week = weekOptions[i];
+          if (!week) continue;
+
+          const { data: weekSubmissions } = await supabase
+            .from("teacher_submissions")
+            .select("user_id")
+            .eq("school_name", decodedSchoolName)
+            .gte("week_start", format(week.weekStart, "yyyy-MM-dd"))
+            .lte("week_end", format(week.weekEnd, "yyyy-MM-dd"));
+
+          const weekSubmittedIds = new Set(weekSubmissions?.map((s) => s.user_id) || []);
+          const weekSubmittedCount = teachersData.filter((t) =>
+            t.user_id ? weekSubmittedIds.has(t.user_id) : false
+          ).length;
+
+          const percentage =
+            teachersData.length > 0
+              ? Math.round((weekSubmittedCount / teachersData.length) * 100)
+              : 0;
+
+          historyData.push({
+            week: `${format(week.weekStart, "MMM dd")}-${format(week.weekEnd, "dd")}`,
+            percentage,
+          });
+        }
+        setWeeklyHistory(historyData);
       } catch (error) {
         console.error("Error fetching school status:", error);
       } finally {
@@ -77,7 +170,7 @@ export default function PublicSchoolStatus() {
     };
 
     fetchSchoolStatus();
-  }, [schoolName, currentWeekStart, currentWeekEnd]);
+  }, [schoolName, currentWeekStart, currentWeekEnd, selectedWeekIndex, weekOptions]);
 
   const submittedTeachers = teachers.filter((t) => t.submitted);
   const notSubmittedTeachers = teachers.filter((t) => !t.submitted);
@@ -104,10 +197,38 @@ export default function PublicSchoolStatus() {
             {schoolInfo?.district && (
               <p className="text-sm text-muted-foreground">{schoolInfo.district}</p>
             )}
-            <p className="text-sm text-muted-foreground mt-2">
-              Week of {format(currentWeekStart, "MMM dd")} - {format(currentWeekEnd, "MMM dd, yyyy")}
-            </p>
+            {schoolInfo?.principal_name && (
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <User className="w-4 h-4 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  School Head: {schoolInfo.principal_name}
+                </p>
+              </div>
+            )}
           </CardHeader>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Select Week</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Select
+              value={selectedWeekIndex.toString()}
+              onValueChange={(value) => setSelectedWeekIndex(parseInt(value))}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {weekOptions.map((week, index) => (
+                  <SelectItem key={index} value={index.toString()}>
+                    {week.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
         </Card>
 
         <div className="grid md:grid-cols-2 gap-6">
@@ -172,6 +293,29 @@ export default function PublicSchoolStatus() {
             </div>
           </CardContent>
         </Card>
+
+        {weeklyHistory.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>📊 Past Weeks Completion Rate</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-4 justify-center">
+                {weeklyHistory.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className="text-center p-3 bg-muted rounded-lg min-w-[100px]"
+                  >
+                    <div className="text-xs text-muted-foreground mb-1">
+                      {item.week}
+                    </div>
+                    <div className="text-xl font-bold">{item.percentage}%</div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

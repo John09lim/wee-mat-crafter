@@ -13,6 +13,7 @@ import DocumentViewer from "@/components/DocumentViewer";
 import Footer from "@/components/layout/Footer";
 
 import { TeacherManagement } from "@/components/TeacherManagement";
+import WeeklySubmissionCalendar from "@/components/WeeklySubmissionCalendar";
 
 export default function PrincipalDashboard() {
   const [submissions, setSubmissions] = useState<any[]>([]);
@@ -199,10 +200,15 @@ export default function PrincipalDashboard() {
       }
 
       const today = new Date();
+      const dayOfWeek = today.getDay();
+      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
       const startOfWeek = new Date(today);
-      startOfWeek.setDate(today.getDate() - today.getDay());
+      startOfWeek.setDate(today.getDate() + mondayOffset);
+      startOfWeek.setHours(0, 0, 0, 0);
+      
       const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setDate(startOfWeek.getDate() + 4); // Friday
+      endOfWeek.setHours(23, 59, 59, 999);
 
       const { error } = await supabase
         .from("principal_weekly_reports")
@@ -308,14 +314,16 @@ export default function PrincipalDashboard() {
     returned: submissions.filter(s => s.status === 'returned').length,
   };
 
-  // Calculate current week's submissions and bounds
+  // Calculate current week's submissions and bounds (Monday-Friday)
   const today = new Date();
+  const dayOfWeek = today.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
   const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay());
+  startOfWeek.setDate(today.getDate() + mondayOffset);
   startOfWeek.setHours(0, 0, 0, 0);
 
   const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  endOfWeek.setDate(startOfWeek.getDate() + 4); // Friday
   endOfWeek.setHours(23, 59, 59, 999);
 
   const currentWeekSubmissions = submissions.filter(s => {
@@ -556,6 +564,16 @@ export default function PrincipalDashboard() {
             : 0}%
         </div>
       </Card>
+
+      {/* Weekly Submission Calendar */}
+      {profile && (
+        <div className="mb-6">
+          <WeeklySubmissionCalendar
+            schoolName={profile.school}
+            managedTeachers={managedTeachers}
+          />
+        </div>
+      )}
 
       {/* Charts Section */}
       <div className="grid md:grid-cols-2 gap-6 mb-6">
