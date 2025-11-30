@@ -24,6 +24,7 @@ export default function PrincipalDashboard() {
   const initialLoadComplete = useRef(false);
   const [managedTeachers, setManagedTeachers] = useState<any[]>([]);
   const [uploadingProfile, setUploadingProfile] = useState(false);
+  const [supervisorInfo, setSupervisorInfo] = useState<any>(null);
 
   useEffect(() => {
     fetchSubmissions();
@@ -87,6 +88,23 @@ export default function PrincipalDashboard() {
       }
 
       setProfile(profileData);
+
+      // Fetch supervisor information
+      const { data: schoolData } = await supabase
+        .from("schools")
+        .select("supervisor_id")
+        .eq("principal_id", user.id)
+        .maybeSingle();
+
+      if (schoolData?.supervisor_id) {
+        const { data: supervisorProfile } = await supabase
+          .from("profiles")
+          .select("teacher_name, email, profile_image_url")
+          .eq("user_id", schoolData.supervisor_id)
+          .maybeSingle();
+        
+        setSupervisorInfo(supervisorProfile);
+      }
 
       // Fetch managed teachers from school_assignments
       const { data: managedTeachersData } = await supabase
@@ -370,6 +388,33 @@ export default function PrincipalDashboard() {
                   <span className="font-semibold">District:</span> {profile.district_name || "N/A"}
                 </div>
               </div>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Supervisor Info Card */}
+      {supervisorInfo && (
+        <Card className="p-6 mb-6" style={{ borderColor: "#f5ca47" }}>
+          <h2 className="text-lg font-bold mb-3" style={{ color: "#236130" }}>
+            Your District Supervisor
+          </h2>
+          <div className="flex items-center gap-4">
+            <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
+              {supervisorInfo.profile_image_url ? (
+                <img 
+                  src={supervisorInfo.profile_image_url} 
+                  alt={supervisorInfo.teacher_name || "Supervisor"} 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <UserCircle className="h-12 w-12" style={{ color: "#236130" }} />
+              )}
+            </div>
+            <div>
+              <p className="font-semibold text-lg">{supervisorInfo.teacher_name}</p>
+              <p className="text-sm text-muted-foreground">{supervisorInfo.email}</p>
+              <p className="text-xs text-muted-foreground mt-1">District Supervisor</p>
             </div>
           </div>
         </Card>
