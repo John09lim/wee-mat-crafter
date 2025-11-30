@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Upload, User, Trash2, Pencil } from "lucide-react";
+import { Plus, Upload, User, Trash2, Pencil, X } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +25,7 @@ interface Teacher {
   grade_level: string | null;
   section: string | null;
   profile_image_url: string | null;
+  assignments?: Teacher[];
 }
 
 interface TeacherManagementProps {
@@ -78,22 +79,67 @@ export function TeacherManagement({
   const [uploading, setUploading] = useState(false);
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [gradeSubjectPairs, setGradeSubjectPairs] = useState<{ gradeLevel: string; subject: string }[]>([
+    { gradeLevel: "", subject: "" }
+  ]);
   
-  // Sort teachers by grade level hierarchy
-  const sortedTeachers = [...teachers].sort((a, b) => {
+  // Group teachers by email (for subject teachers with multiple assignments)
+  const teachersByEmail = teachers.reduce((acc, teacher) => {
+    const email = teacher.teacher_email || "";
+    if (!acc[email]) {
+      acc[email] = [];
+    }
+    acc[email].push(teacher);
+    return acc;
+  }, {} as Record<string, Teacher[]>);
+
+  // Create unique teacher entries (one per email, with grouped data)
+  const uniqueTeachers = Object.values(teachersByEmail).map(group => {
+    const primary = group[0];
+    return {
+      ...primary,
+      assignments: group
+    };
+  });
+
+  // Sort by grade level hierarchy
+  const sortedTeachers = uniqueTeachers.sort((a, b) => {
     const orderA = getGradeLevelSortOrder(a.grade_level);
     const orderB = getGradeLevelSortOrder(b.grade_level);
     return orderA - orderB;
   });
 
   const handleAddTeacher = async () => {
-    if (!teacherName || !teacherEmail || !gradeLevel || (teacherType === "regular" ? !section : !subject)) {
+    // Validation for regular teachers
+    if (teacherType === "regular" && (!teacherName || !teacherEmail || !gradeLevel || !section)) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
         variant: "destructive",
       });
       return;
+    }
+
+    // Validation for subject teachers
+    if (teacherType === "subject" && (!teacherName || !teacherEmail)) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in teacher name and email.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (teacherType === "subject") {
+      const hasEmptyPairs = gradeSubjectPairs.some(pair => !pair.gradeLevel || !pair.subject);
+      if (hasEmptyPairs) {
+        toast({
+          title: "Missing Information",
+          description: "Please fill in all Grade Level and Subject pairs.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     try {
@@ -154,10 +200,30 @@ export function TeacherManagement({
       }
 
       // Insert teacher into school_assignments
-      const { error } = await supabase
-        .from("school_assignments")
-        .insert({
-          user_id: null as any, // Will be linked when teacher signs up
+      if (teacherType === "regular") {
+        // Single insert for regular teachers
+        const { error } = await supabase
+          .from("school_assignments")
+          .insert({
+            user_id: null as any,
+            school_name: schoolName,
+            district_name: districtName,
+            principal_id: principalId,
+            principal_name: principalProfile?.teacher_name || null,
+            principal_profile_image_url: principalProfile?.profile_image_url || null,
+            supervisor_id: supervisorId,
+            teacher_name: teacherName,
+            teacher_email: teacherEmail.toLowerCase(),
+            grade_level: gradeLevel,
+            section: section,
+            profile_image_url: profileImageUrl,
+          });
+
+        if (error) throw error;
+      } else {
+        // Multiple inserts for subject teachers (one per grade/subject pair)
+        const inserts = gradeSubjectPairs.map(pair => ({
+          user_id: null as any,
           school_name: schoolName,
           district_name: districtName,
           principal_id: principalId,
@@ -166,12 +232,17 @@ export function TeacherManagement({
           supervisor_id: supervisorId,
           teacher_name: teacherName,
           teacher_email: teacherEmail.toLowerCase(),
-          grade_level: gradeLevel,
-          section: teacherType === "regular" ? section : subject,
+          grade_level: pair.gradeLevel,
+          section: pair.subject,
           profile_image_url: profileImageUrl,
-        });
+        }));
 
-      if (error) throw error;
+        const { error } = await supabase
+          .from("school_assignments")
+          .insert(inserts);
+
+        if (error) throw error;
+      }
 
       toast({
         title: "Teacher Added",
@@ -186,6 +257,7 @@ export function TeacherManagement({
       setSubject("");
       setTeacherType("regular");
       setProfileImage(null);
+      setGradeSubjectPairs([{ gradeLevel: "", subject: "" }]);
       setIsAdding(false);
       onRefresh();
     } catch (error: any) {
@@ -201,24 +273,62 @@ export function TeacherManagement({
 
   const handleEditTeacher = (teacher: Teacher) => {
     setEditingId(teacher.id);
-    const isSubject = teacher.section && !teacher.section.match(/^(Section |Grade )/i);
+    
+    // Check if this is a subject teacher with multiple assignments
+    const isSubject = teacher.assignments && teacher.assignments.length > 1;
     setTeacherType(isSubject ? "subject" : "regular");
     setTeacherName(teacher.teacher_name || "");
     setTeacherEmail(teacher.teacher_email || "");
-    setGradeLevel(teacher.grade_level || "");
-    setSection(isSubject ? "" : (teacher.section || ""));
-    setSubject(isSubject ? (teacher.section || "") : "");
+    
+    if (isSubject && teacher.assignments) {
+      // Load all grade/subject pairs
+      setGradeSubjectPairs(teacher.assignments.map(a => ({
+        gradeLevel: a.grade_level || "",
+        subject: a.section || ""
+      })));
+      setGradeLevel("");
+      setSection("");
+    } else {
+      // Regular teacher
+      setGradeLevel(teacher.grade_level || "");
+      setSection(teacher.section || "");
+      setGradeSubjectPairs([{ gradeLevel: "", subject: "" }]);
+    }
+    
     setIsAdding(false);
   };
 
   const handleUpdateTeacher = async () => {
-    if (!editingId || !teacherName || !teacherEmail || !gradeLevel || (teacherType === "regular" ? !section : !subject)) {
+    // Validation for regular teachers
+    if (teacherType === "regular" && (!teacherName || !teacherEmail || !gradeLevel || !section)) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields.",
         variant: "destructive",
       });
       return;
+    }
+
+    // Validation for subject teachers
+    if (teacherType === "subject" && (!teacherName || !teacherEmail)) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in teacher name and email.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (teacherType === "subject") {
+      const hasEmptyPairs = gradeSubjectPairs.some(pair => !pair.gradeLevel || !pair.subject);
+      if (hasEmptyPairs) {
+        toast({
+          title: "Missing Information",
+          description: "Please fill in all Grade Level and Subject pairs.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     try {
@@ -247,24 +357,95 @@ export function TeacherManagement({
         profileImageUrl = publicUrl;
       }
 
-      // Update teacher in school_assignments
-      const updateData: any = {
-        teacher_name: teacherName,
-        teacher_email: teacherEmail.toLowerCase(),
-        grade_level: gradeLevel,
-        section: teacherType === "regular" ? section : subject,
-      };
+      // Fetch principal's profile information for consistency
+      const { data: principalProfile } = await supabase
+        .from("profiles")
+        .select("teacher_name, profile_image_url")
+        .eq("user_id", principalId)
+        .single();
 
-      if (profileImageUrl) {
-        updateData.profile_image_url = profileImageUrl;
+      // Get supervisor for this district
+      const { data: supervisor } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .eq("district_name", districtName)
+        .not("district_name", "is", null)
+        .limit(1)
+        .maybeSingle();
+
+      let supervisorId = null;
+      if (supervisor) {
+        const { data: roleCheck } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .eq("user_id", supervisor.user_id)
+          .eq("role", "supervisor")
+          .maybeSingle();
+        
+        if (roleCheck) {
+          supervisorId = supervisor.user_id;
+        }
       }
 
-      const { error } = await supabase
-        .from("school_assignments")
-        .update(updateData)
-        .eq("id", editingId);
+      if (teacherType === "regular") {
+        // Single update for regular teacher
+        const updateData: any = {
+          teacher_name: teacherName,
+          teacher_email: teacherEmail.toLowerCase(),
+          grade_level: gradeLevel,
+          section: section,
+        };
 
-      if (error) throw error;
+        if (profileImageUrl) {
+          updateData.profile_image_url = profileImageUrl;
+        }
+
+        const { error } = await supabase
+          .from("school_assignments")
+          .update(updateData)
+          .eq("id", editingId);
+
+        if (error) throw error;
+      } else {
+        // For subject teachers: delete all old assignments and insert new ones
+        // First get all assignment IDs for this teacher email
+        const { data: oldAssignments } = await supabase
+          .from("school_assignments")
+          .select("id")
+          .eq("teacher_email", teacherEmail.toLowerCase())
+          .eq("school_name", schoolName);
+
+        if (oldAssignments && oldAssignments.length > 0) {
+          const { error: deleteError } = await supabase
+            .from("school_assignments")
+            .delete()
+            .in("id", oldAssignments.map(a => a.id));
+
+          if (deleteError) throw deleteError;
+        }
+
+        // Insert new assignments
+        const inserts = gradeSubjectPairs.map(pair => ({
+          user_id: null as any,
+          school_name: schoolName,
+          district_name: districtName,
+          principal_id: principalId,
+          principal_name: principalProfile?.teacher_name || null,
+          principal_profile_image_url: principalProfile?.profile_image_url || null,
+          supervisor_id: supervisorId,
+          teacher_name: teacherName,
+          teacher_email: teacherEmail.toLowerCase(),
+          grade_level: pair.gradeLevel,
+          section: pair.subject,
+          profile_image_url: profileImageUrl || null,
+        }));
+
+        const { error } = await supabase
+          .from("school_assignments")
+          .insert(inserts);
+
+        if (error) throw error;
+      }
 
       toast({
         title: "Teacher Updated",
@@ -279,6 +460,7 @@ export function TeacherManagement({
       setSubject("");
       setTeacherType("regular");
       setProfileImage(null);
+      setGradeSubjectPairs([{ gradeLevel: "", subject: "" }]);
       setEditingId(null);
       onRefresh();
     } catch (error: any) {
@@ -292,14 +474,16 @@ export function TeacherManagement({
     }
   };
 
-  const handleDeleteTeacher = async (teacherId: string, teacherName: string | null) => {
+  const handleDeleteTeacher = async (teacherId: string, teacherName: string | null, teacherEmail: string | null) => {
     try {
       setDeletingId(teacherId);
       
+      // Delete all assignments for this teacher email (handles subject teachers with multiple rows)
       const { error } = await supabase
         .from("school_assignments")
         .delete()
-        .eq("id", teacherId);
+        .eq("teacher_email", teacherEmail?.toLowerCase())
+        .eq("school_name", schoolName);
 
       if (error) throw error;
 
@@ -329,6 +513,7 @@ export function TeacherManagement({
     setSubject("");
     setTeacherType("regular");
     setProfileImage(null);
+    setGradeSubjectPairs([{ gradeLevel: "", subject: "" }]);
   };
 
   return (
@@ -411,14 +596,60 @@ export function TeacherManagement({
                   />
                 </div>
               ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="subject">Subject *</Label>
-                  <Input
-                    id="subject"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    placeholder="e.g., MAPEH"
-                  />
+                <div className="col-span-2 space-y-3">
+                  <Label>Grade Level & Subjects *</Label>
+                  <div className="space-y-2">
+                    {gradeSubjectPairs.map((pair, index) => (
+                      <div key={index} className="flex gap-2 items-end">
+                        <div className="flex-1">
+                          <Input
+                            value={pair.gradeLevel}
+                            onChange={(e) => {
+                              const newPairs = [...gradeSubjectPairs];
+                              newPairs[index].gradeLevel = e.target.value;
+                              setGradeSubjectPairs(newPairs);
+                            }}
+                            placeholder="Grade Level (e.g., Grade 1)"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <Input
+                            value={pair.subject}
+                            onChange={(e) => {
+                              const newPairs = [...gradeSubjectPairs];
+                              newPairs[index].subject = e.target.value;
+                              setGradeSubjectPairs(newPairs);
+                            }}
+                            placeholder="Subject (e.g., MAPEH)"
+                          />
+                        </div>
+                        {gradeSubjectPairs.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 border-red-300 hover:bg-red-50"
+                            onClick={() => {
+                              setGradeSubjectPairs(gradeSubjectPairs.filter((_, i) => i !== index));
+                            }}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      style={{ borderColor: "#236130", color: "#236130" }}
+                      className="hover:bg-[#236130]/10"
+                      onClick={() => setGradeSubjectPairs([...gradeSubjectPairs, { gradeLevel: "", subject: "" }])}
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Another Grade Level & Subject
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -529,14 +760,60 @@ export function TeacherManagement({
                         />
                       </div>
                     ) : (
-                      <div className="space-y-2">
-                        <Label htmlFor="editSubject">Subject *</Label>
-                        <Input
-                          id="editSubject"
-                          value={subject}
-                          onChange={(e) => setSubject(e.target.value)}
-                          placeholder="e.g., MAPEH"
-                        />
+                      <div className="col-span-2 space-y-3">
+                        <Label>Grade Level & Subjects *</Label>
+                        <div className="space-y-2">
+                          {gradeSubjectPairs.map((pair, index) => (
+                            <div key={index} className="flex gap-2 items-end">
+                              <div className="flex-1">
+                                <Input
+                                  value={pair.gradeLevel}
+                                  onChange={(e) => {
+                                    const newPairs = [...gradeSubjectPairs];
+                                    newPairs[index].gradeLevel = e.target.value;
+                                    setGradeSubjectPairs(newPairs);
+                                  }}
+                                  placeholder="Grade Level (e.g., Grade 1)"
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <Input
+                                  value={pair.subject}
+                                  onChange={(e) => {
+                                    const newPairs = [...gradeSubjectPairs];
+                                    newPairs[index].subject = e.target.value;
+                                    setGradeSubjectPairs(newPairs);
+                                  }}
+                                  placeholder="Subject (e.g., MAPEH)"
+                                />
+                              </div>
+                              {gradeSubjectPairs.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-red-600 border-red-300 hover:bg-red-50"
+                                  onClick={() => {
+                                    setGradeSubjectPairs(gradeSubjectPairs.filter((_, i) => i !== index));
+                                  }}
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            style={{ borderColor: "#236130", color: "#236130" }}
+                            className="hover:bg-[#236130]/10"
+                            onClick={() => setGradeSubjectPairs([...gradeSubjectPairs, { gradeLevel: "", subject: "" }])}
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Another Grade Level & Subject
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -590,13 +867,30 @@ export function TeacherManagement({
                   <div className="flex-1 space-y-1">
                     <p className="font-semibold text-lg">{teacher.teacher_name}</p>
                     <p className="text-sm text-muted-foreground">{teacher.teacher_email}</p>
-                    <div className="flex gap-2 mt-2">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#236130]/10 text-[#236130]">
-                        {teacher.grade_level}
-                      </span>
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#f5ca47]/20 text-[#236130]">
-                        {teacher.section || "Subject Teacher"}
-                      </span>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {teacher.assignments && teacher.assignments.length > 1 ? (
+                        // Subject teacher with multiple assignments
+                        teacher.assignments.map((assignment, idx) => (
+                          <div key={idx} className="flex gap-1">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#236130]/10 text-[#236130]">
+                              {assignment.grade_level}
+                            </span>
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#f5ca47]/20 text-[#236130]">
+                              {assignment.section}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        // Regular teacher with single assignment
+                        <>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#236130]/10 text-[#236130]">
+                            {teacher.grade_level}
+                          </span>
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-[#f5ca47]/20 text-[#236130]">
+                            {teacher.section || "Subject Teacher"}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
@@ -633,7 +927,7 @@ export function TeacherManagement({
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={() => handleDeleteTeacher(teacher.id, teacher.teacher_name)}
+                            onClick={() => handleDeleteTeacher(teacher.id, teacher.teacher_name, teacher.teacher_email)}
                             className="bg-red-600 hover:bg-red-700"
                           >
                             Remove
