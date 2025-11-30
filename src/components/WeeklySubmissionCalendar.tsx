@@ -75,11 +75,14 @@ export default function WeeklySubmissionCalendar({
 
   const fetchWeeklyData = async () => {
     const weeksData: WeekData[] = [];
-    const today = new Date();
-    const currentMonday = getMondayOfWeek(today);
+    
+    // Hardcoded current week: December 1-5, 2025
+    const currentMonday = new Date(2025, 11, 1); // December 1, 2025 (month is 0-indexed)
+    currentMonday.setHours(0, 0, 0, 0);
+    
     const startMonday = getMondayOfWeek(startDate);
 
-    // Calculate weeks from startDate to 4 weeks into the future
+    // Calculate weeks from startDate to 4 weeks into the future from current week
     let currentWeek = new Date(startMonday);
     const futureLimit = addWeeks(currentMonday, 4);
     let currentWeekIndex = -1;
@@ -89,7 +92,7 @@ export default function WeeklySubmissionCalendar({
       const monday = new Date(currentWeek);
       const friday = getFridayOfWeek(monday);
 
-      // Track the index of current week
+      // Track the index of current week (Dec 1-5, 2025)
       const isCurrent = monday.getTime() === currentMonday.getTime();
 
       // Query submissions for this week
