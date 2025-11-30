@@ -529,10 +529,31 @@ export default function PrincipalDashboard() {
               <Pie
                 data={statusChartData}
                 cx="50%"
-                cy="45%"
-                labelLine={true}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={70}
+                cy="40%"
+                labelLine={false}
+                label={({ name, percent, cx, cy, midAngle, outerRadius, index }) => {
+                  // Only show label if value > 0
+                  if (percent === 0) return null;
+                  
+                  const RADIAN = Math.PI / 180;
+                  const radius = outerRadius * 1.4;
+                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                  
+                  return (
+                    <text
+                      x={x}
+                      y={y}
+                      fill={statusChartData[index].color}
+                      textAnchor={x > cx ? 'start' : 'end'}
+                      dominantBaseline="central"
+                      fontSize={12}
+                    >
+                      {`${name}: ${(percent * 100).toFixed(0)}%`}
+                    </text>
+                  );
+                }}
+                outerRadius={60}
                 fill="#8884d8"
                 dataKey="value"
               >
