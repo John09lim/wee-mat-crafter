@@ -46,7 +46,15 @@ export function SchoolManagement({
     }
 
     try {
-      const { error } = await supabase
+      // Check if principal already exists in the system
+      const { data: existingPrincipal } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .eq("email", principalEmail.toLowerCase())
+        .maybeSingle();
+
+      // Insert school with principal_id if exists
+      const { error: insertError } = await supabase
         .from("schools")
         .insert({
           school_name: schoolName,
@@ -54,14 +62,17 @@ export function SchoolManagement({
           district_name: districtName,
           principal_name: principalName,
           principal_email: principalEmail.toLowerCase(),
+          principal_id: existingPrincipal?.user_id || null,
           supervisor_id: supervisorId,
         });
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
       toast({
         title: "School Added",
-        description: `${schoolName} has been added to the system.`,
+        description: existingPrincipal
+          ? `${schoolName} has been added and linked to existing principal ${principalName}.`
+          : `${schoolName} has been added. Principal will be linked when they sign up.`,
       });
 
       // Reset form

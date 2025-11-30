@@ -126,6 +126,30 @@ export function TeacherManagement({
         .eq("user_id", principalId)
         .single();
 
+      // Get supervisor for this district
+      const { data: supervisor } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .eq("district_name", districtName)
+        .not("district_name", "is", null)
+        .limit(1)
+        .maybeSingle();
+
+      // Query user_roles to verify it's actually a supervisor
+      let supervisorId = null;
+      if (supervisor) {
+        const { data: roleCheck } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .eq("user_id", supervisor.user_id)
+          .eq("role", "supervisor")
+          .maybeSingle();
+        
+        if (roleCheck) {
+          supervisorId = supervisor.user_id;
+        }
+      }
+
       // Insert teacher into school_assignments
       const { error } = await supabase
         .from("school_assignments")
@@ -136,6 +160,7 @@ export function TeacherManagement({
           principal_id: principalId,
           principal_name: principalProfile?.teacher_name || null,
           principal_profile_image_url: principalProfile?.profile_image_url || null,
+          supervisor_id: supervisorId,
           teacher_name: teacherName,
           teacher_email: teacherEmail.toLowerCase(),
           grade_level: gradeLevel,

@@ -12,6 +12,7 @@ import DocumentViewer from "@/components/DocumentViewer";
 import Footer from "@/components/layout/Footer";
 
 import { SchoolManagement } from "@/components/SchoolManagement";
+import { SchoolDetailView } from "@/components/SchoolDetailView";
 
 export default function SupervisorDashboard() {
   const [reports, setReports] = useState<any[]>([]);
@@ -21,6 +22,7 @@ export default function SupervisorDashboard() {
   const [teacherSubmissions, setTeacherSubmissions] = useState<any[]>([]);
   const [managedSchools, setManagedSchools] = useState<any[]>([]);
   const [uploadingProfile, setUploadingProfile] = useState(false);
+  const [selectedSchool, setSelectedSchool] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -408,51 +410,92 @@ export default function SupervisorDashboard() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Object.entries(schoolReports).map(([schoolName, schoolReports]) => {
-              const latestReport = schoolReports[0];
-              const completionRate = latestReport.total_teachers > 0
-                ? Math.round((latestReport.submitted_teachers / latestReport.total_teachers) * 100)
-                : 0;
+          {selectedSchool ? (
+            <SchoolDetailView
+              schoolName={selectedSchool}
+              districtName={profile?.district_name || ""}
+              onClose={() => setSelectedSchool(null)}
+            />
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {managedSchools.map((school) => {
+                const schoolReportsForSchool = reports.filter(r => r.school_name === school.school_name);
+                const latestReport = schoolReportsForSchool[0];
+                
+                // Get teacher count from school_assignments
+                const teachersInSchool = schools.filter(s => s.school_name === school.school_name);
+                const teacherCount = teachersInSchool.length;
+                
+                // Get submissions for this school this week
+                const today = new Date();
+                const startOfWeek = new Date(today);
+                startOfWeek.setDate(today.getDate() - today.getDay());
+                
+                const thisWeekSubmissions = teacherSubmissions.filter(sub => {
+                  const subDate = new Date(sub.created_at);
+                  return sub.school_name === school.school_name && subDate >= startOfWeek;
+                });
+                
+                const submittedCount = new Set(thisWeekSubmissions.map(s => s.user_id)).size;
+                const completionRate = teacherCount > 0
+                  ? Math.round((submittedCount / teacherCount) * 100)
+                  : 0;
 
-              return (
-                <Card key={schoolName} className="p-6 hover:shadow-lg transition-shadow">
-                  <div className="flex items-start justify-between mb-4">
-                    <h3 className="font-semibold text-lg">{schoolName}</h3>
-                    <Badge variant={latestReport.status === 'completed' ? 'default' : 'secondary'}>
-                      {latestReport.status}
-                    </Badge>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Teachers Submitted:</span>
-                      <span className="font-semibold">
-                        {latestReport.submitted_teachers} / {latestReport.total_teachers}
-                      </span>
+                return (
+                  <Card 
+                    key={school.id} 
+                    className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
+                    onClick={() => setSelectedSchool(school.school_name)}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <h3 className="font-semibold text-lg">{school.school_name}</h3>
+                      <Badge variant={latestReport?.status === 'completed' ? 'default' : 'secondary'}>
+                        {latestReport?.status || 'No Reports'}
+                      </Badge>
                     </div>
                     
-                    <Progress value={completionRate} className="h-2" />
-                    
-                    <div className="text-sm text-muted-foreground">
-                      Week: {new Date(latestReport.week_start).toLocaleDateString()} - {new Date(latestReport.week_end).toLocaleDateString()}
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {latestReport.status === 'completed' ? (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                      ) : (
-                        <div className="h-4 w-4 rounded-full bg-yellow-500" />
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Teachers Submitted:</span>
+                        <span className="font-semibold">
+                          {submittedCount} / {teacherCount}
+                        </span>
+                      </div>
+                      
+                      <Progress value={completionRate} className="h-2" />
+                      
+                      {latestReport && (
+                        <div className="text-sm text-muted-foreground">
+                          Last Report: {new Date(latestReport.week_start).toLocaleDateString()}
+                        </div>
                       )}
-                      <span className="text-sm font-medium">
-                        {latestReport.status === 'completed' ? 'Completed' : 'In Progress'}
-                      </span>
+                      
+                      <div className="text-xs text-muted-foreground">
+                        Principal: {school.principal_name || "Not assigned"}
+                      </div>
+                      
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full mt-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedSchool(school.school_name);
+                        }}
+                      >
+                        View Teachers
+                      </Button>
                     </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
+                  </Card>
+                );
+              })}
+              {managedSchools.length === 0 && (
+                <div className="col-span-3 text-center py-12 text-muted-foreground">
+                  No schools added yet. Use "Manage Schools" to add schools to your district.
+                </div>
+              )}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="by-school" className="space-y-6">
