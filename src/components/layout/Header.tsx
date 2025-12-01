@@ -87,7 +87,7 @@ const Header = () => {
             </>
           )}
           
-          {!loading && !userRole && location.pathname !== "/auth" && location.pathname !== "/principal-dashboard" && location.pathname !== "/supervisor-dashboard" && (
+          {!loading && !userRole && location.pathname !== "/auth" && location.pathname !== "/my-account" && location.pathname !== "/principal-dashboard" && location.pathname !== "/supervisor-dashboard" && (
             <Link to="/auth" className="hover:underline underline-offset-4">
               Login
             </Link>
@@ -96,9 +96,9 @@ const Header = () => {
           {!loading && userRole && (
             <Button 
               onClick={handleLogout} 
-              variant="outline"
               size="sm"
-              className="border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10"
+              className="font-semibold"
+              style={{ backgroundColor: "#f5ca47", color: "#236130" }}
             >
               <LogOut className="w-4 h-4 mr-2" />
               Logout
