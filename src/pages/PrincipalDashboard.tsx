@@ -304,6 +304,26 @@ export default function PrincipalDashboard() {
     }
   };
 
+  const handleShareFacebook = () => {
+    if (!profile?.school) {
+      toast.error("School information not available");
+      return;
+    }
+    const shareUrl = `${window.location.origin}/school-status/${encodeURIComponent(profile.school)}`;
+    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+    window.open(facebookUrl, '_blank', 'width=600,height=400');
+  };
+
+  const handleShareMessenger = () => {
+    if (!profile?.school) {
+      toast.error("School information not available");
+      return;
+    }
+    const shareUrl = `${window.location.origin}/school-status/${encodeURIComponent(profile.school)}`;
+    const messengerUrl = `fb-messenger://share?link=${encodeURIComponent(shareUrl)}`;
+    window.location.href = messengerUrl;
+  };
+
   const groupedByTeacher = submissions.reduce((acc, sub) => {
     if (!acc[sub.teacher_name]) acc[sub.teacher_name] = [];
     acc[sub.teacher_name].push(sub);
@@ -543,16 +563,38 @@ export default function PrincipalDashboard() {
                 Image
               </Button>
             </div>
-            <Button
-              onClick={handleShareStatus}
-              variant="outline"
-              size="sm"
-              className="gap-2 h-9"
-              style={{ borderColor: "#236130", color: "#236130" }}
-            >
-              <Share2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Share Status</span>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={handleShareStatus}
+                variant="outline"
+                size="sm"
+                className="gap-2 h-9"
+                style={{ borderColor: "#236130", color: "#236130" }}
+              >
+                <Share2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Share Status</span>
+              </Button>
+              <Button
+                onClick={handleShareFacebook}
+                variant="outline"
+                size="sm"
+                className="gap-2 h-9"
+                style={{ backgroundColor: "#1877F2", color: "white", borderColor: "#1877F2" }}
+              >
+                <span className="hidden sm:inline">Facebook</span>
+                <span className="sm:hidden">FB</span>
+              </Button>
+              <Button
+                onClick={handleShareMessenger}
+                variant="outline"
+                size="sm"
+                className="gap-2 h-9"
+                style={{ backgroundColor: "#0084FF", color: "white", borderColor: "#0084FF" }}
+              >
+                <span className="hidden sm:inline">Messenger</span>
+                <span className="sm:hidden">MSG</span>
+              </Button>
+            </div>
           </div>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
