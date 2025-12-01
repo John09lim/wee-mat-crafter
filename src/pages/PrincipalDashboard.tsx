@@ -26,6 +26,7 @@ export default function PrincipalDashboard() {
   const [managedTeachers, setManagedTeachers] = useState<any[]>([]);
   const [uploadingProfile, setUploadingProfile] = useState(false);
   const [supervisorInfo, setSupervisorInfo] = useState<any>(null);
+  const [displayMode, setDisplayMode] = useState<'text' | 'image'>('text');
 
   useEffect(() => {
     fetchSubmissions();
@@ -199,16 +200,13 @@ export default function PrincipalDashboard() {
         return;
       }
 
-      const today = new Date();
-      const dayOfWeek = today.getDay();
-      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      const startOfWeek = new Date(today);
-      startOfWeek.setDate(today.getDate() + mondayOffset);
-      startOfWeek.setHours(0, 0, 0, 0);
+      // Hardcoded to December 1-5, 2025 to match WeeklySubmissionCalendar
+      const currentMonday = new Date(2025, 11, 1); // December 1, 2025
+      currentMonday.setHours(0, 0, 0, 0);
       
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 4); // Friday
-      endOfWeek.setHours(23, 59, 59, 999);
+      const currentFriday = new Date(currentMonday);
+      currentFriday.setDate(currentMonday.getDate() + 4); // Friday, December 5
+      currentFriday.setHours(23, 59, 59, 999);
 
       const { error } = await supabase
         .from("principal_weekly_reports")
@@ -216,8 +214,8 @@ export default function PrincipalDashboard() {
           principal_id: user.id,
           school_name: profile.school,
           district_name: profile.district_name,
-          week_start: startOfWeek.toISOString().split('T')[0],
-          week_end: endOfWeek.toISOString().split('T')[0],
+          week_start: currentMonday.toISOString().split('T')[0],
+          week_end: currentFriday.toISOString().split('T')[0],
           status: "completed",
           total_teachers: submissions.length,
           submitted_teachers: submissions.filter(s => s.status === 'reviewed').length
@@ -269,7 +267,10 @@ export default function PrincipalDashboard() {
   };
 
   const handleShareStatus = async () => {
-    if (!profile?.school) return;
+    if (!profile?.school) {
+      toast.error("School information not available");
+      return;
+    }
 
     const shareUrl = `${window.location.origin}/school-status/${encodeURIComponent(profile.school)}`;
     
@@ -280,16 +281,24 @@ export default function PrincipalDashboard() {
           text: `Check the weekly submission status for ${profile.school}`,
           url: shareUrl,
         });
-      } catch (error) {
-        console.log("Share cancelled or failed:", error);
+        toast.success("Status shared successfully!");
+      } catch (error: any) {
+        if (error.name !== 'AbortError') {
+          // Fallback to clipboard if share was not cancelled
+          try {
+            await navigator.clipboard.writeText(shareUrl);
+            toast.success("Link copied to clipboard!");
+          } catch {
+            toast.error("Failed to copy link");
+          }
+        }
       }
     } else {
-      // Fallback: copy to clipboard
+      // Browser doesn't support Web Share API
       try {
         await navigator.clipboard.writeText(shareUrl);
-        toast.success("Link copied to clipboard");
-      } catch (error) {
-        console.error("Failed to copy:", error);
+        toast.success("Link copied to clipboard!");
+      } catch {
         toast.error("Failed to copy link");
       }
     }
@@ -315,25 +324,31 @@ export default function PrincipalDashboard() {
   };
 
   // Calculate current week's submissions and bounds (Monday-Friday)
-  const today = new Date();
-  const dayOfWeek = today.getDay();
-  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() + mondayOffset);
-  startOfWeek.setHours(0, 0, 0, 0);
-
-  const endOfWeek = new Date(startOfWeek);
-  endOfWeek.setDate(startOfWeek.getDate() + 4); // Friday
-  endOfWeek.setHours(23, 59, 59, 999);
+  // Hardcoded to December 1-5, 2025 to match WeeklySubmissionCalendar
+  const currentMonday = new Date(2025, 11, 1); // December 1, 2025
+  currentMonday.setHours(0, 0, 0, 0);
+  
+  const currentFriday = new Date(currentMonday);
+  currentFriday.setDate(currentMonday.getDate() + 4); // Friday, December 5
+  currentFriday.setHours(23, 59, 59, 999);
 
   const currentWeekSubmissions = submissions.filter(s => {
-    const createdAt = new Date(s.created_at);
-    return createdAt >= startOfWeek && createdAt <= endOfWeek;
+    const weekStart = new Date(s.week_start);
+    const weekEnd = new Date(s.week_end);
+    return weekStart >= currentMonday && weekEnd <= currentFriday;
   });
   
   const submittedTeacherIds = new Set(currentWeekSubmissions.map(s => s.user_id));
-  const submittedTeachers = allTeachers.filter(t => submittedTeacherIds.has(t.user_id));
-  const notSubmittedTeachers = allTeachers.filter(t => !submittedTeacherIds.has(t.user_id));
+  const submittedTeachers = managedTeachers.filter(t => submittedTeacherIds.has(t.user_id));
+  const notSubmittedTeachers = managedTeachers.filter(t => !submittedTeacherIds.has(t.user_id));
+
+  const getInitials = (name: string) => {
+    const parts = name.split(' ').filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
 
   // Weekly stats for charts (current week only)
   const weeklyStats = {
@@ -505,20 +520,40 @@ export default function PrincipalDashboard() {
 
       {/* Teacher Tracking for Current Week */}
       <Card className="p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <h3 className="text-lg font-semibold" style={{ color: "#236130" }}>
-            This Week's Teacher Submissions
+            This Week's Teacher Submissions (Dec 1-5, 2025)
           </h3>
-          <Button
-            onClick={handleShareStatus}
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            style={{ borderColor: "#236130", color: "#236130" }}
-          >
-            <Share2 className="w-4 h-4" />
-            Share Status
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1 border rounded-md p-1">
+              <Button
+                variant={displayMode === 'text' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setDisplayMode('text')}
+                className="h-8 px-3 text-xs"
+              >
+                Text
+              </Button>
+              <Button
+                variant={displayMode === 'image' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setDisplayMode('image')}
+                className="h-8 px-3 text-xs"
+              >
+                Image
+              </Button>
+            </div>
+            <Button
+              onClick={handleShareStatus}
+              variant="outline"
+              size="sm"
+              className="gap-2 h-9"
+              style={{ borderColor: "#236130", color: "#236130" }}
+            >
+              <Share2 className="w-4 h-4" />
+              <span className="hidden sm:inline">Share Status</span>
+            </Button>
+          </div>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           <div>
@@ -529,13 +564,37 @@ export default function PrincipalDashboard() {
             <div className="space-y-2">
               {submittedTeachers.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No submissions yet</p>
-              ) : (
+              ) : displayMode === 'text' ? (
                 submittedTeachers.map((teacher) => (
                   <div key={teacher.user_id} className="flex items-center gap-2 text-sm p-2 bg-green-50 rounded">
-                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                    <span>{teacher.teacher_name}</span>
+                    <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                    <span className="truncate">{teacher.teacher_name}</span>
                   </div>
                 ))
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {submittedTeachers.map((teacher) => (
+                    <div key={teacher.user_id} className="flex flex-col items-center gap-1" title={teacher.teacher_name}>
+                      {teacher.profile_image_url ? (
+                        <div className="w-12 h-14 rounded-lg overflow-hidden border-2 border-green-600">
+                          <img 
+                            src={teacher.profile_image_url} 
+                            alt={teacher.teacher_name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div 
+                          className="w-12 h-14 rounded-lg flex items-center justify-center text-white font-bold text-sm border-2 border-green-600"
+                          style={{ backgroundColor: "#1eba83" }}
+                        >
+                          {getInitials(teacher.teacher_name)}
+                        </div>
+                      )}
+                      <span className="text-xs truncate max-w-[48px]">{teacher.teacher_name?.split(' ')[0]}</span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -547,20 +606,44 @@ export default function PrincipalDashboard() {
             <div className="space-y-2">
               {notSubmittedTeachers.length === 0 ? (
                 <p className="text-sm text-muted-foreground">All teachers have submitted!</p>
-              ) : (
+              ) : displayMode === 'text' ? (
                 notSubmittedTeachers.map((teacher) => (
                   <div key={teacher.user_id} className="flex items-center gap-2 text-sm p-2 bg-red-50 rounded">
-                    <XCircle className="h-4 w-4 text-red-600" />
-                    <span>{teacher.teacher_name}</span>
+                    <XCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                    <span className="truncate">{teacher.teacher_name}</span>
                   </div>
                 ))
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {notSubmittedTeachers.map((teacher) => (
+                    <div key={teacher.user_id} className="flex flex-col items-center gap-1" title={teacher.teacher_name}>
+                      {teacher.profile_image_url ? (
+                        <div className="w-12 h-14 rounded-lg overflow-hidden border-2 border-red-600">
+                          <img 
+                            src={teacher.profile_image_url} 
+                            alt={teacher.teacher_name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div 
+                          className="w-12 h-14 rounded-lg flex items-center justify-center text-white font-bold text-sm border-2 border-red-600"
+                          style={{ backgroundColor: "#ef4444" }}
+                        >
+                          {getInitials(teacher.teacher_name)}
+                        </div>
+                      )}
+                      <span className="text-xs truncate max-w-[48px]">{teacher.teacher_name?.split(' ')[0]}</span>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
         </div>
         <div className="mt-4 text-sm text-muted-foreground">
-          <strong>Completion Rate:</strong> {allTeachers.length > 0 
-            ? Math.round((submittedTeachers.length / allTeachers.length) * 100) 
+          <strong>Completion Rate:</strong> {managedTeachers.length > 0 
+            ? Math.round((submittedTeachers.length / managedTeachers.length) * 100) 
             : 0}%
         </div>
       </Card>
