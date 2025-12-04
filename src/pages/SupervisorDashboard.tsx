@@ -12,7 +12,7 @@ import DocumentViewer from "@/components/DocumentViewer";
 import Footer from "@/components/layout/Footer";
 
 import { SchoolManagement } from "@/components/SchoolManagement";
-import { SchoolDetailView } from "@/components/SchoolDetailView";
+import { PrincipalDashboardView } from "@/components/PrincipalDashboardView";
 
 export default function SupervisorDashboard() {
   const [reports, setReports] = useState<any[]>([]);
@@ -474,7 +474,7 @@ export default function SupervisorDashboard() {
 
         <TabsContent value="overview" className="space-y-4">
           {selectedSchool ? (
-            <SchoolDetailView
+            <PrincipalDashboardView
               schoolName={selectedSchool}
               districtName={profile?.district_name || ""}
               onClose={() => setSelectedSchool(null)}

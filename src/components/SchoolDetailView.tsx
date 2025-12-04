@@ -31,23 +31,24 @@ export function SchoolDetailView({ schoolName, districtName, onClose }: SchoolDe
 
       if (teachersError) throw teachersError;
 
-      // Get current week bounds
-      const today = new Date();
-      const startOfWeek = new Date(today);
-      startOfWeek.setDate(today.getDate() - today.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
+      // Hardcoded to December 1-5, 2025 to match other components
+      const currentMonday = new Date(2025, 11, 1); // December 1, 2025
+      currentMonday.setHours(0, 0, 0, 0);
+      
+      const currentFriday = new Date(currentMonday);
+      currentFriday.setDate(currentMonday.getDate() + 4); // Friday, December 5
+      currentFriday.setHours(23, 59, 59, 999);
 
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
-      endOfWeek.setHours(23, 59, 59, 999);
+      const weekStartStr = currentMonday.toISOString().split('T')[0];
+      const weekEndStr = currentFriday.toISOString().split('T')[0];
 
-      // Fetch submissions for this week
+      // Fetch submissions for this week using week_start and week_end fields
       const { data: submissionsData, error: submissionsError } = await supabase
         .from("teacher_submissions")
         .select("*")
         .eq("school_name", schoolName)
-        .gte("created_at", startOfWeek.toISOString())
-        .lte("created_at", endOfWeek.toISOString());
+        .gte("week_start", weekStartStr)
+        .lte("week_end", weekEndStr);
 
       if (submissionsError) throw submissionsError;
 
