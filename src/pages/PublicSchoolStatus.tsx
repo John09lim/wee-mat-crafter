@@ -15,6 +15,9 @@ import {
 interface TeacherStatus {
   teacher_name: string;
   submitted: boolean;
+  grade_level?: string;
+  section?: string;
+  profile_image_url?: string;
 }
 
 interface WeekOption {
@@ -87,81 +90,72 @@ export default function PublicSchoolStatus() {
 
       try {
         const decodedSchoolName = decodeURIComponent(schoolName);
+        
+        // Call edge function to get school status data (bypasses RLS)
+        const { data, error } = await supabase.functions.invoke('get-school-status', {
+          body: null,
+          headers: {},
+        });
 
-        // Fetch school info with principal name
-        const { data: schoolData } = await supabase
-          .from("schools")
-          .select("school_name, district_name, principal_name")
-          .eq("school_name", decodedSchoolName)
-          .single();
+        // Use query parameters approach instead
+        const response = await fetch(
+          `https://velpueasbsrptocrjljg.supabase.co/functions/v1/get-school-status?school=${encodeURIComponent(decodedSchoolName)}&weekStart=${format(currentWeekStart, "yyyy-MM-dd")}&weekEnd=${format(currentWeekEnd, "yyyy-MM-dd")}`,
+          {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
 
-        if (schoolData) {
+        if (!response.ok) {
+          throw new Error('Failed to fetch school status');
+        }
+
+        const result = await response.json();
+
+        if (result.school) {
           setSchoolInfo({
-            name: schoolData.school_name,
-            district: schoolData.district_name,
-            principal_name: schoolData.principal_name,
+            name: result.school.school_name,
+            district: result.school.district_name || '',
+            principal_name: result.school.principal_name,
           });
         }
 
-        // Fetch all teachers in this school
-        const { data: teachersData } = await supabase
-          .from("school_assignments")
-          .select("teacher_name, user_id")
-          .eq("school_name", decodedSchoolName);
-
-        if (!teachersData) {
-          setLoading(false);
-          return;
+        if (result.teachers) {
+          setTeachers(result.teachers);
         }
 
-        // Fetch submissions for current week
-        const { data: submissionsData } = await supabase
-          .from("teacher_submissions")
-          .select("user_id")
-          .eq("school_name", decodedSchoolName)
-          .gte("week_start", format(currentWeekStart, "yyyy-MM-dd"))
-          .lte("week_end", format(currentWeekEnd, "yyyy-MM-dd"));
-
-        const submittedUserIds = new Set(
-          submissionsData?.map((s) => s.user_id) || []
-        );
-
-        const teacherStatuses: TeacherStatus[] = teachersData.map((teacher) => ({
-          teacher_name: teacher.teacher_name || "Unknown Teacher",
-          submitted: teacher.user_id ? submittedUserIds.has(teacher.user_id) : false,
-        }));
-
-        setTeachers(teacherStatuses);
-
-        // Fetch weekly history for past 4 weeks
+        // Calculate weekly history by making additional calls
         const historyData: Array<{ week: string; percentage: number }> = [];
         for (let i = 0; i < Math.min(4, weekOptions.length); i++) {
           const week = weekOptions[i];
           if (!week) continue;
 
-          const { data: weekSubmissions } = await supabase
-            .from("teacher_submissions")
-            .select("user_id")
-            .eq("school_name", decodedSchoolName)
-            .gte("week_start", format(week.weekStart, "yyyy-MM-dd"))
-            .lte("week_end", format(week.weekEnd, "yyyy-MM-dd"));
+          const historyResponse = await fetch(
+            `https://velpueasbsrptocrjljg.supabase.co/functions/v1/get-school-status?school=${encodeURIComponent(decodedSchoolName)}&weekStart=${format(week.weekStart, "yyyy-MM-dd")}&weekEnd=${format(week.weekEnd, "yyyy-MM-dd")}`,
+            {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            }
+          );
 
-          const weekSubmittedIds = new Set(weekSubmissions?.map((s) => s.user_id) || []);
-          const weekSubmittedCount = teachersData.filter((t) =>
-            t.user_id ? weekSubmittedIds.has(t.user_id) : false
-          ).length;
+          if (historyResponse.ok) {
+            const historyResult = await historyResponse.json();
+            const totalTeachers = historyResult.teachers?.length || 0;
+            const submittedCount = historyResult.teachers?.filter((t: TeacherStatus) => t.submitted).length || 0;
+            const percentage = totalTeachers > 0 ? Math.round((submittedCount / totalTeachers) * 100) : 0;
 
-          const percentage =
-            teachersData.length > 0
-              ? Math.round((weekSubmittedCount / teachersData.length) * 100)
-              : 0;
-
-          historyData.push({
-            week: `${format(week.weekStart, "MMM dd")}-${format(week.weekEnd, "dd")}`,
-            percentage,
-          });
+            historyData.push({
+              week: `${format(week.weekStart, "MMM dd")}-${format(week.weekEnd, "dd")}`,
+              percentage,
+            });
+          }
         }
         setWeeklyHistory(historyData);
+
       } catch (error) {
         console.error("Error fetching school status:", error);
       } finally {
@@ -316,6 +310,10 @@ export default function PublicSchoolStatus() {
             </CardContent>
           </Card>
         )}
+
+        <div className="text-center text-xs text-muted-foreground mt-8">
+          <p>This is a read-only view of the school's submission status.</p>
+        </div>
       </div>
     </div>
   );

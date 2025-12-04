@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Download, CheckCircle, Users, BookOpen, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload, Share2 } from "lucide-react";
+import { Download, CheckCircle, Users, BookOpen, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload, Share2, Copy, MessageCircle } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import DocumentViewer from "@/components/DocumentViewer";
 import Footer from "@/components/layout/Footer";
@@ -563,38 +564,54 @@ export default function PrincipalDashboard() {
                 Image
               </Button>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                onClick={handleShareStatus}
-                variant="outline"
-                size="sm"
-                className="gap-2 h-9"
-                style={{ borderColor: "#236130", color: "#236130" }}
-              >
-                <Share2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Share Status</span>
-              </Button>
-              <Button
-                onClick={handleShareFacebook}
-                variant="outline"
-                size="sm"
-                className="gap-2 h-9"
-                style={{ backgroundColor: "#1877F2", color: "white", borderColor: "#1877F2" }}
-              >
-                <span className="hidden sm:inline">Facebook</span>
-                <span className="sm:hidden">FB</span>
-              </Button>
-              <Button
-                onClick={handleShareMessenger}
-                variant="outline"
-                size="sm"
-                className="gap-2 h-9"
-                style={{ backgroundColor: "#0084FF", color: "white", borderColor: "#0084FF" }}
-              >
-                <span className="hidden sm:inline">Messenger</span>
-                <span className="sm:hidden">MSG</span>
-              </Button>
-            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 h-9"
+                  style={{ borderColor: "#236130", color: "#236130" }}
+                >
+                  <Share2 className="w-4 h-4" />
+                  Share Status
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 p-2" align="end">
+                <div className="flex flex-col gap-1">
+                  <Button
+                    onClick={handleShareStatus}
+                    variant="ghost"
+                    size="sm"
+                    className="justify-start gap-2 h-9"
+                  >
+                    <Copy className="w-4 h-4" />
+                    Copy Link
+                  </Button>
+                  <Button
+                    onClick={handleShareFacebook}
+                    variant="ghost"
+                    size="sm"
+                    className="justify-start gap-2 h-9"
+                    style={{ color: "#1877F2" }}
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                    </svg>
+                    Facebook
+                  </Button>
+                  <Button
+                    onClick={handleShareMessenger}
+                    variant="ghost"
+                    size="sm"
+                    className="justify-start gap-2 h-9"
+                    style={{ color: "#0084FF" }}
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Messenger
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
