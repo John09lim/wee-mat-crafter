@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { FileText, Send, Eye, Upload, Plus, User, School, Mail, Edit2, Save, X, CheckCircle, Clock, XCircle } from "lucide-react";
+import { FileText, Send, Eye, Upload, Plus, User, School, Mail, Edit2, Save, X, CheckCircle, Clock, XCircle, Lock, LogOut } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import PasswordResetDialog from "@/components/PasswordResetDialog";
 
 interface UserProfile {
   teacher_name: string;
@@ -59,6 +60,7 @@ const MyAccount = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState<UserProfile | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   
   // Submission form state
   const [submitting, setSubmitting] = useState(false);
@@ -74,6 +76,12 @@ const MyAccount = () => {
     weekStart: "",
     weekEnd: "",
   });
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/auth");
+    toast.success("Logged out successfully");
+  };
 
   useEffect(() => {
     checkAuthAndFetchData();
@@ -390,17 +398,43 @@ const MyAccount = () => {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: "#f9f0eb" }}>
-      <div className="container py-12 max-w-6xl mx-auto">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2" style={{ color: "#236130" }}>
-            My Account
-          </h1>
-          <p className="text-muted-foreground">
-            Manage your profile and view your activity
-          </p>
-        </div>
+    <>
+      <PasswordResetDialog 
+        open={showPasswordDialog} 
+        onClose={() => setShowPasswordDialog(false)} 
+      />
+      
+      <div className="min-h-screen" style={{ backgroundColor: "#f9f0eb" }}>
+        <div className="container py-12 max-w-6xl mx-auto">
+          {/* Welcome Section */}
+          <div className="mb-8 flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold mb-2" style={{ color: "#236130" }}>
+                My Account
+              </h1>
+              <p className="text-muted-foreground">
+                Manage your profile and view your activity
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setShowPasswordDialog(true)}
+                variant="outline"
+                style={{ borderColor: "#236130", color: "#236130" }}
+              >
+                <Lock className="mr-2 h-4 w-4" />
+                Change Password
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="border-red-500 text-red-500 hover:bg-red-50"
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </Button>
+            </div>
+          </div>
 
         {/* Profile Card */}
         <Card className="p-6 shadow-lg mb-8">
@@ -863,8 +897,9 @@ const MyAccount = () => {
             )}
           </Card>
         )}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
