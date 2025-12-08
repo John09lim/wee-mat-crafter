@@ -1432,7 +1432,7 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
     return new Response(
       JSON.stringify({
         success: true,
-        matrixId,
+        matrix_id: matrixId,
         ai_json: aiJson,
         docx_url: teacherDocxUrlData.publicUrl,
         student_docx_url: studentDocxUrlData.publicUrl,
