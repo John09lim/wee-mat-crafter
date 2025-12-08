@@ -38,7 +38,10 @@ const logoUrl = "/weelmat-logo.png";
 const WeeLMatGenerator = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const values = (location.state || null) as FormValues | null;
+  const initialValues = (location.state || null) as FormValues | null;
+
+  // Store form values in state to preserve them after location.state clears
+  const [formValues, setFormValues] = useState<FormValues | null>(initialValues);
 
   const steps = useMemo(
     () => [
@@ -57,6 +60,9 @@ const WeeLMatGenerator = () => {
   const [aiJson, setAiJson] = useState<any | null>(null);
   const [matrixId, setMatrixId] = useState<string | null>(null);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
+
+  // Use formValues throughout the component (preserved in state)
+  const values = formValues;
 
   useEffect(() => {
     document.title = "WeeLMat Generator | WeeLMat";
@@ -90,13 +96,13 @@ const WeeLMatGenerator = () => {
   }, []);
 
   useEffect(() => {
-    if (!values) {
+    if (!formValues) {
       console.error("WeeLMatGenerator: No form values provided, redirecting to dashboard");
       navigate("/dashboard");
       return;
     }
 
-    console.log("WeeLMatGenerator: Received form values:", values);
+    console.log("WeeLMatGenerator: Received form values:", formValues);
 
     let timers: number[] = [];
     // Minimum 15-second loading with staged progression
@@ -110,11 +116,11 @@ const WeeLMatGenerator = () => {
         const access_token = sessionData.session?.access_token;
         if (!access_token) throw new Error("Not authenticated");
 
-        console.log("WeeLMatGenerator: Calling edge function with:", values);
+        console.log("WeeLMatGenerator: Calling edge function with:", formValues);
 
         const { data, error } = await supabase.functions.invoke("generate-weelmat", {
           headers: { Authorization: `Bearer ${access_token}` },
-          body: values,
+          body: formValues,
         });
 
         console.log("WeeLMatGenerator: Edge function response:", { data, error });
@@ -148,7 +154,7 @@ const WeeLMatGenerator = () => {
     return () => {
       timers.forEach((t) => clearTimeout(t));
     };
-  }, [navigate, values]);
+  }, [navigate, formValues]);
 
   const downloadFile = async (url: string, filename: string) => {
     try {
