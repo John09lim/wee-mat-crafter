@@ -76,9 +76,8 @@ export default function WeeklySubmissionCalendar({
   const fetchWeeklyData = async () => {
     const weeksData: WeekData[] = [];
     
-    // Hardcoded current week: December 1-5, 2025
-    const currentMonday = new Date(2025, 11, 1); // December 1, 2025 (month is 0-indexed)
-    currentMonday.setHours(0, 0, 0, 0);
+    // Dynamically calculate current week based on today's date
+    const currentMonday = getMondayOfWeek(new Date());
     
     const startMonday = getMondayOfWeek(startDate);
 

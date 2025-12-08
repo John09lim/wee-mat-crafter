@@ -201,12 +201,19 @@ export default function PrincipalDashboard() {
         return;
       }
 
-      // Hardcoded to December 1-5, 2025 to match WeeklySubmissionCalendar
-      const currentMonday = new Date(2025, 11, 1); // December 1, 2025
-      currentMonday.setHours(0, 0, 0, 0);
+      // Dynamically calculate current week (Monday-Friday)
+      const getMondayOfWeek = (date: Date) => {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = day === 0 ? -6 : 1 - day;
+        d.setDate(d.getDate() + diff);
+        d.setHours(0, 0, 0, 0);
+        return d;
+      };
+      const currentMonday = getMondayOfWeek(new Date());
       
       const currentFriday = new Date(currentMonday);
-      currentFriday.setDate(currentMonday.getDate() + 4); // Friday, December 5
+      currentFriday.setDate(currentMonday.getDate() + 4);
       currentFriday.setHours(23, 59, 59, 999);
 
       const { error } = await supabase
@@ -303,12 +310,18 @@ export default function PrincipalDashboard() {
   };
 
   // Calculate current week's submissions and bounds (Monday-Friday)
-  // Hardcoded to December 1-5, 2025 to match WeeklySubmissionCalendar
-  const currentMonday = new Date(2025, 11, 1); // December 1, 2025
-  currentMonday.setHours(0, 0, 0, 0);
+  const getMondayOfWeekCalc = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+  const currentMonday = getMondayOfWeekCalc(new Date());
   
   const currentFriday = new Date(currentMonday);
-  currentFriday.setDate(currentMonday.getDate() + 4); // Friday, December 5
+  currentFriday.setDate(currentMonday.getDate() + 4);
   currentFriday.setHours(23, 59, 59, 999);
 
   const currentWeekSubmissions = submissions.filter(s => {
