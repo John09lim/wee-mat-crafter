@@ -116,7 +116,7 @@ serve(async (req) => {
 
     // Generate last 12 weeks of data
     const startDate = new Date(2025, 5, 16); // June 16, 2025
-    const currentDate = new Date(2025, 11, 5); // December 5, 2025
+    const currentDate = new Date(); // Dynamic current date
 
     // Helper to get Monday of week
     const getMondayOfWeek = (date: Date) => {

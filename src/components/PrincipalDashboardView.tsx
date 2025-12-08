@@ -20,9 +20,16 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
   const [schoolInfo, setSchoolInfo] = useState<any>(null);
   const [displayMode, setDisplayMode] = useState<'text' | 'image'>('text');
 
-  // Hardcoded to December 1-5, 2025 to match other components
-  const currentMonday = new Date(2025, 11, 1);
-  currentMonday.setHours(0, 0, 0, 0);
+  // Dynamically calculate current week (Monday-Friday)
+  const getMondayOfWeek = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+  const currentMonday = getMondayOfWeek(new Date());
   
   const currentFriday = new Date(currentMonday);
   currentFriday.setDate(currentMonday.getDate() + 4);
@@ -202,7 +209,7 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
       <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold" style={{ color: "#236130" }}>
-            This Week's Teacher Submissions (Dec 1-5, 2025)
+            This Week's Teacher Submissions
           </h3>
           <div className="flex gap-2">
             <Button
