@@ -1,16 +1,19 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Building2, Mail, Lock, User, School as SchoolIcon, MapPin } from "lucide-react";
+import PasswordResetDialog from "@/components/PasswordResetDialog";
 
 export default function AuthSchoolHead() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [loading, setLoading] = useState(false);
+  const [showPasswordResetDialog, setShowPasswordResetDialog] = useState(false);
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,21 +23,53 @@ export default function AuthSchoolHead() {
   const [district, setDistrict] = useState("");
 
   useEffect(() => {
-    checkAuth();
-  }, []);
+    // Check for password recovery event from Supabase email link
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setShowPasswordResetDialog(true);
+        return;
+      }
+      
+      if (session?.user && !showPasswordResetDialog) {
+        checkUserRole(session.user.id);
+      }
+    });
+    
+    // Check URL hash for recovery tokens
+    const hashParams = new URLSearchParams(location.hash.substring(1));
+    const accessToken = hashParams.get("access_token");
+    const type = hashParams.get("type");
+    
+    if (type === "recovery" && accessToken) {
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: hashParams.get("refresh_token") || "",
+      }).then(() => {
+        setShowPasswordResetDialog(true);
+      });
+    } else {
+      checkAuth();
+    }
+    
+    return () => subscription.unsubscribe();
+  }, [location.hash, showPasswordResetDialog]);
+
+  const checkUserRole = async (userId: string) => {
+    const { data: role } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .single();
+    
+    if (role?.role === "school_head") {
+      navigate("/principal-dashboard");
+    }
+  };
 
   const checkAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: role } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .single();
-      
-      if (role?.role === "school_head") {
-        navigate("/principal-dashboard");
-      }
+    if (user && !showPasswordResetDialog) {
+      checkUserRole(user.id);
     }
   };
 
@@ -211,6 +246,14 @@ export default function AuthSchoolHead() {
   };
 
   return (
+    <>
+      <PasswordResetDialog 
+        open={showPasswordResetDialog} 
+        onClose={() => {
+          setShowPasswordResetDialog(false);
+          navigate("/principal-dashboard");
+        }} 
+      />
     <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#f9f0eb" }}>
       <Card className="w-full max-w-md p-8 shadow-lg">
         <div className="flex flex-col items-center mb-6">
@@ -355,5 +398,6 @@ export default function AuthSchoolHead() {
 
       </Card>
     </div>
+    </>
   );
 }

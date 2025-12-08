@@ -1,14 +1,16 @@
 
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/components/ui/sonner";
+import PasswordResetDialog from "@/components/PasswordResetDialog";
 
 const Auth = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   
   const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [email, setEmail] = useState("");
@@ -17,19 +19,47 @@ const Auth = () => {
   const [teacherName, setTeacherName] = useState("");
   const [school, setSchool] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPasswordResetDialog, setShowPasswordResetDialog] = useState(false);
 
   useEffect(() => {
-    // Auth guard: if logged in, go to my account
+    // Check for password recovery event from Supabase email link
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) {
+      console.log("Auth event:", event);
+      
+      // When user clicks password reset link from email, Supabase triggers PASSWORD_RECOVERY event
+      if (event === "PASSWORD_RECOVERY") {
+        setShowPasswordResetDialog(true);
+        return; // Don't redirect, show the password reset dialog
+      }
+      
+      // Only redirect to my-account if logged in and not resetting password
+      if (session?.user && !showPasswordResetDialog) {
         navigate("/my-account");
       }
     });
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) navigate("/my-account");
-    });
+    
+    // Check URL hash for recovery tokens (fallback for some browsers)
+    const hashParams = new URLSearchParams(location.hash.substring(1));
+    const accessToken = hashParams.get("access_token");
+    const type = hashParams.get("type");
+    
+    if (type === "recovery" && accessToken) {
+      // Set the session from the recovery token
+      supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: hashParams.get("refresh_token") || "",
+      }).then(() => {
+        setShowPasswordResetDialog(true);
+      });
+    } else {
+      // Normal session check
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user && !showPasswordResetDialog) navigate("/my-account");
+      });
+    }
+    
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, location.hash, showPasswordResetDialog]);
 
   const insertOrUpdateProfile = async (uid: string) => {
     const { error } = await supabase.from("profiles").upsert({
@@ -231,87 +261,97 @@ const Auth = () => {
   };
 
   return (
-    <main className="min-h-[calc(100vh-160px)] flex items-center py-12">
-      <section className="container">
-        <div className="max-w-md mx-auto">
-          <div className="rounded-2xl border-2 bg-card p-8 shadow-lg">
-            <h1 className="text-2xl font-semibold mb-6">
-              {mode === "login" 
-                ? "Teacher Login" 
-                : mode === "signup"
-                  ? "Create Teacher Account"
-                  : "Reset your password"}
-            </h1>
-            
-            <div className="space-y-4">
-              {mode === "signup" && (
-                <>
-                  <div>
-                    <Label htmlFor="teacherName">Teacher Name</Label>
-                    <Input id="teacherName" value={teacherName} onChange={(e) => setTeacherName(e.target.value)} />
-                  </div>
-                  <div>
-                    <Label htmlFor="school">School Name</Label>
-                    <Input id="school" value={school} onChange={(e) => setSchool(e.target.value)} />
-                  </div>
-                </>
-              )}
+    <>
+      <PasswordResetDialog 
+        open={showPasswordResetDialog} 
+        onClose={() => {
+          setShowPasswordResetDialog(false);
+          navigate("/my-account");
+        }} 
+      />
+      
+      <main className="min-h-[calc(100vh-160px)] flex items-center py-12">
+        <section className="container">
+          <div className="max-w-md mx-auto">
+            <div className="rounded-2xl border-2 bg-card p-8 shadow-lg">
+              <h1 className="text-2xl font-semibold mb-6">
+                {mode === "login" 
+                  ? "Teacher Login" 
+                  : mode === "signup"
+                    ? "Create Teacher Account"
+                    : "Reset your password"}
+              </h1>
               
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-              </div>
-              
-              {mode === "reset" ? null : (
-              <>
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-              </div>
-              
-              {mode === "signup" && (
+              <div className="space-y-4">
+                {mode === "signup" && (
+                  <>
+                    <div>
+                      <Label htmlFor="teacherName">Teacher Name</Label>
+                      <Input id="teacherName" value={teacherName} onChange={(e) => setTeacherName(e.target.value)} />
+                    </div>
+                    <div>
+                      <Label htmlFor="school">School Name</Label>
+                      <Input id="school" value={school} onChange={(e) => setSchool(e.target.value)} />
+                    </div>
+                  </>
+                )}
+                
                 <div>
-                  <Label htmlFor="password2">Confirm Password</Label>
-                  <Input id="password2" type="password" value={password2} onChange={(e) => setPassword2(e.target.value)} />
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                 </div>
-              )}
-              </>
-              )}
-              
-              <Button className="w-full" onClick={mode === "reset" ? handlePasswordReset : handleAuth} disabled={loading}>
-                {loading ? "Please wait…" : mode === "login" ? "Login" : mode === "signup" ? "Sign up" : "Send Reset Email"}
-              </Button>
-              
-              <div className="space-y-2 text-center">
-                {mode === "login" && (
+                
+                {mode === "reset" ? null : (
+                <>
+                <div>
+                  <Label htmlFor="password">Password</Label>
+                  <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                </div>
+                
+                {mode === "signup" && (
+                  <div>
+                    <Label htmlFor="password2">Confirm Password</Label>
+                    <Input id="password2" type="password" value={password2} onChange={(e) => setPassword2(e.target.value)} />
+                  </div>
+                )}
+                </>
+                )}
+                
+                <Button className="w-full" onClick={mode === "reset" ? handlePasswordReset : handleAuth} disabled={loading}>
+                  {loading ? "Please wait…" : mode === "login" ? "Login" : mode === "signup" ? "Sign up" : "Send Reset Email"}
+                </Button>
+                
+                <div className="space-y-2 text-center">
+                  {mode === "login" && (
+                    <p className="text-sm text-muted-foreground">
+                      <button
+                        className="underline text-primary font-medium"
+                        onClick={() => setMode("reset")}
+                      >
+                        Forgot password?
+                      </button>
+                    </p>
+                  )}
                   <p className="text-sm text-muted-foreground">
+                    {mode === "login" 
+                      ? "No account?" 
+                      : mode === "signup"
+                        ? "Already have an account?"
+                        : "Remember your password?"}{" "}
                     <button
                       className="underline text-primary font-medium"
-                      onClick={() => setMode("reset")}
+                      onClick={() => setMode(mode === "login" ? "signup" : "login")}
                     >
-                      Forgot password?
+                      {mode === "login" ? "Sign up" : mode === "signup" ? "Login" : "Login"}
                     </button>
-                  </p>
-                )}
-                <p className="text-sm text-muted-foreground">
-                  {mode === "login" 
-                    ? "No account?" 
-                    : mode === "signup"
-                      ? "Already have an account?"
-                      : "Remember your password?"}{" "}
-                  <button
-                    className="underline text-primary font-medium"
-                    onClick={() => setMode(mode === "login" ? "signup" : "login")}
-                  >
-                    {mode === "login" ? "Sign up" : mode === "signup" ? "Login" : "Login"}
-                  </button>
-              </p>
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-        </div>
-      </section>
-    </main>
+          </div>
+        </section>
+      </main>
+    </>
   );
 };
 
