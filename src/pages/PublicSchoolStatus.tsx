@@ -23,6 +23,8 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
+  Mail,
+  MapPin,
 } from "lucide-react";
 import { format, addWeeks } from "date-fns";
 import {
@@ -79,6 +81,7 @@ interface SchoolInfo {
   school_name: string;
   district_name: string | null;
   principal_name: string | null;
+  principal_email?: string | null;
   principal_profile_image_url?: string | null;
 }
 
@@ -88,6 +91,32 @@ interface Stats {
   reviewed: number;
   returned: number;
 }
+
+// Helper function to get dynamic current week
+const getDynamicCurrentWeek = () => {
+  const today = new Date();
+  const day = today.getDay();
+  // If Saturday (6) or Sunday (0), advance to next week
+  const targetDate = day === 6 ? new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000) : 
+                     day === 0 ? new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000) : today;
+  const monday = new Date(targetDate);
+  const mondayDay = monday.getDay();
+  const diff = mondayDay === 0 ? -6 : 1 - mondayDay;
+  monday.setDate(monday.getDate() + diff);
+  monday.setHours(0, 0, 0, 0);
+  
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  friday.setHours(23, 59, 59, 999);
+  
+  return {
+    monday,
+    friday,
+    weekStart: format(monday, "yyyy-MM-dd"),
+    weekEnd: format(friday, "yyyy-MM-dd"),
+    displayText: `${format(monday, "MMM d")}-${format(friday, "d, yyyy")}`
+  };
+};
 
 export default function PublicSchoolStatus() {
   const { schoolName } = useParams<{ schoolName: string }>();
@@ -112,9 +141,8 @@ export default function PublicSchoolStatus() {
 
   const weeksPerPage = 4;
 
-  // Current week: December 1-5, 2025
-  const currentWeekStart = "2025-12-01";
-  const currentWeekEnd = "2025-12-05";
+  // Dynamic current week
+  const currentWeek = getDynamicCurrentWeek();
 
   useEffect(() => {
     const fetchSchoolStatus = async () => {
@@ -126,7 +154,7 @@ export default function PublicSchoolStatus() {
         const response = await fetch(
           `https://velpueasbsrptocrjljg.supabase.co/functions/v1/get-school-status?school=${encodeURIComponent(
             decodedSchoolName
-          )}&weekStart=${currentWeekStart}&weekEnd=${currentWeekEnd}`,
+          )}&weekStart=${currentWeek.weekStart}&weekEnd=${currentWeek.weekEnd}`,
           {
             method: "GET",
             headers: {
@@ -199,6 +227,25 @@ export default function PublicSchoolStatus() {
     return acc;
   }, {} as Record<string, Submission[]>);
 
+  // Group submissions by week
+  const groupedByWeek = filteredSubmissions.reduce((acc, sub) => {
+    const weekKey = `${sub.week_start}_${sub.week_end}`;
+    if (!acc[weekKey]) {
+      acc[weekKey] = {
+        weekStart: sub.week_start,
+        weekEnd: sub.week_end,
+        submissions: []
+      };
+    }
+    acc[weekKey].submissions.push(sub);
+    return acc;
+  }, {} as Record<string, { weekStart: string; weekEnd: string; submissions: Submission[] }>);
+
+  // Sort weeks descending (latest first) and filter from Aug 11, 2025
+  const sortedWeeks = Object.values(groupedByWeek)
+    .filter(week => new Date(week.weekStart) >= new Date(2025, 7, 11)) // August 11, 2025
+    .sort((a, b) => new Date(b.weekStart).getTime() - new Date(a.weekStart).getTime());
+
   // Chart data
   const statusChartData = [
     { name: "Reviewed", value: stats.reviewed, color: "#1eba83" },
@@ -211,12 +258,14 @@ export default function PublicSchoolStatus() {
     { name: "Not Submitted", value: notSubmittedTeachers.length, color: "#ef4444" },
   ];
 
-  // Weekly calendar helpers
-  const currentWeekData = pastWeeks.find(
-    (w) => w.weekStart === currentWeekStart
+  // Weekly calendar helpers - filter from August 11, 2025
+  const filteredPastWeeks = pastWeeks.filter(w => new Date(w.weekStart) >= new Date(2025, 7, 11));
+  
+  const currentWeekData = filteredPastWeeks.find(
+    (w) => w.weekStart === currentWeek.weekStart
   );
 
-  const otherWeeks = pastWeeks.filter((w) => w.weekStart !== currentWeekStart);
+  const otherWeeks = filteredPastWeeks.filter((w) => w.weekStart !== currentWeek.weekStart);
 
   const displayedWeeks = otherWeeks.slice(
     currentPage * weeksPerPage,
@@ -224,10 +273,8 @@ export default function PublicSchoolStatus() {
   );
 
   const getColorClass = (percentage: number) => {
-    if (percentage >= 80)
-      return "bg-green-500/20 border-green-500 text-green-700";
-    if (percentage >= 50)
-      return "bg-yellow-500/20 border-yellow-500 text-yellow-700";
+    if (percentage === 100) return "bg-green-500/20 border-green-500 text-green-700";
+    if (percentage >= 50) return "bg-yellow-500/20 border-yellow-500 text-yellow-700";
     return "bg-red-500/20 border-red-500 text-red-700";
   };
 
@@ -279,10 +326,13 @@ export default function PublicSchoolStatus() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <div className="flex-1 container py-8 max-w-7xl mx-auto px-4">
-        {/* School Info Card */}
+        {/* Account Information Card */}
         <Card className="p-6 mb-6" style={{ borderColor: "#236130" }}>
-          <div className="flex items-start gap-4">
-            <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
+          <h2 className="text-lg font-bold mb-4" style={{ color: "#236130" }}>
+            Account Information
+          </h2>
+          <div className="flex items-start gap-6">
+            <div className="w-24 h-28 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
               {schoolInfo?.principal_profile_image_url ? (
                 <img
                   src={schoolInfo.principal_profile_image_url}
@@ -290,31 +340,78 @@ export default function PublicSchoolStatus() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <School className="h-12 w-12" style={{ color: "#236130" }} />
+                <User className="h-12 w-12" style={{ color: "#236130" }} />
               )}
             </div>
             <div className="flex-1">
-              <h2 className="text-xl font-bold mb-2" style={{ color: "#236130" }}>
-                {schoolInfo?.school_name || decodeURIComponent(schoolName || "")}
-              </h2>
+              <h3 className="text-xl font-bold mb-3" style={{ color: "#236130" }}>
+                {schoolInfo?.principal_name || "School Head"}
+              </h3>
               <div className="grid md:grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="font-semibold">District:</span>{" "}
-                  {schoolInfo?.district_name || "N/A"}
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-muted-foreground" />
+                  <span>{schoolInfo?.principal_email || "N/A"}</span>
                 </div>
-                <div>
-                  <span className="font-semibold">School Head:</span>{" "}
-                  {schoolInfo?.principal_name || "N/A"}
+                <div className="flex items-center gap-2">
+                  <School className="h-4 w-4 text-muted-foreground" />
+                  <span>{schoolInfo?.school_name || decodeURIComponent(schoolName || "")}</span>
                 </div>
-                <div>
-                  <span className="font-semibold">Total Teachers:</span>{" "}
-                  {teachers.length}
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  <span>{schoolInfo?.district_name || "N/A"}</span>
                 </div>
-                <div>
-                  <span className="font-semibold">Current Week:</span> Dec 1-5, 2025
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <span>{teachers.length} Teachers</span>
                 </div>
               </div>
             </div>
+          </div>
+        </Card>
+
+        {/* Manage Teachers Section (Read-Only) */}
+        <Card className="p-6 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="h-5 w-5" style={{ color: "#236130" }} />
+            <h3 className="text-lg font-semibold" style={{ color: "#236130" }}>
+              Teachers ({teachers.length})
+            </h3>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            {teachers.map((teacher, idx) => (
+              <div
+                key={idx}
+                className="flex flex-col items-center gap-2 p-3 rounded-lg border bg-card"
+              >
+                {teacher.profile_image_url ? (
+                  <div className="w-16 h-20 rounded-lg overflow-hidden border-2 border-border">
+                    <img
+                      src={teacher.profile_image_url}
+                      alt={teacher.teacher_name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="w-16 h-20 rounded-lg flex items-center justify-center text-white font-bold text-lg border-2 border-border"
+                    style={{ backgroundColor: "#236130" }}
+                  >
+                    {getInitials(teacher.teacher_name)}
+                  </div>
+                )}
+                <div className="text-center">
+                  <p className="text-sm font-medium truncate max-w-[100px]" title={teacher.teacher_name}>
+                    {teacher.teacher_name}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {teacher.grade_level || "N/A"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {teacher.section || "N/A"}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
 
@@ -322,21 +419,7 @@ export default function PublicSchoolStatus() {
         <Card className="p-6 mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
             <h3 className="text-lg font-semibold" style={{ color: "#236130" }}>
-              This Week's Teacher Submissions ({(() => {
-                const today = new Date();
-                const day = today.getDay();
-                // If Saturday (6) or Sunday (0), advance to next week
-                const targetDate = day === 6 ? new Date(today.setDate(today.getDate() + 2)) : 
-                                   day === 0 ? new Date(today.setDate(today.getDate() + 1)) : today;
-                const monday = new Date(targetDate);
-                const mondayDay = monday.getDay();
-                const diff = mondayDay === 0 ? -6 : 1 - mondayDay;
-                monday.setDate(monday.getDate() + diff);
-                const friday = new Date(monday);
-                friday.setDate(monday.getDate() + 4);
-                const formatDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-                return `${formatDate(monday).replace(/, /g, ' ').replace(' 2025', '')}-${friday.getDate()}, ${friday.getFullYear()}`;
-              })()})
+              This Week's Teacher Submissions ({currentWeek.displayText})
             </h3>
             <div className="flex items-center gap-1 border rounded-md p-1">
               <Button
@@ -487,6 +570,22 @@ export default function PublicSchoolStatus() {
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Color Legend */}
+            <div className="flex items-center justify-center gap-6 mb-6 text-sm flex-wrap">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-red-500"></div>
+                <span>0-49% Submitted</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-yellow-500"></div>
+                <span>50-99% Submitted</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded bg-green-500"></div>
+                <span>100% Submitted</span>
+              </div>
+            </div>
+
             {/* This Week - Prominent Display */}
             {currentWeekData && (
               <div className="mb-6">
@@ -503,7 +602,7 @@ export default function PublicSchoolStatus() {
                       </span>
                     </div>
                     <div className="text-xl font-bold mb-3">
-                      December 1 - December 5, 2025
+                      {format(new Date(currentWeekData.weekStart), "MMMM d")} - {format(new Date(currentWeekData.weekEnd), "MMMM d, yyyy")}
                     </div>
                     <div className="text-4xl font-bold mb-2">
                       {currentWeekData.percentage}%
@@ -718,6 +817,7 @@ export default function PublicSchoolStatus() {
             <TabsTrigger value="all">All Submissions</TabsTrigger>
             <TabsTrigger value="by-teacher">By Teacher</TabsTrigger>
             <TabsTrigger value="by-subject">By Subject</TabsTrigger>
+            <TabsTrigger value="by-week">By Week</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
@@ -769,6 +869,30 @@ export default function PublicSchoolStatus() {
                   </div>
                 </div>
               )
+            )}
+          </TabsContent>
+
+          <TabsContent value="by-week" className="space-y-6">
+            {sortedWeeks.length === 0 ? (
+              <Card className="p-6 text-center text-muted-foreground">
+                No submissions found
+              </Card>
+            ) : (
+              sortedWeeks.map(({ weekStart, weekEnd, submissions: weekSubs }) => (
+                <div key={`${weekStart}_${weekEnd}`}>
+                  <h3
+                    className="text-xl font-semibold mb-3"
+                    style={{ color: "#236130" }}
+                  >
+                    Week of {format(new Date(weekStart), "MMM d")} - {format(new Date(weekEnd), "MMM d, yyyy")} ({weekSubs.length} submissions)
+                  </h3>
+                  <div className="space-y-4">
+                    {weekSubs.map((sub) => (
+                      <SubmissionCard key={sub.id} submission={sub} getStatusBadge={getStatusBadge} />
+                    ))}
+                  </div>
+                </div>
+              ))
             )}
           </TabsContent>
         </Tabs>

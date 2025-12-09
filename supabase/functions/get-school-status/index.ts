@@ -47,7 +47,7 @@ serve(async (req) => {
       console.error("Error fetching school:", schoolError);
     }
 
-    // Fetch principal profile for image
+    // Fetch principal profile for image and email
     let principalProfile = null;
     if (schoolData?.principal_id) {
       const { data: principalData } = await supabase
@@ -114,8 +114,8 @@ serve(async (req) => {
       percentage: number;
     }> = [];
 
-    // Generate last 12 weeks of data
-    const startDate = new Date(2025, 5, 16); // June 16, 2025
+    // Generate weeks from August 11, 2025 onwards
+    const startDate = new Date(2025, 7, 11); // August 11, 2025 (month is 0-indexed)
     const currentDate = new Date(); // Dynamic current date
 
     // Helper to get Monday of week
@@ -195,11 +195,13 @@ serve(async (req) => {
       JSON.stringify({
         school: {
           ...schoolData,
+          principal_email: principalProfile?.email || null,
           principal_profile_image_url: principalProfile?.profile_image_url || null
         } || {
           school_name: decodedSchoolName,
           district_name: null,
           principal_name: null,
+          principal_email: null,
           principal_profile_image_url: null
         },
         teachers: teacherStatuses,
