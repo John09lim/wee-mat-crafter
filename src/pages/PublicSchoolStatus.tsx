@@ -322,7 +322,21 @@ export default function PublicSchoolStatus() {
         <Card className="p-6 mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
             <h3 className="text-lg font-semibold" style={{ color: "#236130" }}>
-              This Week's Teacher Submissions (Dec 1-5, 2025)
+              This Week's Teacher Submissions ({(() => {
+                const today = new Date();
+                const day = today.getDay();
+                // If Saturday (6) or Sunday (0), advance to next week
+                const targetDate = day === 6 ? new Date(today.setDate(today.getDate() + 2)) : 
+                                   day === 0 ? new Date(today.setDate(today.getDate() + 1)) : today;
+                const monday = new Date(targetDate);
+                const mondayDay = monday.getDay();
+                const diff = mondayDay === 0 ? -6 : 1 - mondayDay;
+                monday.setDate(monday.getDate() + diff);
+                const friday = new Date(monday);
+                friday.setDate(monday.getDate() + 4);
+                const formatDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                return `${formatDate(monday).replace(/, /g, ' ').replace(' 2025', '')}-${friday.getDate()}, ${friday.getFullYear()}`;
+              })()})
             </h3>
             <div className="flex items-center gap-1 border rounded-md p-1">
               <Button
