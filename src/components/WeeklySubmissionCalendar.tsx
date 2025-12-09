@@ -42,7 +42,7 @@ export default function WeeklySubmissionCalendar({
   const [currentWeekData, setCurrentWeekData] = useState<WeekData | null>(null);
 
   const weeksPerPage = 4;
-  const startDate = new Date(2025, 5, 16); // June 16, 2025 (month is 0-indexed)
+  const startDate = new Date(2025, 7, 11); // August 11, 2025 (month is 0-indexed)
 
   // Helper to get Monday of the week
   const getMondayOfWeek = (date: Date) => {
@@ -77,7 +77,12 @@ export default function WeeklySubmissionCalendar({
     const weeksData: WeekData[] = [];
     
     // Dynamically calculate current week based on today's date
-    const currentMonday = getMondayOfWeek(new Date());
+    const today = new Date();
+    const day = today.getDay();
+    // If Saturday (6) or Sunday (0), advance to next week
+    const targetDate = day === 6 ? new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000) : 
+                       day === 0 ? new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000) : today;
+    const currentMonday = getMondayOfWeek(targetDate);
     
     const startMonday = getMondayOfWeek(startDate);
 
@@ -91,7 +96,7 @@ export default function WeeklySubmissionCalendar({
       const monday = new Date(currentWeek);
       const friday = getFridayOfWeek(monday);
 
-      // Track the index of current week (Dec 1-5, 2025)
+      // Track the index of current week
       const isCurrent = monday.getTime() === currentMonday.getTime();
 
       // Query submissions for this week
@@ -168,7 +173,7 @@ export default function WeeklySubmissionCalendar({
   };
 
   const getColorClass = (percentage: number) => {
-    if (percentage >= 80) return "bg-green-500/20 border-green-500 text-green-700";
+    if (percentage === 100) return "bg-green-500/20 border-green-500 text-green-700";
     if (percentage >= 50) return "bg-yellow-500/20 border-yellow-500 text-yellow-700";
     return "bg-red-500/20 border-red-500 text-red-700";
   };
@@ -188,6 +193,22 @@ export default function WeeklySubmissionCalendar({
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Color Legend */}
+          <div className="flex items-center justify-center gap-6 mb-6 text-sm flex-wrap">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-red-500"></div>
+              <span>0-49% Submitted</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-yellow-500"></div>
+              <span>50-99% Submitted</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-green-500"></div>
+              <span>100% Submitted</span>
+            </div>
+          </div>
+
           {/* This Week - Prominent Display */}
           {currentWeekData && (
             <div className="mb-6">
