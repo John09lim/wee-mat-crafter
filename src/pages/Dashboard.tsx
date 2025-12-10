@@ -317,7 +317,7 @@ const watchedValues = watch();
       });
 
       setExtractionSuccess(true);
-      toast.success("File content extracted successfully! Form auto-filled. You can now generate WeeLMat.");
+      toast.success("Competencies extracted! Please verify them in Manual Matrix Content section and fill in Subject, Grade, Section & Dates to generate.");
     }
     
     setShowPreviewDialog(false);
@@ -682,12 +682,22 @@ const watchedValues = watch();
                     ⚠ Upload and extract a file first to enable generation
                   </p>
                 )}
+                {matrixMode === "automatic" && extractionSuccess && !isFormComplete(watchedValues) && (
+                  <p className="text-sm text-amber-600">
+                    ✓ Competencies extracted! Please fill in: {[
+                      !watchedValues.subject && "Subject",
+                      !watchedValues.gradeLevel && "Grade Level", 
+                      !watchedValues.section && "Section",
+                      (!watchedValues.dateFrom || !watchedValues.dateTo) && "Dates"
+                    ].filter(Boolean).join(", ")}
+                  </p>
+                )}
                 {matrixMode === "manual" && !isFormComplete(watchedValues) && (
                   <p className="text-sm text-muted-foreground">
                     Complete all daily configurations to generate
                   </p>
                 )}
-                {matrixMode === "automatic" && extractionSuccess && isFormComplete(watchedValues) && (
+                {extractionSuccess && isFormComplete(watchedValues) && (
                   <p className="text-sm text-green-600 font-medium">
                     ✓ Ready to generate WeeLMat!
                   </p>
