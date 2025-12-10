@@ -389,19 +389,25 @@ const watchedValues = watch();
       )}
       
       {passcodeVerified && (
-        <main className="min-h-[calc(100vh-160px)] py-12 bg-background">
-          <div className="container mb-4">
-            <div className="flex justify-end">
+        <main className="min-h-[calc(100vh-160px)] py-12 bg-background overflow-x-hidden">
+          <div className="container px-4 mb-4">
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button 
+                onClick={() => navigate("/my-account")}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                Submit WeeLMat
+              </Button>
               <Button variant="outline" onClick={handleLogout}>
                 Logout
               </Button>
             </div>
           </div>
-          <section className="container grid lg:grid-cols-3 gap-8">
+          <section className="container px-4 grid lg:grid-cols-3 gap-8 overflow-hidden">
         <div className="lg:col-span-2">
-          <div className="rounded-2xl border bg-card p-6 shadow-sm">
+          <div className="rounded-2xl border bg-card p-6 shadow-sm overflow-hidden">
             <h1 className="text-2xl font-semibold mb-4">Create a Weekly Learning Matrix</h1>
-            <form className="grid gap-5" onSubmit={handleSubmit(onSubmit)}>
+            <form className="grid gap-5 overflow-hidden" onSubmit={handleSubmit(onSubmit)}>
               <div className="grid md:grid-cols-3 gap-4">
                 <div className="md:col-span-2">
                   <Label>Subject Area</Label>

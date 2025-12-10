@@ -516,7 +516,7 @@ const WeeLMatGenerator = () => {
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap">
               <Button 
                 onClick={() => setShowDownloadModal(true)}
               >
@@ -524,6 +524,12 @@ const WeeLMatGenerator = () => {
               </Button>
               <Button onClick={handleGenerateLogSheet}>
                 Generate Log Sheet
+              </Button>
+              <Button 
+                onClick={() => navigate("/my-account")}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                Submit WeeLMat
               </Button>
             </div>
           </div>
@@ -542,8 +548,8 @@ const WeeLMatGenerator = () => {
   };
 
   return (
-    <main className="min-h-[calc(100vh-160px)] bg-background">
-      <section className="container max-w-3xl py-16">
+    <main className="min-h-[calc(100vh-160px)] bg-background overflow-x-hidden">
+      <section className="container max-w-3xl py-16 px-4">
         {loading ? (
           <div className="rounded-3xl border bg-card text-card-foreground p-8 shadow-sm flex flex-col items-center gap-6 animate-fade-in">
             <img
