@@ -60,7 +60,7 @@ const Header = () => {
                 Create WeeLMat
               </Link>
               <Link to="/my-account" className="hover:underline underline-offset-4">
-                My Account
+                Submit WeeLMat
               </Link>
             </>
           )}
@@ -88,8 +88,8 @@ const Header = () => {
           )}
           
           {!loading && !userRole && location.pathname !== "/auth" && location.pathname !== "/my-account" && location.pathname !== "/principal-dashboard" && location.pathname !== "/supervisor-dashboard" && (
-            <Link to="/auth" className="hover:underline underline-offset-4">
-              Login
+            <Link to="/my-account" className="hover:underline underline-offset-4">
+              Submit WeeLMat
             </Link>
           )}
           
