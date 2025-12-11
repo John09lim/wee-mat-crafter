@@ -22,7 +22,14 @@ const Footer = () => {
         <div className="container py-4 text-xs text-muted-foreground">
           <span 
             onClick={() => navigate("/premium/weelmat")} 
-            className="cursor-default"
+            className="cursor-default select-none"
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                navigate("/premium/weelmat");
+              }
+            }}
           >
             © {new Date().getFullYear()} WeeLMat
           </span>
