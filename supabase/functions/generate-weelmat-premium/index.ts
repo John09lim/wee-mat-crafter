@@ -77,55 +77,47 @@ serve(async (req) => {
       { day: "Friday", key: "fri", competency: fridayCompetency, examType: fridayExamType, questionCount: fridayQuestionCount },
     ];
 
-    // ==================== STEP 1: Generate Content with OpenAI Latest ====================
-    console.log("Calling OpenAI API with latest model...");
+    // ==================== STEP 1: Generate References and Answer Keys with OpenAI ====================
+    console.log("Calling OpenAI API for references and answer keys...");
 
-    const systemPrompt = `You are an expert curriculum developer for the Philippine K-12 education system. 
-Create a Weekly Learning Matrix (WeeLMat) for ${gradeLevel} ${subject} students.
-Language: ${language}
+    const systemPrompt = `You are an expert curriculum developer for the Philippine K-12 education system.
+Generate ONLY the following for each day:
+1. Suggested Learning Materials/References (2-3 specific resources)
+2. The correct answer (A, B, C, or D) for the picture quiz question
 
-For each day, generate:
-1. Suggested Learning Materials/References (2-3 specific resources like textbooks, DepEd modules, online resources)
-2. Learning Activities/Tasks (practical, engaging activities with real-world examples appropriate for ${gradeLevel})
-3. Quiz questions matching the exam type with answer key
+The picture quiz will be an IMAGE with a visual question and 4 choices embedded in the image.
+You only need to provide the answer key letter.`;
 
-Make content age-appropriate, culturally relevant to Filipino students, and aligned with DepEd competencies.
-Activities should be hands-on and practical, not just reading/writing tasks.
-Include real examples and scenarios Filipino students can relate to.`;
-
-    const userPrompt = `Create content for a Weekly Learning Matrix with these specifications:
+    const userPrompt = `Create references and answer keys for a Weekly Learning Matrix:
 
 Subject: ${subject}
 Grade Level: ${gradeLevel}
-Date Range: ${dateFrom} to ${dateTo}
 Language: ${language}
 
 Daily Plans:
 ${dailyPlans.map(p => `${p.day}: 
   - Competency: ${p.competency || "HOLIDAY"}
-  - Exam Type: ${p.examType || "HOLIDAY"}
-  - Question Count: ${p.questionCount || 0}`).join("\n\n")}
+  - Exam Type: ${p.examType || "HOLIDAY"}`).join("\n\n")}
 
 Return a JSON object with this exact structure:
 {
   "references": {
-    "mon": "suggested materials for Monday",
+    "mon": "suggested materials for Monday (2-3 specific DepEd resources, textbooks, or modules)",
     "tue": "suggested materials for Tuesday",
     "wed": "suggested materials for Wednesday",
     "thu": "suggested materials for Thursday",
     "fri": "suggested materials for Friday"
   },
-  "activities": {
-    "mon": "learning activities and quiz for Monday with Answer Key",
-    "tue": "learning activities and quiz for Tuesday with Answer Key",
-    "wed": "learning activities and quiz for Wednesday with Answer Key",
-    "thu": "learning activities and quiz for Thursday with Answer Key",
-    "fri": "learning activities and quiz for Friday with Answer Key"
+  "answerKeys": {
+    "mon": "B",
+    "tue": "C",
+    "wed": "A",
+    "thu": "D",
+    "fri": "B"
   }
 }
 
-For HOLIDAY days, use "No classes - Holiday" for both references and activities.
-Include practical activities with examples, then quiz questions with choices (A, B, C, D) and Answer Key at the end.`;
+For HOLIDAY days, use "No classes - Holiday" for references and "-" for answer.`;
 
     const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -134,12 +126,12 @@ Include practical activities with examples, then quiz questions with choices (A,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4.1-2025-04-14", // Latest OpenAI model
+        model: "gpt-4.1-2025-04-14",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        max_tokens: 4000,
+        max_tokens: 2000,
         response_format: { type: "json_object" },
       }),
     });
@@ -153,40 +145,54 @@ Include practical activities with examples, then quiz questions with choices (A,
     const openaiData = await openaiResponse.json();
     console.log("OpenAI response received");
 
-    let aiJson;
+    let aiJson: { references: Record<string, string>; answerKeys: Record<string, string> };
     try {
       const content = openaiData.choices?.[0]?.message?.content || "{}";
       aiJson = JSON.parse(content);
     } catch (e) {
       console.error("Failed to parse OpenAI response:", e);
-      aiJson = { references: {}, activities: {} };
+      aiJson = { references: {}, answerKeys: {} };
     }
 
-    // ==================== STEP 2: Generate Picture Quiz Images with Nano Banana 2 ====================
-    console.log("Generating picture quiz images with Nano Banana 2...");
+    // ==================== STEP 2: Generate Image-Based Questions with Nano Banana 2 ====================
+    console.log("Generating IMAGE-BASED learning activities with Nano Banana 2...");
 
-    const pictureQuizImages: Record<string, string> = {};
+    const imageQuestions: Record<string, string> = {};
 
     for (const plan of dailyPlans) {
       if (plan.competency && plan.competency !== "HOLIDAY" && plan.examType !== "HOLIDAY") {
-        console.log(`Generating image for ${plan.day}...`);
+        console.log(`Generating image question for ${plan.day}...`);
 
-        const imagePrompt = `Create an educational picture quiz image for ${gradeLevel} Filipino students studying ${subject}.
+        // Get the answer key for this day to include in the image
+        const correctAnswer = aiJson?.answerKeys?.[plan.key] || "B";
 
-The image should be a visual question/puzzle related to: "${plan.competency}"
+        // Create a detailed prompt for an educational image WITH embedded question and choices
+        const imagePrompt = `Create an EDUCATIONAL PICTURE QUIZ IMAGE for ${gradeLevel} Filipino students studying ${subject}.
 
-Requirements:
-- Age-appropriate for ${gradeLevel} learners
-- Clear, colorful, and educational illustration
-- Should prompt students to identify, analyze, or answer a question about the visual
-- ${subject === "Filipino" ? "Include Filipino cultural elements or Tagalog text if appropriate" : ""}
-- ${subject === "Math" ? "Show objects to count, shapes to identify, or visual math problems" : ""}
-- ${subject === "Science" ? "Show scientific concepts, nature, experiments, or diagrams" : ""}
-- ${subject === "English" ? "Show vocabulary, reading comprehension scenes, or grammar concepts visually" : ""}
-- Style: Bright, engaging, cartoon/illustration style appropriate for elementary/junior high students
-- Include visual elements that can be used as multiple choice options
+REQUIREMENTS - THE IMAGE MUST CONTAIN ALL OF THIS:
+1. A colorful educational illustration/visual related to: "${plan.competency}"
+2. A QUESTION TEXT clearly displayed on the image (in ${language === "Filipino" ? "Tagalog" : "English"})
+3. FOUR MULTIPLE CHOICE OPTIONS (A, B, C, D) displayed clearly on the image
 
-Make it look like a professional educational worksheet picture quiz.`;
+LAYOUT:
+- Top: The illustration/visual (takes up ~60% of the image)
+- Middle: The question text in a clear box or banner
+- Bottom: Four answer choices labeled A, B, C, D in a row or 2x2 grid
+
+STYLE GUIDELINES:
+- ${gradeLevel.includes("1") || gradeLevel.includes("2") || gradeLevel.includes("3") ? "Use simple, large, cartoon-style graphics with big text for young learners" : ""}
+- ${gradeLevel.includes("4") || gradeLevel.includes("5") || gradeLevel.includes("6") ? "Use clear educational diagrams with medium-sized text" : ""}
+- ${gradeLevel.includes("7") || gradeLevel.includes("8") || gradeLevel.includes("9") || gradeLevel.includes("10") ? "Use detailed educational visuals with standard text" : ""}
+- Bright, engaging colors appropriate for Filipino classrooms
+- ${subject === "Filipino" ? "Include Filipino cultural elements, use Tagalog for all text" : ""}
+- ${subject === "Math" ? "Show numbers, shapes, counting objects, or visual math problems" : ""}
+- ${subject === "Science" ? "Show scientific diagrams, nature scenes, or experiment illustrations" : ""}
+- ${subject === "English" ? "Show vocabulary pictures, reading scenes, or grammar concepts" : ""}
+- ${subject === "Araling Panlipunan" || subject === "AP" ? "Show Philippine maps, historical scenes, or cultural elements" : ""}
+- ${subject === "MAPEH" ? "Show musical instruments, sports activities, health concepts, or art elements" : ""}
+
+Make it look like a professional educational worksheet picture quiz that students can answer by looking at it.
+The correct answer is ${correctAnswer}.`;
 
         try {
           const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -211,7 +217,7 @@ Make it look like a professional educational worksheet picture quiz.`;
               const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
               const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
               
-              const imagePath = `${user.id}/premium/${Date.now()}_${plan.key}_quiz.png`;
+              const imagePath = `${user.id}/premium/${Date.now()}_${plan.key}_question.png`;
               const { error: uploadError } = await supabase.storage
                 .from("weelmat")
                 .upload(imagePath, imageBuffer, { contentType: "image/png" });
@@ -221,8 +227,8 @@ Make it look like a professional educational worksheet picture quiz.`;
                   .from("weelmat")
                   .getPublicUrl(imagePath);
                 
-                pictureQuizImages[plan.key] = publicUrlData.publicUrl;
-                console.log(`Image uploaded for ${plan.day}: ${publicUrlData.publicUrl}`);
+                imageQuestions[plan.key] = publicUrlData.publicUrl;
+                console.log(`Image question uploaded for ${plan.day}: ${publicUrlData.publicUrl}`);
               } else {
                 console.error(`Failed to upload image for ${plan.day}:`, uploadError);
               }
@@ -236,10 +242,10 @@ Make it look like a professional educational worksheet picture quiz.`;
       }
     }
 
-    console.log("Picture quiz images generated:", Object.keys(pictureQuizImages));
+    console.log("Image-based questions generated:", Object.keys(imageQuestions));
 
-    // ==================== STEP 3: Build DOCX with Images ====================
-    console.log("Building DOCX document with images...");
+    // ==================== STEP 3: Build DOCX with Image-Based Learning Activities ====================
+    console.log("Building DOCX document with image-based activities...");
 
     // Helper to fetch image as buffer for DOCX
     const fetchImageBuffer = async (url: string): Promise<Uint8Array | null> => {
@@ -253,7 +259,7 @@ Make it look like a professional educational worksheet picture quiz.`;
       }
     };
 
-    // Build table rows for DOCX
+    // Build table cells
     const createTableCell = (text: string, bold = false, width = 2000) => {
       return new TableCell({
         children: [new Paragraph({
@@ -291,28 +297,22 @@ Make it look like a professional educational worksheet picture quiz.`;
       ],
     });
 
-    // Activities row
-    const activitiesRow = new TableRow({
-      children: [
-        createTableCell(language === "Filipino" ? "Mga Gawain" : "Learning Activities", true, 1500),
-        ...dayKeys.map(key => createTableCell(aiJson?.activities?.[key] || "", false, 2000)),
-      ],
-    });
-
-    // Picture Quiz row with images
-    const pictureQuizCells = [createTableCell(language === "Filipino" ? "Picture Quiz" : "Picture Quiz", true, 1500)];
+    // Learning Activities row with IMAGES (this is now the main activity - image-based questions)
+    const learningActivitiesCells = [
+      createTableCell(language === "Filipino" ? "Mga Gawain (Picture Quiz)" : "Learning Activities (Picture Quiz)", true, 1500)
+    ];
     
     for (const key of dayKeys) {
-      const imageUrl = pictureQuizImages[key];
+      const imageUrl = imageQuestions[key];
       if (imageUrl) {
         const imageBuffer = await fetchImageBuffer(imageUrl);
         if (imageBuffer) {
-          pictureQuizCells.push(new TableCell({
+          learningActivitiesCells.push(new TableCell({
             children: [new Paragraph({
               children: [
                 new ImageRun({
                   data: imageBuffer,
-                  transformation: { width: 150, height: 100 },
+                  transformation: { width: 200, height: 150 },
                   type: "png",
                 }),
               ],
@@ -321,16 +321,29 @@ Make it look like a professional educational worksheet picture quiz.`;
             width: { size: 2000, type: WidthType.DXA },
           }));
         } else {
-          pictureQuizCells.push(createTableCell("Image not available", false, 2000));
+          learningActivitiesCells.push(createTableCell("Image not available", false, 2000));
         }
       } else {
-        pictureQuizCells.push(createTableCell("No image", false, 2000));
+        const plan = dailyPlans.find(p => p.key === key);
+        if (plan?.competency === "HOLIDAY" || plan?.examType === "HOLIDAY") {
+          learningActivitiesCells.push(createTableCell("No classes - Holiday", false, 2000));
+        } else {
+          learningActivitiesCells.push(createTableCell("No image", false, 2000));
+        }
       }
     }
 
-    const pictureQuizRow = new TableRow({ children: pictureQuizCells });
+    const learningActivitiesRow = new TableRow({ children: learningActivitiesCells });
 
-    // Create teacher version document
+    // Answer Key row (TEACHER VERSION ONLY)
+    const answerKeyRow = new TableRow({
+      children: [
+        createTableCell(language === "Filipino" ? "Sagot" : "Answer Key", true, 1500),
+        ...dayKeys.map(key => createTableCell(aiJson?.answerKeys?.[key] || "-", true, 2000)),
+      ],
+    });
+
+    // Create teacher version document (includes answer key)
     const teacherDoc = new Document({
       sections: [{
         properties: {
@@ -345,6 +358,10 @@ Make it look like a professional educational worksheet picture quiz.`;
             alignment: AlignmentType.CENTER,
           }),
           new Paragraph({
+            children: [new TextRun({ text: "TEACHER VERSION WITH ANSWER KEY", bold: true, size: 20, color: "FF0000" })],
+            alignment: AlignmentType.CENTER,
+          }),
+          new Paragraph({
             children: [new TextRun({ text: `${subject} • ${gradeLevel} • Section ${section}`, size: 22 })],
             alignment: AlignmentType.CENTER,
           }),
@@ -354,26 +371,70 @@ Make it look like a professional educational worksheet picture quiz.`;
           }),
           new Paragraph({ children: [] }),
           new Table({
-            rows: [headerRow, competencyRow, referencesRow, activitiesRow, pictureQuizRow],
+            rows: [headerRow, competencyRow, referencesRow, learningActivitiesRow, answerKeyRow],
             width: { size: 100, type: WidthType.PERCENTAGE },
           }),
         ],
       }],
     });
 
-    // Create student version (without answer keys)
-    const studentActivitiesRow = new TableRow({
+    // Create student version document (NO answer key, NO references)
+    // Rebuild rows for student version since we can't reuse the same TableRow objects
+    const studentHeaderRow = new TableRow({
       children: [
-        createTableCell(language === "Filipino" ? "Mga Gawain" : "Learning Activities", true, 1500),
-        ...dayKeys.map(key => {
-          let activity = aiJson?.activities?.[key] || "";
-          // Remove answer key section from student version
-          activity = activity.replace(/Answer Key:[\s\S]*/gi, "").trim();
-          activity = activity.replace(/Sagot:[\s\S]*/gi, "").trim();
-          return createTableCell(activity, false, 2000);
-        }),
+        createTableCell("", true, 1500),
+        ...days.map(day => createTableCell(day, true, 2000)),
       ],
     });
+
+    const studentCompetencyRow = new TableRow({
+      children: [
+        createTableCell(language === "Filipino" ? "Kompetensya" : "Competency", true, 1500),
+        createTableCell(mondayCompetency || "", false, 2000),
+        createTableCell(tuesdayCompetency || "", false, 2000),
+        createTableCell(wednesdayCompetency || "", false, 2000),
+        createTableCell(thursdayCompetency || "", false, 2000),
+        createTableCell(fridayCompetency || "", false, 2000),
+      ],
+    });
+
+    // Student Learning Activities row with IMAGES
+    const studentLearningActivitiesCells = [
+      createTableCell(language === "Filipino" ? "Mga Gawain (Picture Quiz)" : "Learning Activities (Picture Quiz)", true, 1500)
+    ];
+    
+    for (const key of dayKeys) {
+      const imageUrl = imageQuestions[key];
+      if (imageUrl) {
+        const imageBuffer = await fetchImageBuffer(imageUrl);
+        if (imageBuffer) {
+          studentLearningActivitiesCells.push(new TableCell({
+            children: [new Paragraph({
+              children: [
+                new ImageRun({
+                  data: imageBuffer,
+                  transformation: { width: 200, height: 150 },
+                  type: "png",
+                }),
+              ],
+              alignment: AlignmentType.CENTER,
+            })],
+            width: { size: 2000, type: WidthType.DXA },
+          }));
+        } else {
+          studentLearningActivitiesCells.push(createTableCell("Image not available", false, 2000));
+        }
+      } else {
+        const plan = dailyPlans.find(p => p.key === key);
+        if (plan?.competency === "HOLIDAY" || plan?.examType === "HOLIDAY") {
+          studentLearningActivitiesCells.push(createTableCell("No classes - Holiday", false, 2000));
+        } else {
+          studentLearningActivitiesCells.push(createTableCell("No image", false, 2000));
+        }
+      }
+    }
+
+    const studentLearningActivitiesRow = new TableRow({ children: studentLearningActivitiesCells });
 
     const studentDoc = new Document({
       sections: [{
@@ -398,7 +459,7 @@ Make it look like a professional educational worksheet picture quiz.`;
           }),
           new Paragraph({ children: [] }),
           new Table({
-            rows: [headerRow, competencyRow, studentActivitiesRow, pictureQuizRow],
+            rows: [studentHeaderRow, studentCompetencyRow, studentLearningActivitiesRow],
             width: { size: 100, type: WidthType.PERCENTAGE },
           }),
         ],
@@ -447,10 +508,14 @@ Make it look like a professional educational worksheet picture quiz.`;
         section,
         date_from: dateFrom,
         date_to: dateTo,
-        competency: `${mondayCompetency}|${tuesdayCompetency}|${wednesdayCompetency}|${thursdayCompetency}|${fridayCompetency}`,
+        competency: `${mondayCompetency || ""} | ${tuesdayCompetency || ""} | ${wednesdayCompetency || ""} | ${thursdayCompetency || ""} | ${fridayCompetency || ""}`,
         docx_url: teacherUrlData.publicUrl,
         student_docx_url: studentUrlData.publicUrl,
-        ai_json: { ...aiJson, pictureQuizImages },
+        ai_json: {
+          references: aiJson?.references || {},
+          answerKeys: aiJson?.answerKeys || {},
+          imageQuestions,
+        },
       })
       .select()
       .single();
@@ -459,26 +524,27 @@ Make it look like a professional educational worksheet picture quiz.`;
       console.error("Database insert error:", insertError);
     }
 
-    console.log("Premium WeeLMat generation complete!");
+    console.log("Premium WeeLMat generation completed successfully!");
 
-    return new Response(JSON.stringify({
-      success: true,
-      matrix_id: matrixData?.id,
-      docx_url: teacherUrlData.publicUrl,
-      student_docx_url: studentUrlData.publicUrl,
-      ai_json: { ...aiJson, pictureQuizImages },
-      picture_quiz_images: pictureQuizImages,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-
+    return new Response(
+      JSON.stringify({
+        success: true,
+        matrix_id: matrixData?.id,
+        docx_url: teacherUrlData.publicUrl,
+        student_docx_url: studentUrlData.publicUrl,
+        ai_json: {
+          references: aiJson?.references || {},
+          answerKeys: aiJson?.answerKeys || {},
+        },
+        picture_quiz_images: imageQuestions,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (error) {
     console.error("Premium WeeLMat generation error:", error);
-    return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : "Generation failed" 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "Generation failed" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });

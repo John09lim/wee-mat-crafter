@@ -386,37 +386,44 @@ const WeeLMatGeneratorWeeLMat = () => {
                           <TableCell key={d} className="text-xs min-w-[120px] break-words">{aiJson?.references?.[d] || ""}</TableCell>
                         ))}
                       </TableRow>
+                      {/* Learning Activities - Image-Based Questions (Premium) or Text (Standard) */}
                       <TableRow>
                         <TableCell className="font-semibold text-xs min-w-[120px]">
-                          {values?.language === 'Filipino' ? 'Mga Gawain/Aktividad sa Pagkatuto' : 'Learning Activities/Tasks'}
+                          <div className="flex items-center gap-1">
+                            {Object.keys(pictureQuizImages).length > 0 && <ImageIcon className="h-3 w-3 text-primary" />}
+                            {values?.language === 'Filipino' ? 'Mga Gawain (Picture Quiz)' : 'Learning Activities (Picture Quiz)'}
+                          </div>
                         </TableCell>
                         {["mon","tue","wed","thu","fri"].map((d) => (
-                          <TableCell key={d} className="text-xs min-w-[120px] break-words whitespace-pre-wrap">
-                            {aiJson?.activities?.[d] || ""}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                      {/* Picture Quiz Images Row - Premium Only */}
-                      {Object.keys(pictureQuizImages).length > 0 && (
-                        <TableRow>
-                          <TableCell className="font-semibold text-xs min-w-[120px]">
-                            <div className="flex items-center gap-1">
-                              <ImageIcon className="h-3 w-3" />
-                              Picture Quiz
-                            </div>
-                          </TableCell>
-                          {["mon","tue","wed","thu","fri"].map((d) => (
-                            <TableCell key={d} className="text-xs min-w-[120px] p-2">
-                              {pictureQuizImages[d] ? (
+                          <TableCell key={d} className="text-xs min-w-[120px] p-2">
+                            {pictureQuizImages[d] ? (
+                              <div className="flex flex-col items-center gap-2">
                                 <img 
                                   src={pictureQuizImages[d]} 
                                   alt={`Picture quiz for ${d}`}
-                                  className="max-w-full h-auto rounded-md border shadow-sm"
-                                  style={{ maxHeight: '120px' }}
+                                  className="max-w-full h-auto rounded-lg border-2 border-primary/20 shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                                  style={{ maxHeight: '180px' }}
+                                  onClick={() => window.open(pictureQuizImages[d], '_blank')}
                                 />
-                              ) : (
-                                <span className="text-muted-foreground text-xs">No image</span>
-                              )}
+                                <span className="text-[10px] text-muted-foreground">Click to enlarge</span>
+                              </div>
+                            ) : aiJson?.activities?.[d] ? (
+                              <span className="break-words whitespace-pre-wrap">{aiJson?.activities?.[d]}</span>
+                            ) : (
+                              <span className="text-muted-foreground">No activity</span>
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                      {/* Answer Key Row - Teacher Preview Only (Premium) */}
+                      {aiJson?.answerKeys && Object.keys(aiJson.answerKeys).length > 0 && (
+                        <TableRow className="bg-primary/5">
+                          <TableCell className="font-semibold text-xs min-w-[120px] text-primary">
+                            {values?.language === 'Filipino' ? 'Sagot' : 'Answer Key'}
+                          </TableCell>
+                          {["mon","tue","wed","thu","fri"].map((d) => (
+                            <TableCell key={d} className="text-xs min-w-[120px] text-center font-bold text-primary">
+                              {aiJson?.answerKeys?.[d] || "-"}
                             </TableCell>
                           ))}
                         </TableRow>
