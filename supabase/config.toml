@@ -3,6 +3,9 @@ project_id = "velpueasbsrptocrjljg"
 [functions.generate-weelmat]
 verify_jwt = true
 
+[functions.generate-weelmat-premium]
+verify_jwt = true
+
 [functions.generate-lesson-plan]
 verify_jwt = true
 
