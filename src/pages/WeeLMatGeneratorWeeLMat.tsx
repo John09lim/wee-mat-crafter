@@ -4,8 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/sonner";
-import { Download, FileSpreadsheet } from "lucide-react";
+import { Download, FileSpreadsheet, Image as ImageIcon } from "lucide-react";
 import { WeeLMatDownloadModal } from "@/components/WeeLMatDownloadModal";
+
+// Check if current route is premium
+const isPremiumRoute = () => window.location.pathname.includes("/premium/weelmat");
 
 // Form values passed from Dashboard or Premium page
 type FormValues = {
@@ -42,7 +45,12 @@ const WeeLMatGeneratorWeeLMat = () => {
   const matrixId = searchParams.get('matrixId');
 
   const steps = useMemo(
-    () => [
+    () => isPremiumRoute() ? [
+      "🚀 Using OpenAI Latest Model…",
+      "📚 Generating premium content…", 
+      "🎨 Creating picture quiz images…",
+      "📄 Building enhanced DOCX…",
+    ] : [
       "Planning daily assessments…",
       "Selecting trusted references…", 
       "Drafting learning activities…",
@@ -58,6 +66,7 @@ const WeeLMatGeneratorWeeLMat = () => {
   const [aiJson, setAiJson] = useState<any | null>(null);
   const [savedMatrixId, setSavedMatrixId] = useState<string | null>(null);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [pictureQuizImages, setPictureQuizImages] = useState<Record<string, string>>({});
 
   useEffect(() => {
     document.title = "WeeLMat Generator | WeeLMat";
@@ -127,12 +136,13 @@ const WeeLMatGeneratorWeeLMat = () => {
   const generateWeeLMat = () => {
     if (!values) return;
 
-    console.log("WeeLMatGenerator: Received form values:", values);
+    const isPremium = isPremiumRoute();
+    console.log(`WeeLMatGenerator: ${isPremium ? 'PREMIUM' : 'Standard'} generation with:`, values);
 
     let timers: number[] = [];
     timers.push(window.setTimeout(() => setStepIndex(1), 3000));
-    timers.push(window.setTimeout(() => setStepIndex(2), 6000));
-    timers.push(window.setTimeout(() => setStepIndex(3), 9000));
+    timers.push(window.setTimeout(() => setStepIndex(2), isPremium ? 8000 : 6000));
+    timers.push(window.setTimeout(() => setStepIndex(3), isPremium ? 15000 : 9000));
 
     (async () => {
       try {
@@ -140,9 +150,11 @@ const WeeLMatGeneratorWeeLMat = () => {
         const access_token = sessionData.session?.access_token;
         if (!access_token) throw new Error("Not authenticated");
 
-        console.log("WeeLMatGenerator: Calling edge function with:", values);
+        // Use premium edge function for /premium/weelmat route
+        const functionName = isPremium ? "generate-weelmat-premium" : "generate-weelmat";
+        console.log(`WeeLMatGenerator: Calling ${functionName} edge function`);
 
-        const { data, error } = await supabase.functions.invoke("generate-weelmat", {
+        const { data, error } = await supabase.functions.invoke(functionName, {
           headers: { Authorization: `Bearer ${access_token}` },
           body: values,
         });
@@ -166,6 +178,17 @@ const WeeLMatGeneratorWeeLMat = () => {
         setPdfUrl(data?.pdf_url || null);
         setAiJson(data?.ai_json || null);
         setSavedMatrixId(data?.matrix_id || null);
+        
+        // Store picture quiz images if available (premium)
+        if (data?.picture_quiz_images) {
+          setPictureQuizImages(data.picture_quiz_images);
+        } else if (data?.ai_json?.pictureQuizImages) {
+          setPictureQuizImages(data.ai_json.pictureQuizImages);
+        }
+
+        if (isPremium) {
+          toast.success("Premium WeeLMat with picture quizzes generated!");
+        }
       } catch (err: any) {
         console.error("WeeLMatGenerator: Error details:", err);
         const errorMessage = err.message || "Generation failed";
@@ -373,6 +396,31 @@ const WeeLMatGeneratorWeeLMat = () => {
                           </TableCell>
                         ))}
                       </TableRow>
+                      {/* Picture Quiz Images Row - Premium Only */}
+                      {Object.keys(pictureQuizImages).length > 0 && (
+                        <TableRow>
+                          <TableCell className="font-semibold text-xs min-w-[120px]">
+                            <div className="flex items-center gap-1">
+                              <ImageIcon className="h-3 w-3" />
+                              Picture Quiz
+                            </div>
+                          </TableCell>
+                          {["mon","tue","wed","thu","fri"].map((d) => (
+                            <TableCell key={d} className="text-xs min-w-[120px] p-2">
+                              {pictureQuizImages[d] ? (
+                                <img 
+                                  src={pictureQuizImages[d]} 
+                                  alt={`Picture quiz for ${d}`}
+                                  className="max-w-full h-auto rounded-md border shadow-sm"
+                                  style={{ maxHeight: '120px' }}
+                                />
+                              ) : (
+                                <span className="text-muted-foreground text-xs">No image</span>
+                              )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      )}
                     </TableBody>
                   </Table>
                 </div>
