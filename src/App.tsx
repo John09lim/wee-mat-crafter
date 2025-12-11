@@ -50,7 +50,7 @@ const App = () => {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/weelmatgenerator" element={<WeeLMatGenerator />} />
           <Route path="/premium" element={<WeeLMatGeneratorPremium />} />
-          <Route path="/premium/weelmat" element={<WeeLMatGeneratorWeeLMat />} />
+          <Route path="/premium/weelmat" element={<Dashboard isPremium />} />
           <Route path="/premium/lesson-plan" element={<LessonPlanGenerator />} />
           <Route path="/premium/periodical-test" element={<PeriodicalTestGenerator />} />
           <Route path="/my-account" element={<MyAccount />} />

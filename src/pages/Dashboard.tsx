@@ -60,7 +60,11 @@ const Step = ({active, text}:{active:boolean;text:string}) => (
   </div>
 )
 
-const Dashboard = () => {
+interface DashboardProps {
+  isPremium?: boolean;
+}
+
+const Dashboard = ({ isPremium = false }: DashboardProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
@@ -406,7 +410,7 @@ const watchedValues = watch();
           <section className="container px-4 grid lg:grid-cols-3 gap-8 overflow-hidden">
         <div className="lg:col-span-2">
           <div className="rounded-2xl border bg-card p-6 shadow-sm overflow-hidden">
-            <h1 className="text-2xl font-semibold mb-4">Create a Weekly Learning Matrix</h1>
+            <h1 className="text-2xl font-semibold mb-4">{isPremium ? "Create Premium Weekly Learning Matrix" : "Create a Weekly Learning Matrix"}</h1>
             <form className="grid gap-5 overflow-hidden" onSubmit={handleSubmit(onSubmit)}>
               <div className="grid md:grid-cols-3 gap-4">
                 <div className="md:col-span-2">
