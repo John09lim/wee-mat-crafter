@@ -303,6 +303,9 @@ const WeeLMatGeneratorWeeLMat = () => {
         <div className="rounded-2xl border bg-card text-card-foreground shadow-sm overflow-hidden">
           <div className="px-6 pt-6 pb-4 border-b flex items-center justify-between">
             <div>
+              {isPremiumRoute() && (
+                <p className="text-sm font-medium text-primary mb-1">Welcome to Premium WeeLMat</p>
+              )}
               <h1 className="text-xl font-semibold">WeeLMat is ready</h1>
               <p className="text-sm text-muted-foreground mt-1">
                 Download your document or return to dashboard
