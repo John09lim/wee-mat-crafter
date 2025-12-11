@@ -1,4 +1,8 @@
+import { useNavigate } from "react-router-dom";
+
 const Footer = () => {
+  const navigate = useNavigate();
+
   return (
     <footer className="border-t bg-secondary text-secondary-foreground">
       <div className="container py-8 grid md:grid-cols-3 gap-6 text-sm">
@@ -15,7 +19,14 @@ const Footer = () => {
         </div>
       </div>
       <div className="border-t">
-        <div className="container py-4 text-xs text-muted-foreground">© {new Date().getFullYear()} WeeLMat</div>
+        <div className="container py-4 text-xs text-muted-foreground">
+          <span 
+            onClick={() => navigate("/premium/weelmat")} 
+            className="cursor-default"
+          >
+            © {new Date().getFullYear()} WeeLMat
+          </span>
+        </div>
       </div>
     </footer>
   );
