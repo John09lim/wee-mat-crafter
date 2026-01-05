@@ -39,7 +39,7 @@ serve(async (req) => {
     // Fetch school info
     const { data: schoolData, error: schoolError } = await supabase
       .from("schools")
-      .select("school_name, district_name, principal_name, principal_id")
+      .select("school_name, district_name, principal_name, principal_id, principal_email")
       .eq("school_name", decodedSchoolName)
       .maybeSingle();
 
@@ -47,15 +47,47 @@ serve(async (req) => {
       console.error("Error fetching school:", schoolError);
     }
 
-    // Fetch principal profile for image and email
+    // Fetch principal profile for image and email from multiple sources
     let principalProfile = null;
+    
+    // First try: profiles table using principal_id
     if (schoolData?.principal_id) {
       const { data: principalData } = await supabase
         .from("profiles")
         .select("teacher_name, email, profile_image_url")
         .eq("user_id", schoolData.principal_id)
         .maybeSingle();
-      principalProfile = principalData;
+      if (principalData) {
+        principalProfile = principalData;
+      }
+    }
+
+    // Second try: school_assignments table for principal profile image
+    if (!principalProfile || !principalProfile.profile_image_url) {
+      const { data: assignmentData } = await supabase
+        .from("school_assignments")
+        .select("principal_name, principal_profile_image_url")
+        .eq("school_name", decodedSchoolName)
+        .not("principal_name", "is", null)
+        .limit(1)
+        .maybeSingle();
+      
+      if (assignmentData) {
+        principalProfile = {
+          teacher_name: principalProfile?.teacher_name || assignmentData.principal_name || schoolData?.principal_name,
+          email: principalProfile?.email || schoolData?.principal_email,
+          profile_image_url: principalProfile?.profile_image_url || assignmentData.principal_profile_image_url
+        };
+      }
+    }
+
+    // Fallback: use data from schools table if still no profile
+    if (!principalProfile) {
+      principalProfile = {
+        teacher_name: schoolData?.principal_name,
+        email: schoolData?.principal_email,
+        profile_image_url: null
+      };
     }
 
     // Fetch all teachers assigned to this school
@@ -194,15 +226,11 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         school: {
-          ...schoolData,
-          principal_email: principalProfile?.email || null,
+          school_name: schoolData?.school_name || decodedSchoolName,
+          district_name: schoolData?.district_name || null,
+          principal_name: principalProfile?.teacher_name || schoolData?.principal_name || null,
+          principal_email: principalProfile?.email || schoolData?.principal_email || null,
           principal_profile_image_url: principalProfile?.profile_image_url || null
-        } || {
-          school_name: decodedSchoolName,
-          district_name: null,
-          principal_name: null,
-          principal_email: null,
-          principal_profile_image_url: null
         },
         teachers: teacherStatuses,
         submissions: filteredSubmissions,
