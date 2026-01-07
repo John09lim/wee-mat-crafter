@@ -339,45 +339,78 @@ async function extractDocxText(base64Data: string): Promise<string> {
   }
 }
 
-// Extract text from PDF files using pdf-parse library (Deno-compatible)
+// Extract text from PDF files using OpenAI Vision API (handles both text and image-based PDFs)
 async function extractPdfText(base64Data: string): Promise<string> {
-  console.log("Extracting text from PDF using pdf-parse...");
+  console.log("Extracting text from PDF using OpenAI Vision API...");
   
   try {
-    // Import pdf-parse using npm import (Deno-compatible)
-    const pdfParse = (await import("npm:pdf-parse/lib/pdf-parse.js")).default;
-    
-    // Convert base64 to ArrayBuffer
-    const base64Clean = base64Data.replace(/^data:.*?;base64,/, "");
-    const binaryString = atob(base64Clean);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+    // Ensure proper data URL format for PDF
+    let pdfUrl = base64Data;
+    if (!base64Data.startsWith('data:')) {
+      pdfUrl = `data:application/pdf;base64,${base64Data}`;
+      console.log("Added data URL prefix to PDF");
     }
     
-    console.log(`PDF file size: ${bytes.length} bytes`);
+    // Use OpenAI Vision API which can read PDF content
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: `Extract ALL text from this PDF document. This is a teacher's learning material document. 
+                
+Focus on finding and extracting:
+- Lesson plans and competencies
+- Learning objectives for each day (Monday through Friday)
+- Daily activities and tasks
+- Assessment questions and exam items
+- Educational content and instructions
+- Weekly themes or topics
+
+Preserve the structure and formatting as much as possible. Include day labels (Monday, Tuesday, etc.) or day numbers (Day 1, Day 2, etc.) if present.
+
+Return ONLY the extracted text content, no explanations or summaries.`
+              },
+              {
+                type: "file",
+                file: {
+                  url: pdfUrl
+                }
+              }
+            ]
+          }
+        ],
+        max_tokens: 16000
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("OpenAI API error for PDF:", errorText);
+      throw new Error("PDF extraction via OpenAI failed");
+    }
+
+    const data = await response.json();
+    const extractedText = data.choices?.[0]?.message?.content || "";
     
-    // Parse PDF using pdf-parse
-    const pdfData = await pdfParse(bytes.buffer);
+    console.log(`Extracted ${extractedText.length} characters from PDF via OpenAI Vision`);
     
-    console.log(`Extracted ${pdfData.text.length} characters from PDF`);
-    console.log(`PDF has ${pdfData.numpages} pages`);
-    
-    if (!pdfData.text || pdfData.text.length < 10) {
+    if (!extractedText || extractedText.length < 10) {
       throw new Error("No text could be extracted from the PDF");
     }
     
-    // Clean up the text
-    const cleanedText = pdfData.text
-      .replace(/\r\n/g, '\n')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-    
-    console.log("PDF text extraction successful");
-    
-    return cleanedText;
+    return extractedText;
   } catch (error) {
     console.error("PDF extraction failed:", error);
-    throw new Error("PDF text extraction failed. The file may be image-based or corrupted.");
+    throw new Error("PDF text extraction failed. Please try converting to DOCX or uploading page images.");
   }
 }
