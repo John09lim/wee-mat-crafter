@@ -222,16 +222,17 @@ const watchedValues = watch();
       return;
     }
 
-    // Validate file type - DOCX and Images only
+    // Validate file type - DOCX, PDF, and Images
     const validTypes = [
       'image/jpeg', 
       'image/png', 
       'image/jpg',
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // DOCX
-      'application/msword' // DOC
+      'application/msword', // DOC
+      'application/pdf' // PDF
     ];
     if (!validTypes.includes(file.type)) {
-      toast.error("PDF files are not supported. Please convert your PDF to DOCX format first, then upload.");
+      toast.error("Unsupported file type. Please upload DOCX, PDF, or image files only.");
       return;
     }
 
@@ -502,7 +503,7 @@ const watchedValues = watch();
                   
                   <Input
                     type="file"
-                    accept=".doc,.docx,image/*"
+                    accept=".doc,.docx,.pdf,image/*"
                     onChange={handleFileUpload}
                     disabled={uploading || extractionSuccess}
                   />
