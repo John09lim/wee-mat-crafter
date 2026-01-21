@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Download, CheckCircle, Users, BookOpen, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload, Share2, Copy } from "lucide-react";
+import { Download, CheckCircle, Users, BookOpen, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload, Share2, Copy, Printer } from "lucide-react";
+import { SubmissionsReportModal } from "@/components/SubmissionsReportModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import DocumentViewer from "@/components/DocumentViewer";
@@ -28,6 +29,7 @@ export default function PrincipalDashboard() {
   const [uploadingProfile, setUploadingProfile] = useState(false);
   const [supervisorInfo, setSupervisorInfo] = useState<any>(null);
   const [displayMode, setDisplayMode] = useState<'text' | 'image'>('text');
+  const [showReportModal, setShowReportModal] = useState(false);
 
   useEffect(() => {
     fetchSubmissions();
@@ -795,11 +797,23 @@ export default function PrincipalDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-        <TabsList>
-          <TabsTrigger value="all">All Submissions</TabsTrigger>
-          <TabsTrigger value="by-teacher">By Teacher</TabsTrigger>
-          <TabsTrigger value="by-subject">By Subject</TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between mb-2">
+          <TabsList>
+            <TabsTrigger value="all">All Submissions</TabsTrigger>
+            <TabsTrigger value="by-teacher">By Teacher</TabsTrigger>
+            <TabsTrigger value="by-subject">By Subject</TabsTrigger>
+          </TabsList>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowReportModal(true)}
+            className="gap-2"
+            style={{ borderColor: "#236130", color: "#236130" }}
+          >
+            <Printer className="h-4 w-4" />
+            Print Report
+          </Button>
+        </div>
 
         <TabsContent value="all" className="space-y-4">
           {submissions.map((sub) => (
@@ -850,6 +864,15 @@ export default function PrincipalDashboard() {
         </TabsContent>
       </Tabs>
       </div>
+
+      <SubmissionsReportModal
+        open={showReportModal}
+        onOpenChange={setShowReportModal}
+        submissions={submissions}
+        schoolName={profile?.school || ""}
+        principalName={profile?.full_name || ""}
+      />
+      
       <Footer />
     </div>
   );
