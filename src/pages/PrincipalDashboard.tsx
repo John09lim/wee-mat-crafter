@@ -16,6 +16,7 @@ import Footer from "@/components/layout/Footer";
 
 import { TeacherManagement } from "@/components/TeacherManagement";
 import WeeklySubmissionCalendar from "@/components/WeeklySubmissionCalendar";
+import { WeeklySubmissionSummary } from "@/components/WeeklySubmissionSummary";
 
 export default function PrincipalDashboard() {
   const [submissions, setSubmissions] = useState<any[]>([]);
@@ -678,6 +679,14 @@ export default function PrincipalDashboard() {
             managedTeachers={managedTeachers}
           />
         </div>
+      )}
+
+      {/* Weekly Submission Summary Grid */}
+      {managedTeachers.length > 0 && (
+        <WeeklySubmissionSummary
+          managedTeachers={managedTeachers}
+          submissions={submissions}
+        />
       )}
 
       {/* Charts Section */}
