@@ -15,6 +15,9 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions }: Weekly
     const startDate = new Date(2025, 7, 11); // Aug 11, 2025
     const today = new Date();
     
+    const padZero = (n: number) => n.toString().padStart(2, '0');
+    const toLocalDateStr = (d: Date) => `${d.getFullYear()}-${padZero(d.getMonth() + 1)}-${padZero(d.getDate())}`;
+    
     // Calculate current Monday (advance to next week if Sat/Sun)
     const getMondayOfWeek = (date: Date) => {
       const d = new Date(date);
@@ -44,8 +47,8 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions }: Weekly
         monday: new Date(weekMonday),
         friday: new Date(friday),
         label,
-        weekStart: weekMonday.toISOString().split('T')[0],
-        weekEnd: friday.toISOString().split('T')[0],
+        weekStart: toLocalDateStr(weekMonday),
+        weekEnd: toLocalDateStr(friday),
       });
       
       weekMonday.setDate(weekMonday.getDate() + 7);
@@ -60,7 +63,9 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions }: Weekly
     for (const sub of submissions) {
       const key = sub.user_id || sub.teacher_name;
       if (!lookup.has(key)) lookup.set(key, new Set());
-      lookup.get(key)!.add(sub.week_start);
+      // Normalize week_start: take only the YYYY-MM-DD part
+      const weekStart = typeof sub.week_start === 'string' ? sub.week_start.substring(0, 10) : sub.week_start;
+      lookup.get(key)!.add(weekStart);
     }
     return lookup;
   }, [submissions]);
