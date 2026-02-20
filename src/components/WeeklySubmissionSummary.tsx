@@ -138,87 +138,114 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
     const selectedWeeks = weeks.filter((_, i) => selectedWeekIndices.has(i));
     const selectedTotals = weekTotals.filter((_, i) => selectedWeekIndices.has(i));
 
-    // Create PDF in landscape
-    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-
-    // Title
-    doc.setFontSize(14);
-    doc.setTextColor(35, 97, 48); // #236130
-    doc.text("Weekly Submission Summary", 14, 15);
-
-    if (schoolName) {
-      doc.setFontSize(11);
-      doc.setTextColor(80, 80, 80);
-      doc.text(`School: ${schoolName}`, 14, 22);
+    // Split weeks into chunks that fit on a page (max ~8 week columns per page for readability)
+    const MAX_WEEKS_PER_PAGE = 8;
+    const weekChunks: typeof selectedWeeks[] = [];
+    const totalChunks: number[][] = [];
+    for (let i = 0; i < selectedWeeks.length; i += MAX_WEEKS_PER_PAGE) {
+      weekChunks.push(selectedWeeks.slice(i, i + MAX_WEEKS_PER_PAGE));
+      totalChunks.push(selectedTotals.slice(i, i + MAX_WEEKS_PER_PAGE));
     }
 
-    doc.setFontSize(9);
-    doc.setTextColor(120, 120, 120);
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
     const dateRange = `${selectedWeeks[0].label}, ${selectedWeeks[0].monday.getFullYear()} — ${selectedWeeks[selectedWeeks.length - 1].label}, ${selectedWeeks[selectedWeeks.length - 1].monday.getFullYear()}`;
-    doc.text(`Period: ${dateRange}`, 14, schoolName ? 28 : 22);
-    doc.text(`Generated: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, 14, schoolName ? 33 : 27);
+    const generatedDate = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-    // Build table data
-    const headers = ["No.", "Teacher Name", "Grade/Section", ...selectedWeeks.map(w => w.label)];
+    weekChunks.forEach((chunkWeeks, chunkIdx) => {
+      if (chunkIdx > 0) doc.addPage();
 
-    const body = sortedTeachers.map((teacher, idx) => {
-      const key = teacher.user_id || teacher.teacher_name;
-      const teacherWeeks = submissionLookup.get(key);
-      const weekCells = selectedWeeks.map(week => teacherWeeks?.has(week.weekStart) ? "✓" : "✗");
-      return [
-        (idx + 1).toString(),
-        teacher.teacher_name || "",
-        `${teacher.grade_level || ""} - ${teacher.section || ""}`,
-        ...weekCells,
-      ];
-    });
+      // Title
+      doc.setFontSize(14);
+      doc.setTextColor(35, 97, 48);
+      doc.text("Weekly Submission Summary", 14, 15);
 
-    // Totals row
-    body.push([
-      "",
-      "TOTAL SUBMITTED",
-      "",
-      ...selectedTotals.map(t => `${t}/${sortedTeachers.length}`),
-    ]);
+      if (schoolName) {
+        doc.setFontSize(11);
+        doc.setTextColor(80, 80, 80);
+        doc.text(`School: ${schoolName}`, 14, 22);
+      }
 
-    autoTable(doc, {
-      head: [headers],
-      body,
-      startY: schoolName ? 36 : 30,
-      theme: "grid",
-      styles: {
-        fontSize: 7,
-        cellPadding: 1.5,
-        halign: "center",
-        valign: "middle",
-      },
-      headStyles: {
-        fillColor: [35, 97, 48],
-        textColor: [255, 255, 255],
-        fontSize: 7,
-        fontStyle: "bold",
-      },
-      columnStyles: {
-        0: { halign: "center", cellWidth: 10 },
-        1: { halign: "left", cellWidth: 40 },
-        2: { halign: "left", cellWidth: 30 },
-      },
-      didParseCell: (data) => {
-        // Style the totals row
-        if (data.row.index === sortedTeachers.length) {
-          data.cell.styles.fontStyle = "bold";
-          data.cell.styles.fillColor = [240, 240, 240];
-        }
-        // Color ✓ and ✗ cells
-        if (data.section === "body" && data.column.index >= 3 && data.row.index < sortedTeachers.length) {
-          if (data.cell.raw === "✓") {
-            data.cell.styles.textColor = [30, 186, 131]; // green
+      doc.setFontSize(9);
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Period: ${dateRange}`, 14, schoolName ? 28 : 22);
+      doc.text(`Generated: ${generatedDate}`, 14, schoolName ? 33 : 27);
+      if (weekChunks.length > 1) {
+        doc.text(`Page ${chunkIdx + 1} of ${weekChunks.length}`, 260, schoolName ? 33 : 27);
+      }
+
+      // Format week headers as multi-line for readability
+      const weekHeaders = chunkWeeks.map(w => {
+        const mon = w.monday;
+        const fri = w.friday;
+        const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return `${fmt(mon)} -\n${fmt(fri)},\n${mon.getFullYear()}`;
+      });
+
+      const headers = ["No.", "Teacher Name", "Grade/Section", ...weekHeaders];
+
+      const body = sortedTeachers.map((teacher, idx) => {
+        const key = teacher.user_id || teacher.teacher_name;
+        const teacherWeeks = submissionLookup.get(key);
+        const weekCells = chunkWeeks.map(week => teacherWeeks?.has(week.weekStart) ? "✓" : "✗");
+        return [
+          (idx + 1).toString(),
+          teacher.teacher_name || "",
+          `${teacher.grade_level || ""} - ${teacher.section || ""}`,
+          ...weekCells,
+        ];
+      });
+
+      body.push([
+        "",
+        "TOTAL SUBMITTED",
+        "",
+        ...totalChunks[chunkIdx].map(t => `${t}/${sortedTeachers.length}`),
+      ]);
+
+      autoTable(doc, {
+        head: [headers],
+        body,
+        startY: schoolName ? 36 : 30,
+        theme: "grid",
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+          halign: "center",
+          valign: "middle",
+          lineWidth: 0.3,
+        },
+        headStyles: {
+          fillColor: [35, 97, 48],
+          textColor: [255, 255, 255],
+          fontSize: 7,
+          fontStyle: "bold",
+          cellPadding: 2,
+          minCellHeight: 14,
+        },
+        columnStyles: {
+          0: { halign: "center", cellWidth: 10 },
+          1: { halign: "left", cellWidth: 45 },
+          2: { halign: "left", cellWidth: 35 },
+        },
+        didParseCell: (data) => {
+          if (data.row.index === sortedTeachers.length) {
             data.cell.styles.fontStyle = "bold";
-          } else if (data.cell.raw === "✗") {
-            data.cell.styles.textColor = [239, 68, 68]; // red
+            data.cell.styles.fillColor = [240, 240, 240];
           }
-        }
-      },
+          if (data.section === "body" && data.column.index >= 3 && data.row.index < sortedTeachers.length) {
+            if (data.cell.raw === "✓") {
+              data.cell.styles.textColor = [34, 139, 34]; // strong green
+              data.cell.styles.fontStyle = "bold";
+              data.cell.styles.fontSize = 12;
+            } else if (data.cell.raw === "✗") {
+              data.cell.styles.textColor = [220, 38, 38]; // strong red
+              data.cell.styles.fontStyle = "bold";
+              data.cell.styles.fontSize = 12;
+            }
+          }
+        },
+      });
     });
 
     const fileName = `Weekly_Submission_Summary_${schoolName?.replace(/\s+/g, '_') || 'Report'}.pdf`;
