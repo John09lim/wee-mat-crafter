@@ -235,13 +235,13 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
           }
           if (data.section === "body" && data.column.index >= 3 && data.row.index < sortedTeachers.length) {
             if (data.cell.raw === "✓") {
-              data.cell.styles.textColor = [34, 139, 34]; // strong green
+              data.cell.styles.textColor = [34, 139, 34];
               data.cell.styles.fontStyle = "bold";
-              data.cell.styles.fontSize = 12;
+              data.cell.styles.fontSize = 16;
             } else if (data.cell.raw === "✗") {
-              data.cell.styles.textColor = [220, 38, 38]; // strong red
+              data.cell.styles.textColor = [220, 38, 38];
               data.cell.styles.fontStyle = "bold";
-              data.cell.styles.fontSize = 12;
+              data.cell.styles.fontSize = 16;
             }
           }
         },
