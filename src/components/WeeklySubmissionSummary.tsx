@@ -187,7 +187,7 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
       const body = sortedTeachers.map((teacher, idx) => {
         const key = teacher.user_id || teacher.teacher_name;
         const teacherWeeks = submissionLookup.get(key);
-        const weekCells = chunkWeeks.map(week => teacherWeeks?.has(week.weekStart) ? "✓" : "✗");
+        const weekCells = chunkWeeks.map(week => teacherWeeks?.has(week.weekStart) ? "submitted" : "missing");
         return [
           (idx + 1).toString(),
           teacher.teacher_name || "",
@@ -234,14 +234,14 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
             data.cell.styles.fillColor = [240, 240, 240];
           }
           if (data.section === "body" && data.column.index >= 3 && data.row.index < sortedTeachers.length) {
-            if (data.cell.raw === "✓") {
+            if (data.cell.raw === "submitted") {
+              data.cell.styles.fillColor = [34, 139, 34];
               data.cell.styles.textColor = [34, 139, 34];
-              data.cell.styles.fontStyle = "bold";
-              data.cell.styles.fontSize = 16;
-            } else if (data.cell.raw === "✗") {
+              data.cell.styles.fontSize = 1;
+            } else if (data.cell.raw === "missing") {
+              data.cell.styles.fillColor = [220, 38, 38];
               data.cell.styles.textColor = [220, 38, 38];
-              data.cell.styles.fontStyle = "bold";
-              data.cell.styles.fontSize = 16;
+              data.cell.styles.fontSize = 1;
             }
           }
         },
