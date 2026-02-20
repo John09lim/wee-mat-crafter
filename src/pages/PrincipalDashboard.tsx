@@ -686,6 +686,7 @@ export default function PrincipalDashboard() {
         <WeeklySubmissionSummary
           managedTeachers={managedTeachers}
           submissions={submissions}
+          schoolName={profile?.school || ""}
         />
       )}
 
