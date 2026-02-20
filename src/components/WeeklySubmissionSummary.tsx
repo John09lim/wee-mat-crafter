@@ -83,7 +83,28 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions }: Weekly
     });
   }, [weeks, managedTeachers, submissionLookup]);
 
-  if (managedTeachers.length === 0) return null;
+  // Sort teachers by grade level hierarchy
+  const sortedTeachers = useMemo(() => {
+    const gradeOrder = (grade: string | null): number => {
+      if (!grade) return 999;
+      const g = grade.toLowerCase().trim();
+      if (g === 'kinder') return 1;
+      if (g === 'sped') return 2;
+      // Elementary grades 1-6
+      const elemMatch = g.match(/^grade\s+(\d+)$/i);
+      if (elemMatch) {
+        const num = parseInt(elemMatch[1]);
+        if (num >= 1 && num <= 6) return 10 + num; // 11-16
+        if (num >= 7 && num <= 12) return 30 + num; // 37-42
+      }
+      // Subject Teacher - check if elementary or HS by looking at section/other clues
+      if (g === 'subject teacher') return 20; // between elem and HS
+      return 50;
+    };
+    return [...managedTeachers].sort((a, b) => gradeOrder(a.grade_level) - gradeOrder(b.grade_level));
+  }, [managedTeachers]);
+
+  if (sortedTeachers.length === 0) return null;
 
   return (
     <Card className="p-6 mb-6">
@@ -91,7 +112,7 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions }: Weekly
         Weekly Submission Summary
       </h3>
       <p className="text-sm text-muted-foreground mb-4">
-        {managedTeachers.length} teachers • {weeks.length} weeks (starting Aug 11, 2025)
+        {sortedTeachers.length} teachers • {weeks.length} weeks (starting Aug 11, 2025)
       </p>
       <ScrollArea className="w-full whitespace-nowrap">
         <div className="min-w-full">
@@ -110,7 +131,7 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions }: Weekly
               </TableRow>
             </TableHeader>
             <TableBody>
-              {managedTeachers.map((teacher) => {
+              {sortedTeachers.map((teacher) => {
                 const key = teacher.user_id || teacher.teacher_name;
                 const teacherWeeks = submissionLookup.get(key);
                 return (
@@ -141,8 +162,8 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions }: Weekly
                 </TableCell>
                 {weekTotals.map((total, i) => (
                   <TableCell key={i} className="text-center text-sm">
-                    <span className={total === managedTeachers.length ? "text-green-600 font-bold" : total === 0 ? "text-red-500" : "text-yellow-600"}>
-                      {total}/{managedTeachers.length}
+                    <span className={total === sortedTeachers.length ? "text-green-600 font-bold" : total === 0 ? "text-red-500" : "text-yellow-600"}>
+                      {total}/{sortedTeachers.length}
                     </span>
                   </TableCell>
                 ))}
