@@ -5,9 +5,15 @@ import {
   BookOpenCheck,
   CheckCircle2,
   Compass,
+  Download,
+  FileDown,
   FileCheck2,
+  FolderOpen,
+  Info,
   Landmark,
+  Settings,
   ShieldCheck,
+  BadgeCheck,
   WandSparkles,
 } from "lucide-react";
 import { motion, useReducedMotion, useScroll, useSpring } from "framer-motion";
@@ -200,6 +206,7 @@ const Index = () => {
   const navigate = useNavigate();
   const reduceMotion = useReducedMotion();
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
+  const [installGuideOpen, setInstallGuideOpen] = useState(false);
 
   return (
     <main className="overflow-x-clip bg-[#f6f0e7] text-[#142019]">
@@ -215,7 +222,7 @@ const Index = () => {
 
         <div className="container relative z-10 grid gap-10 py-12 lg:min-h-[calc(100svh-4rem)] lg:grid-cols-[.86fr_1.14fr] lg:items-center lg:py-16">
           <div className="max-w-2xl pb-4 lg:pb-24">
-            <h1 className="font-display text-[clamp(3.4rem,7vw,7.2rem)] font-semibold leading-[.88] tracking-[-0.055em] text-[#173f2a]">
+            <h1 className="font-display text-[clamp(2.8rem,14vw,7.2rem)] font-semibold leading-[.9] tracking-[-0.05em] text-[#173f2a] sm:leading-[.88] sm:tracking-[-0.055em]">
               <span className="block overflow-hidden pb-2">
                 <motion.span className="block" initial={reduceMotion ? false : { y: "108%" }} animate={{ y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.58, ease: easeOut }}>WeeLMat</motion.span>
               </span>
@@ -251,8 +258,10 @@ const Index = () => {
                 </Button>
               </motion.div>
               <motion.div whileHover={reduceMotion ? undefined : { y: -2 }} whileTap={reduceMotion ? undefined : { scale: 0.98 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
-                <Button variant="outline" size="lg" className="group h-[3.25rem] w-full cursor-pointer rounded-lg border-[#236130] bg-[#f6f0e7]/90 px-7 text-base font-semibold text-[#173f2a] hover:bg-white" onClick={() => navigate("/learn-more")}>
-                  See how it works <ArrowRight className="ml-3 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
+                <Button asChild variant="outline" size="lg" className="group h-[3.25rem] w-full cursor-pointer rounded-lg border-[#236130] bg-[#f6f0e7]/90 px-7 text-base font-semibold text-[#173f2a] hover:bg-white">
+                  <a href="/downloads/weelmat-generator.apk" download="WeeLMat-Generator.apk" onClick={() => setInstallGuideOpen(true)}>
+                    Download App <Download className="ml-3 h-4 w-4 transition-transform duration-200 group-hover:translate-y-0.5" aria-hidden="true" />
+                  </a>
                 </Button>
               </motion.div>
             </motion.div>
@@ -363,6 +372,44 @@ const Index = () => {
                 <div><h3 className="font-bold text-[#142019]">{title}</h3><p className="mt-1 text-sm leading-6 text-[#536057]">{copy}</p></div>
               </div>
             ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={installGuideOpen} onOpenChange={setInstallGuideOpen}>
+        <DialogContent className="max-h-[calc(100dvh-1rem)] max-w-6xl overflow-y-auto border-[#173f2a]/15 bg-[#f6f0e7] p-4 sm:p-6 lg:p-8">
+          <DialogHeader className="text-left">
+            <DialogTitle className="font-display flex items-center gap-3 pr-10 text-xl leading-tight text-[#142019] sm:text-3xl">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#236130] text-white sm:h-11 sm:w-11"><Download className="h-5 w-5" aria-hidden="true" /></span>
+              Your APK download has started
+            </DialogTitle>
+            <DialogDescription className="max-w-3xl text-sm leading-6 text-[#536057] sm:text-base">
+              Follow these steps on your Android phone to install WeeLMat Generator. The app opens the official live website, so improvements appear automatically.
+            </DialogDescription>
+          </DialogHeader>
+
+          <ol className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { number: "1", icon: FileDown, title: "Download the APK", copy: "Wait for WeeLMat-Generator.apk to finish downloading from this official page." },
+              { number: "2", icon: FolderOpen, title: "Open the file", copy: "Open the download notification or your Downloads folder, then tap the APK file." },
+              { number: "3", icon: Settings, title: "Allow this source", copy: "If Android blocks it, open Settings and allow installs from this browser or Files app." },
+              { number: "4", icon: BadgeCheck, title: "Tap Install", copy: "Return to the installer, tap Install, then open WeeLMat Generator." },
+            ].map(({ number, icon: StepIcon, title, copy }) => (
+              <li key={number} className="relative rounded-2xl border border-[#236130]/15 bg-white p-5 shadow-[0_18px_44px_-38px_rgba(20,32,25,.65)] sm:min-h-64 sm:p-6">
+                <span className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-[#236130] font-bold text-white">{number}</span>
+                <StepIcon className="mx-auto mt-2 h-10 w-10 text-[#b07a10]" aria-hidden="true" />
+                <h3 className="font-display mt-6 text-center text-xl font-semibold text-[#173f2a]">{title}</h3>
+                <p className="mt-3 text-center text-sm leading-6 text-[#536057]">{copy}</p>
+              </li>
+            ))}
+          </ol>
+
+          <div className="mt-2 flex items-start gap-3 rounded-2xl border border-[#236130]/20 bg-[#eaf3eb] p-4 text-[#173f2a] sm:p-5">
+            <Info className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+            <div>
+              <p className="font-semibold">Why does Android show a warning?</p>
+              <p className="mt-1 text-sm leading-6 text-[#455349]">Android warns about apps installed outside Google Play. Only install the APK downloaded from this official WeeLMat page. You do not need to disable Play Protect globally.</p>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
