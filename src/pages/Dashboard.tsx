@@ -695,11 +695,27 @@ const watchedValues = watch();
                       <div className="space-y-2">
                         <Label htmlFor={activeCompetencyField}>Competency</Label>
                         <Textarea
+                          key={activeCompetencyField}
                           id={activeCompetencyField}
+                          name={activeCompetencyField}
                           rows={4}
                           placeholder={`Enter ${activeDayConfig.day}'s competency exactly as it should appear…`}
                           aria-invalid={Boolean(errors[activeCompetencyField])}
-                          {...register(activeCompetencyField)}
+                          value={(watchedValues[activeCompetencyField] as string | undefined) ?? ""}
+                          onChange={(event) => {
+                            setValue(activeCompetencyField, event.target.value, {
+                              shouldDirty: true,
+                              shouldTouch: true,
+                              shouldValidate: false,
+                            });
+                          }}
+                          onBlur={() => {
+                            setValue(
+                              activeCompetencyField,
+                              ((watchedValues[activeCompetencyField] as string | undefined) ?? "").trim(),
+                              { shouldTouch: true, shouldValidate: true },
+                            );
+                          }}
                         />
                         {errors[activeCompetencyField] && <p role="alert" className="text-sm text-destructive">{errors[activeCompetencyField]?.message}</p>}
                       </div>
