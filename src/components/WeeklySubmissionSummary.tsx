@@ -11,8 +11,16 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 interface WeeklySubmissionSummaryProps {
-  managedTeachers: any[];
-  submissions: any[];
+  managedTeachers: Array<{
+    user_id?: string | null;
+    teacher_name: string;
+    grade_level?: string | null;
+  }>;
+  submissions: Array<{
+    user_id?: string | null;
+    teacher_name: string;
+    week_start: string;
+  }>;
   schoolName?: string;
 }
 
@@ -44,7 +52,7 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
     const currentMonday = getMondayOfWeek(today);
     const result: { monday: Date; friday: Date; label: string; weekStart: string; weekEnd: string }[] = [];
 
-    let weekMonday = new Date(startDate);
+    const weekMonday = new Date(startDate);
     while (weekMonday <= currentMonday) {
       const friday = new Date(weekMonday);
       friday.setDate(weekMonday.getDate() + 4);
@@ -258,33 +266,59 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
 
   return (
     <>
-      <Card className="p-6 mb-6">
-        <div className="flex items-center justify-between mb-4">
+      <Card className="mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+        <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h3 className="text-lg font-semibold" style={{ color: "#236130" }}>
+            <h3 className="font-display text-2xl font-semibold text-[#173F2A]">
               Weekly Submission Summary
             </h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-[#526159]">
               {sortedTeachers.length} teachers • {weeks.length} weeks (starting Aug 11, 2025)
             </p>
           </div>
           <Button
             variant="outline"
-            size="sm"
             onClick={handleOpenDownload}
-            className="gap-2"
-            style={{ borderColor: "#236130", color: "#236130" }}
+            className="min-h-11 gap-2 border-[#236130] text-[#173F2A] hover:bg-[#E8EFE8]"
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-4 w-4" aria-hidden="true" />
             Download PDF
           </Button>
         </div>
-        <ScrollArea className="w-full whitespace-nowrap">
+
+        <div className="space-y-4 md:hidden" aria-label="Weekly submission summary by teacher">
+          {sortedTeachers.map((teacher) => {
+            const key = teacher.user_id || teacher.teacher_name;
+            const teacherWeeks = submissionLookup.get(key);
+            return (
+              <article key={`mobile-${teacher.id || key}`} className="rounded-xl border border-[#D8D0C4] bg-white p-4">
+                <h4 className="font-semibold text-[#142019]">{teacher.teacher_name}</h4>
+                <p className="mt-1 text-sm text-[#526159]">{teacher.grade_level} · {teacher.section}</p>
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {weeks.map((week, index) => {
+                    const submitted = teacherWeeks?.has(week.weekStart);
+                    return (
+                      <div key={index} className={`rounded-lg border p-2.5 ${submitted ? "border-[#B9D1BE] bg-[#EAF3EB]" : "border-[#E0B8AE] bg-[#FAECE8]"}`}>
+                        <p className="text-xs font-semibold tabular-nums text-[#526159]">{week.label}</p>
+                        <p className={`mt-1 flex items-center gap-1.5 text-xs font-bold ${submitted ? "text-[#17613A]" : "text-[#A83224]"}`}>
+                          {submitted ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : <XCircle className="h-4 w-4" aria-hidden="true" />}
+                          {submitted ? "Submitted" : "Missing"}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <ScrollArea className="hidden w-full whitespace-nowrap rounded-xl border border-[#D8D0C4] md:block">
           <div className="min-w-full">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="sticky left-0 z-10 bg-background min-w-[180px] border-r font-semibold" style={{ color: "#236130" }}>
+                  <TableHead className="sticky left-0 z-10 min-w-[180px] border-r border-[#D8D0C4] bg-[#F8F3EB] font-semibold text-[#173F2A]">
                     Teacher Name
                   </TableHead>
                   {weeks.map((week, i) => (
@@ -300,8 +334,8 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
                   const key = teacher.user_id || teacher.teacher_name;
                   const teacherWeeks = submissionLookup.get(key);
                   return (
-                    <TableRow key={teacher.id || key}>
-                      <TableCell className="sticky left-0 z-10 bg-background border-r font-medium text-sm">
+                    <TableRow key={teacher.id || key} className="hover:bg-[#FAF7F1]">
+                      <TableCell className="sticky left-0 z-10 border-r border-[#D8D0C4] bg-[#FFFCF7] text-sm font-medium">
                         <div>{teacher.teacher_name}</div>
                         <div className="text-xs text-muted-foreground">{teacher.grade_level} - {teacher.section}</div>
                       </TableCell>
@@ -310,9 +344,9 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
                         return (
                           <TableCell key={i} className="text-center px-2">
                             {submitted ? (
-                              <CheckCircle2 className="h-5 w-5 text-green-600 mx-auto" />
+                              <CheckCircle2 className="mx-auto h-5 w-5 text-[#17613A]" aria-label="Submitted" />
                             ) : (
-                              <XCircle className="h-5 w-5 text-red-400 mx-auto" />
+                              <XCircle className="mx-auto h-5 w-5 text-[#A83224]" aria-label="Missing" />
                             )}
                           </TableCell>
                         );
@@ -321,12 +355,12 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
                   );
                 })}
                 <TableRow className="border-t-2 font-semibold">
-                  <TableCell className="sticky left-0 z-10 bg-background border-r text-sm" style={{ color: "#236130" }}>
+                  <TableCell className="sticky left-0 z-10 border-r border-[#D8D0C4] bg-[#F8F3EB] text-sm font-semibold text-[#173F2A]">
                     Total Submitted
                   </TableCell>
                   {weekTotals.map((total, i) => (
                     <TableCell key={i} className="text-center text-sm">
-                      <span className={total === sortedTeachers.length ? "text-green-600 font-bold" : total === 0 ? "text-red-500" : "text-yellow-600"}>
+                      <span className={total === sortedTeachers.length ? "font-bold text-[#17613A]" : total === 0 ? "text-[#A83224]" : "text-[#8A5A00]"}>
                         {total}/{sortedTeachers.length}
                       </span>
                     </TableCell>
@@ -341,13 +375,13 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
 
       {/* Week Selection Dialog */}
       <Dialog open={showDownloadDialog} onOpenChange={setShowDownloadDialog}>
-        <DialogContent className="max-w-md max-h-[80vh]">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-md border-[#D8D0C4] bg-[#FFFCF7] sm:max-h-[85dvh]">
           <DialogHeader>
-            <DialogTitle style={{ color: "#236130" }}>Download Weekly Summary PDF</DialogTitle>
+            <DialogTitle className="font-display text-2xl text-[#173F2A]">Download Weekly Summary PDF</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">Select the weeks you want to include in the PDF report.</p>
 
-          <div className="flex items-center gap-2 mb-2">
+          <div className="mb-2 flex min-h-11 items-center gap-3 rounded-lg border border-[#D8D0C4] bg-[#F8F3EB] px-3">
             <Checkbox
               id="select-all"
               checked={selectedWeekIndices.size === weeks.length}
@@ -358,10 +392,10 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
             </label>
           </div>
 
-          <ScrollArea className="h-[300px] border rounded-md p-3">
+          <ScrollArea className="h-[min(300px,42dvh)] rounded-md border border-[#D8D0C4] bg-white p-3">
             <div className="space-y-2">
               {weeks.map((week, i) => (
-                <div key={i} className="flex items-center gap-2">
+                <div key={i} className="flex min-h-11 items-center gap-3 rounded-md px-1 hover:bg-[#F8F3EB]">
                   <Checkbox
                     id={`week-${i}`}
                     checked={selectedWeekIndices.has(i)}
@@ -383,16 +417,15 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
           </p>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDownloadDialog(false)}>
+            <Button variant="outline" onClick={() => setShowDownloadDialog(false)} className="min-h-11 border-[#CFC6B9]">
               Cancel
             </Button>
             <Button
               onClick={handleDownloadPDF}
               disabled={selectedWeekIndices.size === 0}
-              style={{ backgroundColor: "#236130" }}
-              className="text-white"
+              className="min-h-11 bg-[#236130] text-white hover:bg-[#173F2A]"
             >
-              <Download className="h-4 w-4 mr-2" />
+              <Download className="mr-2 h-4 w-4" aria-hidden="true" />
               Download PDF
             </Button>
           </DialogFooter>

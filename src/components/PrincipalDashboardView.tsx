@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,33 +13,46 @@ interface PrincipalDashboardViewProps {
   onClose: () => void;
 }
 
+interface SchoolTeacher {
+  id: string;
+  user_id: string;
+  teacher_name: string;
+  grade_level?: string | null;
+  profile_image_url?: string | null;
+}
+
+interface SchoolSubmission {
+  id: string;
+  user_id: string;
+  teacher_name: string;
+  subject: string;
+  grade_level: string;
+  section?: string | null;
+  status: string;
+  file_url: string;
+}
+
+interface SchoolInfo {
+  principal_name?: string | null;
+}
+
+function getMondayOfWeek(date: Date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 export function PrincipalDashboardView({ schoolName, districtName, onClose }: PrincipalDashboardViewProps) {
-  const [teachers, setTeachers] = useState<any[]>([]);
-  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [teachers, setTeachers] = useState<SchoolTeacher[]>([]);
+  const [submissions, setSubmissions] = useState<SchoolSubmission[]>([]);
   const [loading, setLoading] = useState(true);
-  const [schoolInfo, setSchoolInfo] = useState<any>(null);
+  const [schoolInfo, setSchoolInfo] = useState<SchoolInfo | null>(null);
   const [displayMode, setDisplayMode] = useState<'text' | 'image'>('text');
 
-  // Dynamically calculate current week (Monday-Friday)
-  const getMondayOfWeek = (date: Date) => {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    d.setDate(d.getDate() + diff);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  };
-  const currentMonday = getMondayOfWeek(new Date());
-  
-  const currentFriday = new Date(currentMonday);
-  currentFriday.setDate(currentMonday.getDate() + 4);
-  currentFriday.setHours(23, 59, 59, 999);
-
-  useEffect(() => {
-    fetchSchoolData();
-  }, [schoolName]);
-
-  const fetchSchoolData = async () => {
+  const fetchSchoolData = useCallback(async () => {
     try {
       // Fetch school info
       const { data: schoolData } = await supabase
@@ -49,7 +62,7 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
         .eq("district_name", districtName)
         .maybeSingle();
 
-      setSchoolInfo(schoolData);
+      setSchoolInfo(schoolData as SchoolInfo | null);
 
       // Fetch all teachers from this school
       const { data: teachersData, error: teachersError } = await supabase
@@ -59,9 +72,13 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
         .eq("district_name", districtName);
 
       if (teachersError) throw teachersError;
-      setTeachers(teachersData || []);
+      setTeachers((teachersData || []) as SchoolTeacher[]);
 
       // Fetch submissions for current week
+      const currentMonday = getMondayOfWeek(new Date());
+      const currentFriday = new Date(currentMonday);
+      currentFriday.setDate(currentMonday.getDate() + 4);
+      currentFriday.setHours(23, 59, 59, 999);
       const weekStartStr = currentMonday.toISOString().split('T')[0];
       const weekEndStr = currentFriday.toISOString().split('T')[0];
 
@@ -74,14 +91,18 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
         .order("created_at", { ascending: false });
 
       if (submissionsError) throw submissionsError;
-      setSubmissions(submissionsData || []);
+      setSubmissions((submissionsData || []) as SchoolSubmission[]);
 
     } catch (error) {
       console.error("Error fetching school data:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [districtName, schoolName]);
+
+  useEffect(() => {
+    fetchSchoolData();
+  }, [fetchSchoolData]);
 
   const getInitials = (name: string) => {
     const parts = name.split(' ').filter(Boolean);
@@ -98,62 +119,75 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
 
   // Chart data
   const submissionCompletionData = [
-    { name: "Submitted", value: submittedTeachers.length, color: "#1eba83" },
-    { name: "Not Submitted", value: notSubmittedTeachers.length, color: "#ef4444" }
+    { name: "Submitted", value: submittedTeachers.length, color: "#17613A" },
+    { name: "Not Submitted", value: notSubmittedTeachers.length, color: "#A83224" }
   ];
 
   const statusChartData = [
-    { name: "Reviewed", value: submissions.filter(s => s.status === 'reviewed').length, color: "#1eba83" },
-    { name: "Pending", value: submissions.filter(s => s.status === 'pending').length, color: "#f59e0b" },
-    { name: "Returned", value: submissions.filter(s => s.status === 'returned').length, color: "#ef4444" }
+    { name: "Reviewed", value: submissions.filter(s => s.status === 'reviewed').length, color: "#17613A" },
+    { name: "Pending", value: submissions.filter(s => s.status === 'pending').length, color: "#D6A73D" },
+    { name: "Returned", value: submissions.filter(s => s.status === 'returned').length, color: "#A83224" }
   ];
 
   if (loading) {
     return (
-      <Card className="p-6">
-        <p>Loading school dashboard...</p>
-      </Card>
+      <div className="animate-pulse space-y-4" role="status" aria-label={`Loading ${schoolName} dashboard`}>
+        <div className="h-12 w-56 rounded-lg bg-[#D8D0C4]/70" />
+        <div className="h-32 rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]" />
+        <div className="h-72 rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]" />
+        <span className="sr-only">Loading school dashboard…</span>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <section className="space-y-6" aria-labelledby="school-detail-heading">
       {/* Header with back button */}
       <div className="flex items-center gap-4">
-        <Button variant="outline" onClick={onClose} className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Back to District View
+        <Button variant="outline" onClick={onClose} className="min-h-11 gap-2 border-[#CFC6B9] bg-[#FFFCF7] text-[#173F2A] hover:bg-white">
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to district view
         </Button>
       </div>
 
       {/* School Info Card */}
-      <Card className="p-6" style={{ borderColor: "#236130" }}>
-        <h2 className="text-2xl font-bold mb-2" style={{ color: "#236130" }}>
+      <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-[0_8px_24px_rgba(20,32,25,0.05)] sm:p-6">
+        <h2 id="school-detail-heading" className="font-display mb-2 text-3xl font-semibold text-[#173F2A]">
           {schoolName}
         </h2>
-        <p className="text-muted-foreground mb-2">{districtName}</p>
+        <p className="mb-2 text-[#526159]">{districtName}</p>
         {schoolInfo?.principal_name && (
           <p className="text-sm">
             <span className="font-semibold">Principal:</span> {schoolInfo.principal_name}
           </p>
         )}
-        <div className="mt-4 flex gap-4 text-sm">
-          <Badge variant="outline" className="text-base px-3 py-1">
+        <div className="mt-5 grid overflow-hidden rounded-lg border border-[#D8D0C4] sm:grid-cols-3">
+          <div className="border-b border-[#D8D0C4] p-3 sm:border-b-0 sm:border-r">
+            <p className="font-display text-xl font-semibold tabular-nums text-[#173F2A]">{teachers.length}</p><p className="text-sm text-[#526159]">Teachers</p>
+          </div>
+          <div className="border-b border-[#D8D0C4] p-3 sm:border-b-0 sm:border-r">
+            <p className="font-display text-xl font-semibold tabular-nums text-[#17613A]">{submittedTeachers.length}</p><p className="text-sm text-[#526159]">Submitted</p>
+          </div>
+          <div className="p-3">
+            <p className="font-display text-xl font-semibold tabular-nums text-[#A83224]">{notSubmittedTeachers.length}</p><p className="text-sm text-[#526159]">Not submitted</p>
+          </div>
+          {/* Preserve the original metrics while presenting them as one summary strip. */}
+          <Badge variant="outline" className="sr-only">
             {teachers.length} Teachers
           </Badge>
-          <Badge className="text-base px-3 py-1 bg-[#1eba83]">
+          <Badge className="sr-only">
             {submittedTeachers.length} Submitted
           </Badge>
-          <Badge variant="destructive" className="text-base px-3 py-1">
+          <Badge variant="destructive" className="sr-only">
             {notSubmittedTeachers.length} Not Submitted
           </Badge>
         </div>
       </Card>
 
       {/* Charts Section */}
-      <div className="grid md:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+          <h3 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
             Teacher Completion Rate
           </h3>
           <ResponsiveContainer width="100%" height={250}>
@@ -178,8 +212,8 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
           </ResponsiveContainer>
         </Card>
 
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+        <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+          <h3 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
             Submission Status Distribution
           </h3>
           <ResponsiveContainer width="100%" height={250}>
@@ -206,15 +240,15 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
       </div>
 
       {/* This Week's Submissions */}
-      <Card className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold" style={{ color: "#236130" }}>
+      <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h3 className="font-display text-2xl font-semibold text-[#173F2A]">
             This Week's Teacher Submissions
           </h3>
           <div className="flex gap-2">
             <Button
               variant={displayMode === 'text' ? 'default' : 'outline'}
-              size="sm"
+              className="min-h-11 px-4"
               onClick={() => setDisplayMode('text')}
               style={displayMode === 'text' ? { backgroundColor: "#236130" } : { borderColor: "#236130", color: "#236130" }}
             >
@@ -222,7 +256,7 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
             </Button>
             <Button
               variant={displayMode === 'image' ? 'default' : 'outline'}
-              size="sm"
+              className="min-h-11 px-4"
               onClick={() => setDisplayMode('image')}
               style={displayMode === 'image' ? { backgroundColor: "#236130" } : { borderColor: "#236130", color: "#236130" }}
             >
@@ -233,12 +267,12 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
 
         <div className="grid md:grid-cols-2 gap-6">
           {/* Submitted Teachers */}
-          <div className="border rounded-lg p-4 bg-green-50 border-green-200">
-            <h4 className="font-semibold text-[#1eba83] mb-3 flex items-center gap-2">
+          <div className="rounded-lg border border-[#B9D1BE] bg-[#EAF3EB] p-4">
+            <h4 className="mb-3 flex items-center gap-2 font-semibold text-[#17613A]">
               <CheckCircle2 className="h-5 w-5" />
               Submitted ({submittedTeachers.length})
             </h4>
-            <div className={displayMode === 'image' ? "flex flex-wrap gap-3" : "space-y-2"}>
+            <div className={displayMode === 'image' ? "flex flex-wrap gap-3" : "space-y-3"}>
               {submittedTeachers.map((teacher) => {
                 const submission = submissions.find(s => s.user_id === teacher.user_id);
                 return displayMode === 'image' ? (
@@ -255,8 +289,8 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
                     <span className="text-xs mt-1 text-center max-w-[60px] truncate">{teacher.teacher_name?.split(' ')[0]}</span>
                   </div>
                 ) : (
-                  <div key={teacher.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                  <div key={teacher.id} className="flex flex-col gap-2 border-b border-[#C9DDCD] pb-3 last:border-b-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 items-center gap-2">
                       <CheckCircle2 className="h-4 w-4 text-[#1eba83]" />
                       <span className="text-sm font-medium">{teacher.teacher_name}</span>
                       <Badge variant="outline" className="text-xs">{teacher.grade_level}</Badge>
@@ -265,14 +299,14 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
                       <div className="flex gap-2">
                         <DocumentViewer fileUrl={submission.file_url} fileName={`${teacher.teacher_name}_submission`} />
                         <Button
-                          size="sm"
                           variant="outline"
+                          className="min-h-11 min-w-11 border-[#9FB5A3] text-[#173F2A]"
                           onClick={() => {
                             const encodedUrl = encodeURIComponent(submission.file_url);
                             window.open(`https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`, "_blank");
                           }}
                         >
-                          <ExternalLink className="h-3 w-3" />
+                          <ExternalLink className="h-4 w-4" aria-hidden="true" />
                         </Button>
                       </div>
                     )}
@@ -286,8 +320,8 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
           </div>
 
           {/* Not Submitted Teachers */}
-          <div className="border rounded-lg p-4 bg-red-50 border-red-200">
-            <h4 className="font-semibold text-red-500 mb-3 flex items-center gap-2">
+          <div className="rounded-lg border border-[#E0B8AE] bg-[#FAECE8] p-4">
+            <h4 className="mb-3 flex items-center gap-2 font-semibold text-[#A83224]">
               <XCircle className="h-5 w-5" />
               Not Submitted ({notSubmittedTeachers.length})
             </h4>
@@ -323,36 +357,36 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
       </Card>
 
       {/* Recent Submissions Table */}
-      <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+      <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+        <h3 className="font-display mb-4 text-2xl font-semibold text-[#173F2A]">
           Recent Submissions
         </h3>
         <div className="space-y-3">
           {submissions.slice(0, 10).map((sub) => (
-            <div key={sub.id} className="flex items-center justify-between p-3 border rounded-lg">
+            <div key={sub.id} className="flex flex-col gap-3 border-b border-[#E4DDD2] py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-medium">{sub.teacher_name}</p>
                 <p className="text-sm text-muted-foreground">
                   {sub.subject} • {sub.grade_level} • Section {sub.section}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <Badge 
                   variant={sub.status === 'reviewed' ? 'default' : sub.status === 'returned' ? 'destructive' : 'secondary'}
-                  className={sub.status === 'reviewed' ? 'bg-[#1eba83]' : ''}
+                  className={sub.status === 'reviewed' ? 'bg-[#E3EFE5] text-[#17613A]' : sub.status === 'returned' ? 'bg-[#F7E3DE] text-[#A83224]' : 'bg-[#F7ECD1] text-[#76500A]'}
                 >
                   {sub.status}
                 </Badge>
                 <DocumentViewer fileUrl={sub.file_url} fileName={`${sub.teacher_name}_${sub.subject}`} />
                 <Button
-                  size="sm"
                   variant="outline"
+                  className="min-h-11 min-w-11 border-[#CFC6B9] text-[#173F2A]"
                   onClick={() => {
                     const encodedUrl = encodeURIComponent(sub.file_url);
                     window.open(`https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`, "_blank");
                   }}
                 >
-                  <ExternalLink className="h-4 w-4" />
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
             </div>
@@ -362,6 +396,6 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
           )}
         </div>
       </Card>
-    </div>
+    </section>
   );
 }

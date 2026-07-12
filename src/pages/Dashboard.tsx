@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -12,7 +12,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/components/ui/sonner";
 import { PasscodeDialog } from "@/components/PasscodeDialog";
 import { ExtractedTextPreviewModal } from "@/components/ExtractedTextPreviewModal";
-import { Upload, FileText, Check, Loader2 } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  Check,
+  CheckCircle2,
+  FileText,
+  History,
+  Loader2,
+  LogOut,
+  Sparkles,
+  Upload,
+  UserRound,
+} from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -53,6 +65,29 @@ type FormValues = z.infer<typeof schema>;
 const grades = ["Kinder","Grade 1","Grade 2","Grade 3","Grade 4","Grade 5","Grade 6","Grade 7","Grade 8","Grade 9","Grade 10"];
 const subjectSuggestions = ["Filipino","English","Math","Science","AP","EsP","MAPEH","EPP/TLE"];
 
+const planningDays = [
+  { day: "Monday", prefix: "monday" },
+  { day: "Tuesday", prefix: "tuesday" },
+  { day: "Wednesday", prefix: "wednesday" },
+  { day: "Thursday", prefix: "thursday" },
+  { day: "Friday", prefix: "friday" },
+] as const;
+
+type PlanningDayPrefix = (typeof planningDays)[number]["prefix"];
+
+interface ExtractedDayData {
+  competency?: string;
+  examType?: (typeof examTypes)[number];
+  questionCount?: number;
+}
+
+interface ExtractedMaterialData {
+  success: boolean;
+  error?: string;
+  extractedText?: string;
+  days?: Record<string, ExtractedDayData>;
+}
+
 const Step = ({active, text}:{active:boolean;text:string}) => (
   <div className={`flex items-center gap-2 ${active?"text-primary":"text-muted-foreground"}`}>
     <div className={`h-2 w-2 rounded-full ${active?"bg-primary":"bg-border"}`}/>
@@ -72,9 +107,10 @@ const Dashboard = ({ isPremium = false }: DashboardProps) => {
   const [showPasscodeDialog, setShowPasscodeDialog] = useState(false);
   const [passcodeVerified, setPasscodeVerified] = useState(false);
   const [matrixMode, setMatrixMode] = useState<"automatic" | "manual">("manual");
+  const [activeDay, setActiveDay] = useState<PlanningDayPrefix>("monday");
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [extractedData, setExtractedData] = useState<any>(null);
+  const [extractedData, setExtractedData] = useState<ExtractedMaterialData | null>(null);
   const [showPreviewDialog, setShowPreviewDialog] = useState(false);
   const [extractedTextPreview, setExtractedTextPreview] = useState<string>("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -138,9 +174,20 @@ useEffect(() => {
   }
 }, [location.state, reset]);
 
-const [customCounts, setCustomCounts] = useState<Record<string, number>>({});
-
 const watchedValues = watch();
+
+  const isDayComplete = (day: PlanningDayPrefix) => {
+    const competency = watchedValues[`${day}Competency` as keyof FormValues] as string | undefined;
+    const examType = watchedValues[`${day}ExamType` as keyof FormValues];
+    const questionCount = watchedValues[`${day}QuestionCount` as keyof FormValues] as number | undefined;
+    return Boolean(competency?.trim() && examType && questionCount && questionCount >= 3 && questionCount <= 20);
+  };
+
+  const completedDays = planningDays.filter(({ prefix }) => isDayComplete(prefix)).length;
+  const activeDayConfig = planningDays.find(({ prefix }) => prefix === activeDay) ?? planningDays[0];
+  const activeCompetencyField = `${activeDay}Competency` as `${PlanningDayPrefix}Competency`;
+  const activeExamTypeField = `${activeDay}ExamType` as `${PlanningDayPrefix}ExamType`;
+  const activeQuestionCountField = `${activeDay}QuestionCount` as `${PlanningDayPrefix}QuestionCount`;
 
   const isFormComplete = (values: Partial<FormValues>) => {
     if (!values.subject?.trim() || !values.gradeLevel || !values.section?.trim() || 
@@ -193,7 +240,7 @@ const watchedValues = watch();
     
     setLoading(true);
     console.log("Navigating to WeeLMatGenerator with validated values:", values);
-    navigate("/weelmatgenerator", { state: values });
+    navigate(isPremium ? "/premium/weelmat/result" : "/weelmatgenerator", { state: values });
   }
 
   const [result, setResult] = useState<{subject:string;grade:string;section:string;dates:string;docx?:string;pdf?:string}|null>(null);
@@ -261,29 +308,30 @@ const watchedValues = watch();
       if (error) throw error;
 
       // Check if API returned an error
-      if (!data.success) {
-        toast.error(data.error || "Failed to process file. Please try manual mode.");
+      const extracted = data as ExtractedMaterialData;
+      if (!extracted.success) {
+        toast.error(extracted.error || "Failed to process file. Please try manual mode.");
         return;
       }
 
       // Store extracted data and show preview modal BEFORE auto-filling
-      if (data.success) {
-        setExtractedData(data);
+      if (extracted.success) {
+        setExtractedData(extracted);
         setUploadedFile(file);
-        setExtractedTextPreview(data.extractedText || "");
+        setExtractedTextPreview(extracted.extractedText || "");
         
         // Show preview modal for user to verify extracted content
         setShowPreviewDialog(true);
       }
       
       setUploadProgress(100);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('File upload error:', error);
       
       // Display user-friendly error messages
       let errorMessage = "Failed to process file. Please try manual mode or upload a different file.";
       
-      if (error?.error) {
+      if (typeof error === "object" && error !== null && "error" in error && typeof error.error === "string") {
         errorMessage = error.error;
       } else if (typeof error === 'string') {
         errorMessage = error;
@@ -302,8 +350,8 @@ const watchedValues = watch();
   const handleConfirmExtraction = () => {
     // User confirmed, now auto-fill the form fields
     if (extractedData) {
-      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-      const dayNames: Record<string, string> = {
+      const days: PlanningDayPrefix[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+      const dayNames: Record<PlanningDayPrefix, string> = {
         monday: 'Monday',
         tuesday: 'Tuesday',
         wednesday: 'Wednesday',
@@ -314,9 +362,9 @@ const watchedValues = watch();
       days.forEach((day) => {
         const dayData = extractedData.days?.[dayNames[day]];
         if (dayData) {
-          setValue(`${day}Competency` as any, dayData.competency || '');
-          setValue(`${day}ExamType` as any, dayData.examType || 'Multiple Choice');
-          setValue(`${day}QuestionCount` as any, dayData.questionCount || 10);
+          setValue(`${day}Competency` as `${PlanningDayPrefix}Competency`, dayData.competency || '', { shouldValidate: true });
+          setValue(`${day}ExamType` as `${PlanningDayPrefix}ExamType`, dayData.examType || 'Multiple Choice', { shouldValidate: true });
+          setValue(`${day}QuestionCount` as `${PlanningDayPrefix}QuestionCount`, dayData.questionCount || 10, { shouldValidate: true });
         }
       });
 
@@ -393,341 +441,431 @@ const watchedValues = watch();
       )}
       
       {passcodeVerified && (
-        <main className="min-h-[calc(100vh-160px)] py-12 bg-background overflow-x-hidden">
-          <div className="container px-4 mb-4">
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button 
-                onClick={() => navigate("/my-account")}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                Submit WeeLMat
-              </Button>
-              <Button variant="outline" onClick={handleLogout}>
-                Logout
-              </Button>
-            </div>
-          </div>
-          <section className="container px-4 grid lg:grid-cols-3 gap-8 overflow-hidden">
-        <div className="lg:col-span-2">
-          <div className="rounded-2xl border bg-card p-6 shadow-sm overflow-hidden">
-            <h1 className="text-2xl font-semibold mb-4">{isPremium ? "Create Premium Weekly Learning Matrix" : "Create a Weekly Learning Matrix"}</h1>
-            <form className="grid gap-5 overflow-hidden" onSubmit={handleSubmit(onSubmit)}>
-              <div className="grid md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
-                  <Label>Subject Area</Label>
-                  <Input placeholder={`e.g., ${subjectSuggestions.join(', ')}`} {...register("subject")} />
-                  {errors.subject && <p className="text-destructive text-sm mt-1">{errors.subject.message}</p>}
-                </div>
+        <main className="min-h-[calc(100dvh-4rem)] bg-background py-8 sm:py-12">
+          <div className="container max-w-7xl">
+            <header className="mb-8 grid gap-6 border-b border-border pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
+              <div className="flex items-start gap-4">
+                <span className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+                  <Sparkles className="h-6 w-6" aria-hidden="true" />
+                </span>
                 <div>
-                  <Label>Grade Level</Label>
-                  <Select onValueChange={(v)=>setValue("gradeLevel", v)}>
-                    <SelectTrigger>
+                  <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+                    {isPremium ? "Create a premium Weekly Learning Matrix" : "Create a Weekly Learning Matrix"}
+                  </h1>
+                  <p className="mt-2 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">
+                    Build the week from your DLP, DLL, or learning material while keeping every classroom decision editable.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => navigate("/weelmat-history")} className="gap-2">
+                  <History className="h-4 w-4" aria-hidden="true" />
+                  History
+                </Button>
+                <Button variant="outline" onClick={() => navigate("/my-account")} className="gap-2">
+                  <UserRound className="h-4 w-4" aria-hidden="true" />
+                  My account
+                </Button>
+                <Button variant="ghost" onClick={handleLogout} className="gap-2 text-muted-foreground">
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
+                  Sign out
+                </Button>
+              </div>
+            </header>
+
+            <nav aria-label="Creation progress" className="mb-7 overflow-x-auto border-b border-border">
+              <ol className="flex min-w-[42rem]">
+                {[
+                  ["01", "Class details", Boolean(watchedValues.subject && watchedValues.gradeLevel && watchedValues.section)],
+                  ["02", "Learning source", matrixMode === "manual" || extractionSuccess],
+                  ["03", "Week plan", completedDays === planningDays.length],
+                  ["04", "Review", isFormComplete(watchedValues)],
+                ].map(([number, label, complete], index) => (
+                  <li key={String(label)} className={`flex flex-1 items-center gap-3 border-b-2 px-3 pb-4 ${index === 2 ? "border-secondary" : "border-transparent"}`}>
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-semibold ${complete ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground"}`}>
+                      {complete ? <Check className="h-4 w-4" aria-hidden="true" /> : number}
+                    </span>
+                    <span className="font-semibold text-foreground">{label}</span>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+
+            <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <div>
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-[0_18px_50px_-42px_rgba(20,32,25,.55)] sm:p-7 lg:p-8">
+            <form className="grid gap-8" onSubmit={handleSubmit(onSubmit)} noValidate>
+              <section aria-labelledby="class-details-heading">
+                <div className="mb-5 flex items-center gap-3">
+                  <span className="font-display text-2xl font-semibold text-secondary">01</span>
+                  <div>
+                    <h2 id="class-details-heading" className="font-display text-2xl font-semibold text-foreground">Class details</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">Set the learning area, class, language, and school week.</p>
+                  </div>
+                </div>
+
+              <div className="grid gap-5 md:grid-cols-12">
+                <div className="space-y-2 md:col-span-5">
+                  <Label htmlFor="matrix-subject">Subject area</Label>
+                  <Input id="matrix-subject" placeholder={`e.g., ${subjectSuggestions.join(', ')}`} aria-invalid={Boolean(errors.subject)} {...register("subject")} />
+                  {errors.subject && <p role="alert" className="text-destructive text-sm">{errors.subject.message}</p>}
+                </div>
+                <div className="space-y-2 md:col-span-3">
+                  <Label htmlFor="matrix-grade">Grade level</Label>
+                  <Select value={watchedValues.gradeLevel || ""} onValueChange={(value) => setValue("gradeLevel", value, { shouldValidate: true })}>
+                    <SelectTrigger id="matrix-grade" aria-invalid={Boolean(errors.gradeLevel)}>
                       <SelectValue placeholder="Select grade" />
                     </SelectTrigger>
                     <SelectContent>
-                      {grades.map((g)=> (<SelectItem key={g} value={g}>{g}</SelectItem>))}
+                      {grades.map((grade) => (<SelectItem key={grade} value={grade}>{grade}</SelectItem>))}
                     </SelectContent>
                   </Select>
-                  {errors.gradeLevel && <p className="text-destructive text-sm mt-1">{errors.gradeLevel.message}</p>}
+                  {errors.gradeLevel && <p role="alert" className="text-destructive text-sm">{errors.gradeLevel.message}</p>}
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="matrix-section">Section</Label>
+                  <Input id="matrix-section" aria-invalid={Boolean(errors.section)} {...register("section")} />
+                  {errors.section && <p role="alert" className="text-destructive text-sm">{errors.section.message}</p>}
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="matrix-language">Language</Label>
+                  <Select value={watchedValues.language || "English"} onValueChange={(value) => setValue("language", value as FormValues["language"], { shouldValidate: true })}>
+                    <SelectTrigger id="matrix-language"><SelectValue placeholder="Select language" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="English">English</SelectItem>
+                      <SelectItem value="Filipino">Filipino</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
-              <div>
-                <Label>Language Used</Label>
-                <Select onValueChange={(v)=>setValue("language", v as any)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="English">English</SelectItem>
-                    <SelectItem value="Filipino">Filipino</SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.language && <p className="text-destructive text-sm mt-1">{errors.language.message}</p>}
-              </div>
-
-              <div className="grid md:grid-cols-3 gap-4">
-                <div>
-                  <Label>Section</Label>
-                  <Input {...register("section")} />
-                  {errors.section && <p className="text-destructive text-sm mt-1">{errors.section.message}</p>}
+              <div className="mt-5 grid gap-5 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="matrix-date-from">Week begins</Label>
+                  <Input id="matrix-date-from" type="date" aria-invalid={Boolean(errors.dateFrom)} {...register("dateFrom")} />
+                  {errors.dateFrom && <p role="alert" className="text-destructive text-sm">{errors.dateFrom.message}</p>}
                 </div>
-                <div>
-                  <Label>From</Label>
-                  <Input type="date" {...register("dateFrom")} />
-                  {errors.dateFrom && <p className="text-destructive text-sm mt-1">{errors.dateFrom.message}</p>}
-                </div>
-                <div>
-                  <Label>To</Label>
-                  <Input type="date" {...register("dateTo")} />
-                  {errors.dateTo && <p className="text-destructive text-sm mt-1">{errors.dateTo.message}</p>}
+                <div className="space-y-2">
+                  <Label htmlFor="matrix-date-to">Week ends</Label>
+                  <Input id="matrix-date-to" type="date" aria-invalid={Boolean(errors.dateTo)} {...register("dateTo")} />
+                  {errors.dateTo && <p role="alert" className="text-destructive text-sm">{errors.dateTo.message}</p>}
                 </div>
               </div>
+              </section>
 
               {/* Mode Selection Toggle */}
-              <div className="mb-6">
-                <Label className="text-base font-medium mb-3 block">Matrix Content Generation Mode</Label>
-                <div className="grid grid-cols-2 gap-4">
+              <section aria-labelledby="learning-source-heading" className="border-t border-border pt-7">
+                <div className="mb-5 flex items-center gap-3">
+                  <span className="font-display text-2xl font-semibold text-secondary">02</span>
+                  <div>
+                    <h2 id="learning-source-heading" className="font-display text-2xl font-semibold text-foreground">Learning source</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">Choose whether to enter the week yourself or extract a starting point from a file.</p>
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label="Matrix content mode">
                   <Button
                     type="button"
                     variant={matrixMode === "manual" ? "default" : "outline"}
-                    className="h-24 flex flex-col items-center justify-center gap-2"
+                    className="h-auto min-h-16 justify-start gap-3 px-4 py-3 text-left"
                     onClick={() => setMatrixMode("manual")}
+                    aria-pressed={matrixMode === "manual"}
                   >
-                    <FileText className="h-6 w-6" />
-                    <span className="font-semibold">Manual Matrix Content</span>
-                    <span className="text-xs opacity-80">Enter competencies manually</span>
+                    <FileText className="h-5 w-5 shrink-0" aria-hidden="true" />
+                    <span><span className="block font-semibold">Enter manually</span><span className="block text-xs opacity-75">Write each competency and assessment.</span></span>
                   </Button>
                   <Button
                     type="button"
                     variant={matrixMode === "automatic" ? "default" : "outline"}
-                    className="h-24 flex flex-col items-center justify-center gap-2"
+                    className="h-auto min-h-16 justify-start gap-3 px-4 py-3 text-left"
                     onClick={() => setMatrixMode("automatic")}
+                    aria-pressed={matrixMode === "automatic"}
                   >
-                    <Upload className="h-6 w-6" />
-                    <span className="font-semibold">Automatic Matrix Content</span>
-                    <span className="text-xs opacity-80">Upload file to auto-fill</span>
+                    <Upload className="h-5 w-5 shrink-0" aria-hidden="true" />
+                    <span><span className="block font-semibold">Upload learning material</span><span className="block text-xs opacity-75">Extract a draft from DOCX or an image.</span></span>
                   </Button>
                 </div>
-              </div>
+              </section>
 
               {/* Automatic Mode - File Upload */}
               {matrixMode === "automatic" && (
-                <div className="border rounded-lg p-6 space-y-4 bg-muted/30 mb-6">
-                  <Label className="text-base font-medium">Upload Learning Material (DOCX/Image only) to Auto-Fill</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Upload a lesson plan, curriculum guide, or teaching material (DOCX or Image). 
-                    AI will automatically extract competencies, exam types, and question counts for Monday-Friday.
-                  </p>
-                  
+                <section className="space-y-4 rounded-xl border border-dashed border-primary/35 bg-primary/5 p-5 sm:p-6" aria-labelledby="upload-source-heading">
+                  <div>
+                    <h3 id="upload-source-heading" className="font-display text-xl font-semibold text-foreground">Upload a learning material</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      Add a DOC, DOCX, lesson-plan image, curriculum guide, or teaching material. The extracted content becomes an editable starting point for Monday–Friday.
+                    </p>
+                  </div>
+                  <Label htmlFor="matrix-source-file">Learning material file</Label>
                   <Input
+                    id="matrix-source-file"
                     type="file"
                     accept=".doc,.docx,image/*"
                     onChange={handleFileUpload}
                     disabled={uploading || extractionSuccess}
                   />
-                  
+
                   {uploadedFile && !extractionSuccess && (
-                    <div className="flex items-center gap-2 text-sm text-blue-600">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>File uploaded: {uploadedFile.name} - Processing...</span>
+                    <div className="flex items-center gap-2 rounded-lg border border-info/25 bg-info/10 p-3 text-sm text-info" role="status">
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      <span>Processing {uploadedFile.name}…</span>
                     </div>
                   )}
-                  
+
                   {extractionSuccess && (
                     <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-sm font-medium text-green-600 bg-green-50 p-3 rounded-md border border-green-200">
-                        <Check className="h-5 w-5" />
-                        <span>File Content Extracted Successfully!</span>
+                      <div className="flex items-center gap-2 rounded-lg border border-success/25 bg-success/10 p-3 text-sm font-medium text-success" role="status">
+                        <Check className="h-5 w-5" aria-hidden="true" />
+                        <span>File content extracted successfully.</span>
                       </div>
-                      <div className="bg-background p-4 rounded-md border">
-                        <p className="text-sm font-medium mb-2">Extracted Text Preview:</p>
-                        <div className="max-h-32 overflow-y-auto text-xs text-muted-foreground whitespace-pre-wrap">
-                          {extractedTextPreview.slice(0, 500)}...
+                      <div className="rounded-lg border border-border bg-card p-4">
+                        <p className="mb-2 text-sm font-medium text-foreground">Extracted text preview</p>
+                        <div className="max-h-32 overflow-y-auto whitespace-pre-wrap text-xs leading-5 text-muted-foreground">
+                          {extractedTextPreview.slice(0, 500)}…
                         </div>
-                        <Button
-                          type="button"
-                          variant="link"
-                          size="sm"
-                          className="mt-2 h-auto p-0 text-xs"
-                          onClick={() => setShowPreviewDialog(true)}
-                        >
-                          View Full Extracted Text
+                        <Button type="button" variant="link" className="mt-2 h-auto min-h-0 p-0 text-sm" onClick={() => setShowPreviewDialog(true)}>
+                          Review all extracted text
                         </Button>
                       </div>
-                      <p className="text-sm text-green-600 font-medium">
-                        ✓ Form fields have been auto-filled with extracted content. You can now generate WeeLMat below.
-                      </p>
+                      <p className="text-sm font-medium text-success">The form now contains an editable draft. Complete the remaining class details before generating.</p>
                     </div>
                   )}
-                  
+
                   {uploading && (
-                    <div className="space-y-2">
+                    <div className="space-y-2" aria-live="polite">
                       <Progress value={uploadProgress} />
-                      <p className="text-sm text-muted-foreground text-center">
-                        {uploadProgress < 30 ? "Uploading file..." : uploadProgress < 70 ? "Extracting text from document..." : "Processing content..."}
+                      <p className="text-center text-sm text-muted-foreground">
+                        {uploadProgress < 30 ? "Uploading file…" : uploadProgress < 70 ? "Extracting document text…" : "Preparing editable fields…"}
                       </p>
                     </div>
                   )}
-                  
+
                   {!extractionSuccess && !uploading && (
-                    <p className="text-sm text-amber-600">
-                      ⚠ Please upload and extract a file before generating WeeLMat.
-                    </p>
+                    <p className="text-sm font-medium text-warning">Upload and review a file before generating a WeeLMat.</p>
                   )}
-                </div>
+                </section>
               )}
 
-              {/* Manual Mode - Daily Learning Plan Setup */}
               {matrixMode === "manual" && (
-                <div className="mb-4">
-                  <Label className="text-base font-medium">Daily Learning Plan Setup</Label>
-                  <p className="text-sm text-muted-foreground">Configure competency, exam type, and question count for each day. All fields are required.</p>
-                </div>
-              )}
-
-              {/* Daily Fields - Only show in Manual mode */}
-              {matrixMode === "manual" && (
-                <div className="grid gap-6">
-                  {[
-                    { day: "Monday", prefix: "monday" },
-                    { day: "Tuesday", prefix: "tuesday" },
-                    { day: "Wednesday", prefix: "wednesday" },
-                    { day: "Thursday", prefix: "thursday" },
-                    { day: "Friday", prefix: "friday" }
-                  ].map(({ day, prefix }) => (
-                    <div key={day} className="border rounded-lg p-4 space-y-4">
-                      <h3 className="font-medium text-lg text-primary">{day}</h3>
-                      
-                      {/* Competency */}
+                <section aria-labelledby="week-plan-heading" className="border-t border-border pt-7">
+                  <div className="mb-5 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <span className="font-display text-2xl font-semibold text-secondary">03</span>
                       <div>
-                        <Label htmlFor={`${prefix}Competency`}>Competency</Label>
-                        <Textarea 
-                          rows={2} 
-                          placeholder={`Enter ${day}'s competency exactly as you want it to appear`} 
-                          {...register(`${prefix}Competency` as any)} 
-                        />
-                        {errors[`${prefix}Competency` as keyof typeof errors] && (
-                          <p className="text-destructive text-sm mt-1">
-                            {errors[`${prefix}Competency` as keyof typeof errors]?.message}
-                          </p>
-                        )}
+                        <h2 id="week-plan-heading" className="font-display text-2xl font-semibold text-foreground">Week plan</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">Complete one focused day at a time. Your entries remain saved as you switch days.</p>
+                      </div>
+                    </div>
+                    <span className="hidden rounded-full bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary sm:inline-flex">
+                      {completedDays} of 5 days ready
+                    </span>
+                  </div>
+
+                  <div className="overflow-hidden rounded-xl border border-border lg:grid lg:grid-cols-[12rem_minmax(0,1fr)]">
+                    <div className="flex overflow-x-auto border-b border-border bg-muted/35 lg:block lg:border-b-0 lg:border-r" role="tablist" aria-label="School days">
+                      {planningDays.map(({ day, prefix }) => {
+                        const complete = isDayComplete(prefix);
+                        const selected = activeDay === prefix;
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            role="tab"
+                            id={`day-tab-${prefix}`}
+                            aria-selected={selected}
+                            aria-controls={`day-panel-${prefix}`}
+                            onClick={() => setActiveDay(prefix)}
+                            className={`flex min-h-16 min-w-36 items-center justify-between gap-3 border-b-2 px-4 py-3 text-left transition-colors lg:w-full lg:min-w-0 lg:border-b lg:border-l-2 ${selected ? "border-l-secondary border-b-secondary bg-primary text-primary-foreground lg:border-b-border" : "border-l-transparent border-b-transparent bg-transparent text-foreground hover:bg-card"}`}
+                          >
+                            <span>
+                              <span className={`block text-[11px] font-semibold uppercase tracking-[0.16em] ${selected ? "text-secondary" : "text-muted-foreground"}`}>{day.slice(0, 3)}</span>
+                              <span className="font-display text-lg font-semibold">{day}</span>
+                            </span>
+                            {complete ? <CheckCircle2 className={`h-4 w-4 ${selected ? "text-secondary" : "text-primary"}`} aria-label="Complete" /> : <ArrowRight className="h-4 w-4 opacity-55" aria-hidden="true" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div id={`day-panel-${activeDay}`} role="tabpanel" aria-labelledby={`day-tab-${activeDay}`} className="space-y-6 bg-card p-5 sm:p-6">
+                      <div className="flex items-center gap-3 border-b border-border pb-4">
+                        <CalendarDays className="h-5 w-5 text-primary" aria-hidden="true" />
+                        <h3 className="font-display text-2xl font-semibold text-foreground">{activeDayConfig.day}</h3>
                       </div>
 
-                      {/* Exam Type */}
-                      <div>
-                        <Label>Exam Type</Label>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                      <div className="space-y-2">
+                        <Label htmlFor={activeCompetencyField}>Competency</Label>
+                        <Textarea
+                          id={activeCompetencyField}
+                          rows={4}
+                          placeholder={`Enter ${activeDayConfig.day}'s competency exactly as it should appear…`}
+                          aria-invalid={Boolean(errors[activeCompetencyField])}
+                          {...register(activeCompetencyField)}
+                        />
+                        {errors[activeCompetencyField] && <p role="alert" className="text-sm text-destructive">{errors[activeCompetencyField]?.message}</p>}
+                      </div>
+
+                      <fieldset>
+                        <legend className="text-sm font-medium text-foreground">Assessment type</legend>
+                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
                           {examTypes.map((type) => (
                             <Button
                               key={type}
                               type="button"
-                              variant={watchedValues[`${prefix}ExamType` as keyof FormValues] === type ? "default" : "outline"}
-                              size="sm"
-                              className="text-xs h-8"
+                              variant={watchedValues[activeExamTypeField] === type ? "default" : "outline"}
+                              className="h-11 whitespace-normal px-3 text-xs sm:text-sm"
+                              aria-pressed={watchedValues[activeExamTypeField] === type}
                               onClick={() => {
-                                setValue(`${prefix}ExamType` as any, type);
-                                // Auto-populate competency when HOLIDAY is selected
-                                if (type === "HOLIDAY") {
-                                  setValue(`${prefix}Competency` as any, "HOLIDAY");
-                                }
+                                setValue(activeExamTypeField, type, { shouldValidate: true });
+                                if (type === "HOLIDAY") setValue(activeCompetencyField, "HOLIDAY", { shouldValidate: true });
                               }}
                             >
                               {type}
                             </Button>
                           ))}
                         </div>
-                        {errors[`${prefix}ExamType` as keyof typeof errors] && (
-                          <p className="text-destructive text-sm mt-1">
-                            {errors[`${prefix}ExamType` as keyof typeof errors]?.message}
-                          </p>
-                        )}
-                      </div>
+                        {errors[activeExamTypeField] && <p role="alert" className="mt-2 text-sm text-destructive">{errors[activeExamTypeField]?.message}</p>}
+                      </fieldset>
 
-                      {/* Question Count */}
-                      <div>
-                        <Label>Question Count</Label>
-                        <div className="flex items-center gap-2 mt-2">
+                      <fieldset>
+                        <legend className="text-sm font-medium text-foreground">Question count</legend>
+                        <div className="mt-2 flex flex-wrap items-end gap-2">
                           {questionCounts.map((count) => (
                             <Button
                               key={count}
                               type="button"
-                              variant={watchedValues[`${prefix}QuestionCount` as keyof FormValues] === count ? "default" : "outline"}
-                              size="sm"
-                              className="text-xs h-8 w-12"
-                              onClick={() => setValue(`${prefix}QuestionCount` as any, count)}
+                              variant={watchedValues[activeQuestionCountField] === count ? "default" : "outline"}
+                              className="h-11 min-w-14"
+                              aria-pressed={watchedValues[activeQuestionCountField] === count}
+                              onClick={() => setValue(activeQuestionCountField, count, { shouldValidate: true })}
                             >
                               {count}
                             </Button>
                           ))}
+                          <div className="ml-1 space-y-1">
+                            <Label htmlFor={`${activeQuestionCountField}-custom`} className="text-xs text-muted-foreground">Custom</Label>
+                            <Input
+                              id={`${activeQuestionCountField}-custom`}
+                              type="number"
+                              min={3}
+                              max={20}
+                              inputMode="numeric"
+                              className="w-24"
+                              value={watchedValues[activeQuestionCountField] ?? 5}
+                              onChange={(event) => setValue(activeQuestionCountField, Number(event.target.value), { shouldValidate: true })}
+                            />
+                          </div>
                         </div>
-                        {errors[`${prefix}QuestionCount` as keyof typeof errors] && (
-                          <p className="text-destructive text-sm mt-1">
-                            {errors[`${prefix}QuestionCount` as keyof typeof errors]?.message}
-                          </p>
-                        )}
-                      </div>
+                        <p className="mt-2 text-xs text-muted-foreground">Choose between 3 and 20 questions.</p>
+                        {errors[activeQuestionCountField] && <p role="alert" className="mt-2 text-sm text-destructive">{errors[activeQuestionCountField]?.message}</p>}
+                      </fieldset>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                </section>
               )}
 
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Code (optional)</Label>
-                  <Input placeholder="e.g., EN6V-Ia-1" {...register("code")} />
+              <section aria-labelledby="review-heading" className="border-t border-border pt-7">
+                <div className="mb-5 flex items-center gap-3">
+                  <span className="font-display text-2xl font-semibold text-secondary">04</span>
+                  <div>
+                    <h2 id="review-heading" className="font-display text-2xl font-semibold text-foreground">Review details</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">Add optional context that should guide the generated draft.</p>
+                  </div>
                 </div>
-                <div>
-                  <Label>Custom Instructions (optional)</Label>
-                  <Textarea rows={6} placeholder="Additional context, specific assessment criteria, differentiation needs, classroom management considerations, or other requirements for the learning activities…" {...register("customInstructions")} />
+                <div className="grid gap-5 md:grid-cols-[.7fr_1.3fr]">
+                  <div className="space-y-2">
+                    <Label htmlFor="matrix-code">Curriculum code <span className="text-muted-foreground">(optional)</span></Label>
+                    <Input id="matrix-code" placeholder="e.g., EN6V-Ia-1" {...register("code")} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="matrix-instructions">Custom instructions <span className="text-muted-foreground">(optional)</span></Label>
+                    <Textarea id="matrix-instructions" rows={5} placeholder="Add assessment criteria, differentiation needs, classroom context, or other guidance…" {...register("customInstructions")} />
+                  </div>
                 </div>
-              </div>
+              </section>
 
-              <div className="flex items-center gap-3">
-                <Button 
-                  type="submit" 
-                  disabled={loading || !isFormComplete(watchedValues) || (matrixMode === "automatic" && !extractionSuccess)}
-                  className="relative"
-                >
-                  {loading ? "Generating…" : "Generate WeeLMat (DOCX)"}
-                </Button>
-                <Button type="button" variant="outline" onClick={() => {
+              <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
+                <Button type="button" variant="ghost" onClick={() => {
                   reset();
-                  setCustomCounts({});
+                  setActiveDay("monday");
                   setExtractedData(null);
                   setExtractedTextPreview("");
                   setUploadedFile(null);
                   setExtractionSuccess(false);
                 }} disabled={loading}>
-                  Reset
+                  Reset form
                 </Button>
-                {matrixMode === "automatic" && !extractionSuccess && (
-                  <p className="text-sm text-amber-600">
-                    ⚠ Upload and extract a file first to enable generation
-                  </p>
-                )}
-                {matrixMode === "automatic" && extractionSuccess && !isFormComplete(watchedValues) && (
-                  <p className="text-sm text-amber-600">
-                    ✓ Competencies extracted! Please fill in: {[
-                      !watchedValues.subject && "Subject",
-                      !watchedValues.gradeLevel && "Grade Level", 
-                      !watchedValues.section && "Section",
-                      (!watchedValues.dateFrom || !watchedValues.dateTo) && "Dates"
-                    ].filter(Boolean).join(", ")}
-                  </p>
-                )}
-                {matrixMode === "manual" && !isFormComplete(watchedValues) && (
-                  <p className="text-sm text-muted-foreground">
-                    Complete all daily configurations to generate
-                  </p>
-                )}
-                {extractionSuccess && isFormComplete(watchedValues) && (
-                  <p className="text-sm text-green-600 font-medium">
-                    ✓ Ready to generate WeeLMat!
-                  </p>
-                )}
+                <div className="flex flex-col gap-2 sm:items-end">
+                  <Button 
+                    type="submit" 
+                    disabled={loading || !isFormComplete(watchedValues) || (matrixMode === "automatic" && !extractionSuccess)}
+                    className="gap-2 sm:min-w-60"
+                  >
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Sparkles className="h-4 w-4" aria-hidden="true" />}
+                    {loading ? "Generating WeeLMat…" : "Generate WeeLMat"}
+                  </Button>
+                  {matrixMode === "automatic" && !extractionSuccess && (
+                    <p className="text-sm font-medium text-warning">Upload and review a learning material to enable generation.</p>
+                  )}
+                  {matrixMode === "automatic" && extractionSuccess && !isFormComplete(watchedValues) && (
+                    <p className="text-sm font-medium text-warning">
+                      Extraction is complete. Add: {[
+                        !watchedValues.subject && "Subject",
+                        !watchedValues.gradeLevel && "Grade level", 
+                        !watchedValues.section && "Section",
+                        (!watchedValues.dateFrom || !watchedValues.dateTo) && "Week dates"
+                      ].filter(Boolean).join(", ")}
+                    </p>
+                  )}
+                  {matrixMode === "manual" && !isFormComplete(watchedValues) && (
+                    <p className="text-sm text-muted-foreground">Complete the class details and all five school days to generate.</p>
+                  )}
+                  {extractionSuccess && isFormComplete(watchedValues) && (
+                    <p className="text-sm font-medium text-success">Ready to generate your editable WeeLMat draft.</p>
+                  )}
+                </div>
               </div>
             </form>
           </div>
         </div>
-        <aside className="space-y-6">
-          <div className="rounded-2xl border bg-card p-6 shadow-sm">
-            <p className="font-semibold mb-3">Status</p>
-            <div className="space-y-2">
-              {steps.map((s, i)=> (<Step key={s} active={i<=stepIndex && loading} text={s} />))}
+        <aside className="space-y-5 lg:sticky lg:top-24">
+          <div className="rounded-2xl border border-primary/15 bg-primary p-6 text-primary-foreground shadow-[0_18px_45px_-38px_rgba(20,32,25,.8)]">
+            <p className="text-sm font-semibold uppercase tracking-[0.15em] text-secondary">Weekly progress</p>
+            <p className="font-display mt-3 text-3xl font-semibold">{completedDays} of 5 days</p>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15" aria-label={`${completedDays} of 5 days complete`} role="progressbar" aria-valuemin={0} aria-valuemax={5} aria-valuenow={completedDays}>
+              <div className="h-full rounded-full bg-secondary transition-[width] duration-300" style={{ width: `${completedDays * 20}%` }} />
             </div>
+            <ol className="mt-6 space-y-2 text-sm">
+              {planningDays.map(({ day, prefix }) => (
+                <li key={day} className="flex items-center justify-between gap-3">
+                  <button type="button" className="min-h-11 flex-1 rounded-md px-2 text-left font-medium transition-colors hover:bg-white/10 hover:text-secondary" onClick={() => { setMatrixMode("manual"); setActiveDay(prefix); }}>
+                    {day}
+                  </button>
+                  {isDayComplete(prefix) ? <CheckCircle2 className="h-5 w-5 text-secondary" aria-label="Complete" /> : <span className="h-5 w-5 rounded-full border border-white/35" aria-label="Incomplete" />}
+                </li>
+              ))}
+            </ol>
+            <p className="mt-6 border-t border-white/15 pt-5 text-xs leading-5 text-primary-foreground/65">Teacher judgment remains responsible for accuracy, learner suitability, and curriculum alignment.</p>
           </div>
 
+          {loading && (
+            <div className="rounded-2xl border border-border bg-card p-6" aria-live="polite">
+              <p className="font-display text-xl font-semibold text-foreground">Creating your draft</p>
+              <div className="mt-4 space-y-3">
+                {steps.map((step, index) => (<Step key={step} active={index <= stepIndex} text={step} />))}
+              </div>
+            </div>
+          )}
+
           {result && (
-            <div className="rounded-2xl border bg-card p-6 shadow-sm">
-              <p className="font-semibold mb-2">Success</p>
-              <p className="text-sm text-muted-foreground mb-4">Saved to My Files</p>
-              <div className="text-sm mb-4">
+            <div className="rounded-2xl border border-success/25 bg-success/10 p-6">
+              <p className="font-display text-xl font-semibold text-success">WeeLMat ready</p>
+              <p className="mb-4 mt-1 text-sm text-muted-foreground">Saved to your files.</p>
+              <div className="mb-4 space-y-1 text-sm">
                 <p><span className="text-muted-foreground">Subject:</span> {result.subject}</p>
                 <p><span className="text-muted-foreground">Grade/Section:</span> {result.grade} • {result.section}</p>
                 <p><span className="text-muted-foreground">Dates:</span> {result.dates}</p>
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-2">
                 <Button variant="secondary" asChild disabled={!result.docx}>
                   <a href={result.docx} target="_blank" rel="noreferrer">Download DOCX</a>
                 </Button>
@@ -741,26 +879,15 @@ const watchedValues = watch();
         </aside>
       </section>
       
-      <section className="mt-12 p-6 bg-muted/30 rounded-lg border">
-        <h3 className="text-lg font-semibold mb-4 text-foreground">Important Disclaimer</h3>
-        <div className="space-y-3 text-sm text-muted-foreground">
-          <p>
-            <strong>1.</strong> This website is not officially endorsed by DepEd NIR Region. This website is to address and help the rising concerns of teachers in the creation of WeeLMat Matrix, thus giving a load of burden for teachers. If you use this site, this is at your own cost.
-          </p>
-          <p>
-            <strong>2.</strong> Tokens are very expensive for multiple users using the site. That's why it took longer time to make alternative ways to make it FREE of use for everyone.
-          </p>
-          <p>
-            <strong>3.</strong> AI outputs and links are suggestions. Please review, edit, and ensure alignment with your curriculum, division policies, and class context before use.
-          </p>
-          <p>
-            <strong>4.</strong> The site (domain, hosting, and launch) and the AI token credits were paid out-of-pocket by the creator so the tool is usable by everyone. The sole intention is to help teachers reduce workload.
-          </p>
-          <p>
-            <strong>5.</strong> The creator/developer of this site plans to be anonymous. This is not to make him known to everyone, only to help teachers.
-          </p>
+      <section className="mt-10 rounded-2xl border border-secondary/35 bg-secondary/10 p-6" aria-labelledby="responsible-use-heading">
+        <h2 id="responsible-use-heading" className="font-display text-2xl font-semibold text-foreground">Responsible use</h2>
+        <div className="mt-5 grid gap-5 text-sm leading-6 text-muted-foreground md:grid-cols-3">
+          <p><strong className="text-foreground">Independent support tool.</strong> WeeLMat Generator is not an official DepEd system or endorsement.</p>
+          <p><strong className="text-foreground">Review every output.</strong> Confirm curriculum alignment, accuracy, accessibility, workload, and your learners’ context before use.</p>
+          <p><strong className="text-foreground">Built to reduce preparation load.</strong> Hosting and AI services carry real costs, so availability and generation limits may change.</p>
         </div>
       </section>
+          </div>
         </main>
       )}
     </>

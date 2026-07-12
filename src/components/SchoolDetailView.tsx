@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,14 +13,25 @@ interface SchoolDetailViewProps {
 }
 
 export function SchoolDetailView({ schoolName, districtName, onClose }: SchoolDetailViewProps) {
-  const [teachers, setTeachers] = useState<any[]>([]);
+  type Submission = {
+    created_at: string;
+    file_url: string;
+    subject: string | null;
+  };
+
+  type SchoolTeacher = {
+    id: string;
+    teacher_name: string | null;
+    grade_level: string | null;
+    section: string | null;
+    hasSubmitted: boolean;
+    submission: Submission | null;
+  };
+
+  const [teachers, setTeachers] = useState<SchoolTeacher[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchSchoolTeachers();
-  }, [schoolName]);
-
-  const fetchSchoolTeachers = async () => {
+  const fetchSchoolTeachers = useCallback(async () => {
     try {
       // Fetch all teachers from this school
       const { data: teachersData, error: teachersError } = await supabase
@@ -77,7 +88,11 @@ export function SchoolDetailView({ schoolName, districtName, onClose }: SchoolDe
     } finally {
       setLoading(false);
     }
-  };
+  }, [districtName, schoolName]);
+
+  useEffect(() => {
+    void fetchSchoolTeachers();
+  }, [fetchSchoolTeachers]);
 
   if (loading) {
     return (

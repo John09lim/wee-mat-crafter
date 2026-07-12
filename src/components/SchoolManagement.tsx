@@ -82,10 +82,10 @@ export function SchoolManagement({
       setPrincipalEmail("");
       setIsAdding(false);
       onRefresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to add the school.",
         variant: "destructive",
       });
     }

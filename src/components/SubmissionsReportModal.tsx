@@ -9,7 +9,16 @@ import { supabase } from "@/integrations/supabase/client";
 interface SubmissionsReportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  submissions: any[];
+  submissions: Array<{
+    id: string;
+    teacher_name: string;
+    subject: string;
+    grade_level: string;
+    week_start: string;
+    week_end: string;
+    created_at: string;
+    file_url?: string | null;
+  }>;
   schoolName: string;
   principalName: string;
 }
@@ -124,9 +133,9 @@ export function SubmissionsReportModal({
       
       toast.success("Report downloaded successfully!");
       onOpenChange(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error generating report:", error);
-      toast.error(error.message || "Failed to generate report");
+      toast.error(error instanceof Error ? error.message : "Failed to generate report");
     } finally {
       setGenerating(false);
     }
@@ -210,19 +219,19 @@ export function SubmissionsReportModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto border-[#D8D0C4] bg-[#FFFCF7] sm:max-h-[85dvh] sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2" style={{ color: "#236130" }}>
-            <FileText className="h-5 w-5" />
+          <DialogTitle className="font-display flex items-center gap-2 text-2xl text-[#173F2A]">
+            <FileText className="h-5 w-5 text-[#236130]" aria-hidden="true" />
             Download Submissions Report
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div>
-            <label className="text-sm font-medium mb-2 block">Select Week</label>
+            <label htmlFor="submission-report-week" className="mb-2 block text-sm font-semibold text-[#173F2A]">Select week</label>
             <Select value={selectedWeek} onValueChange={setSelectedWeek}>
-              <SelectTrigger>
+              <SelectTrigger id="submission-report-week" className="min-h-11 border-[#CFC6B9] bg-white" aria-label="Select a week for the submissions report">
                 <SelectValue placeholder="Choose a week..." />
               </SelectTrigger>
               <SelectContent>
@@ -236,13 +245,13 @@ export function SubmissionsReportModal({
           </div>
 
           {selectedWeek && (
-            <div className="bg-muted p-4 rounded-lg">
+            <div className="rounded-lg border border-[#D8D0C4] bg-[#F8F3EB] p-4">
               <p className="text-sm font-medium mb-2">
                 {filteredSubmissions.length} teacher{filteredSubmissions.length !== 1 ? "s" : ""} submitted during this week
               </p>
               <div className="max-h-[200px] overflow-y-auto space-y-1">
                 {filteredSubmissions.map((sub) => (
-                  <div key={sub.id} className="text-sm flex items-center justify-between">
+                  <div key={sub.id} className="flex min-h-10 items-center justify-between gap-3 border-b border-[#E4DDD2] py-2 text-sm last:border-b-0">
                     <span>{sub.teacher_name}</span>
                     <span className="text-muted-foreground">{sub.subject}</span>
                   </div>
@@ -251,24 +260,22 @@ export function SubmissionsReportModal({
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col gap-3 pt-2 sm:flex-row">
             <Button
               onClick={handleDownload}
               disabled={!selectedWeek || generating}
-              className="flex-1"
-              style={{ backgroundColor: "#236130" }}
+              className="min-h-11 flex-1 bg-[#236130] text-white hover:bg-[#173F2A]"
             >
-              <Download className="h-4 w-4 mr-2" />
+              <Download className="mr-2 h-4 w-4" aria-hidden="true" />
               {generating ? "Generating..." : "Download DOCX"}
             </Button>
             <Button
               onClick={handlePrint}
               disabled={!selectedWeek}
               variant="outline"
-              className="flex-1"
-              style={{ borderColor: "#236130", color: "#236130" }}
+              className="min-h-11 flex-1 border-[#236130] text-[#173F2A] hover:bg-[#E8EFE8]"
             >
-              <Printer className="h-4 w-4 mr-2" />
+              <Printer className="mr-2 h-4 w-4" aria-hidden="true" />
               Print Preview
             </Button>
           </div>

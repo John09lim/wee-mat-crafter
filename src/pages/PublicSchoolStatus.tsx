@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -42,7 +42,6 @@ import {
   Legend,
   Tooltip,
 } from "recharts";
-import Footer from "@/components/layout/Footer";
 
 interface TeacherStatus {
   teacher_name: string;
@@ -142,7 +141,7 @@ export default function PublicSchoolStatus() {
   const weeksPerPage = 4;
 
   // Dynamic current week
-  const currentWeek = getDynamicCurrentWeek();
+  const currentWeek = useMemo(() => getDynamicCurrentWeek(), []);
 
   useEffect(() => {
     const fetchSchoolStatus = async () => {
@@ -196,7 +195,7 @@ export default function PublicSchoolStatus() {
     };
 
     fetchSchoolStatus();
-  }, [schoolName]);
+  }, [currentWeek.weekEnd, currentWeek.weekStart, schoolName]);
 
   const submittedTeachers = teachers.filter((t) => t.submitted);
   const notSubmittedTeachers = teachers.filter((t) => !t.submitted);
@@ -248,14 +247,14 @@ export default function PublicSchoolStatus() {
 
   // Chart data
   const statusChartData = [
-    { name: "Reviewed", value: stats.reviewed, color: "#1eba83" },
-    { name: "Pending", value: stats.pending, color: "#f59e0b" },
-    { name: "Returned", value: stats.returned, color: "#ef4444" },
+    { name: "Reviewed", value: stats.reviewed, color: "#17613A" },
+    { name: "Pending", value: stats.pending, color: "#D6A73D" },
+    { name: "Returned", value: stats.returned, color: "#A83224" },
   ];
 
   const submissionCompletionData = [
-    { name: "Submitted", value: submittedTeachers.length, color: "#1eba83" },
-    { name: "Not Submitted", value: notSubmittedTeachers.length, color: "#ef4444" },
+    { name: "Submitted", value: submittedTeachers.length, color: "#17613A" },
+    { name: "Not Submitted", value: notSubmittedTeachers.length, color: "#A83224" },
   ];
 
   // Weekly calendar helpers - filter from August 11, 2025
@@ -273,9 +272,9 @@ export default function PublicSchoolStatus() {
   );
 
   const getColorClass = (percentage: number) => {
-    if (percentage === 100) return "bg-green-500/20 border-green-500 text-green-700";
-    if (percentage >= 50) return "bg-yellow-500/20 border-yellow-500 text-yellow-700";
-    return "bg-red-500/20 border-red-500 text-red-700";
+    if (percentage === 100) return "bg-[#E3EFE5] border-[#17613A] text-[#17613A]";
+    if (percentage >= 50) return "bg-[#F7ECD1] border-[#D6A73D] text-[#76500A]";
+    return "bg-[#F7E3DE] border-[#A83224] text-[#A83224]";
   };
 
   const handleWeekClick = (week: WeekData) => {
@@ -305,11 +304,11 @@ export default function PublicSchoolStatus() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "reviewed":
-        return <Badge className="bg-green-500 hover:bg-green-600">Reviewed</Badge>;
+        return <Badge className="bg-[#E3EFE5] text-[#17613A] hover:bg-[#E3EFE5]">Reviewed</Badge>;
       case "pending":
-        return <Badge className="bg-yellow-500 hover:bg-yellow-600">Pending</Badge>;
+        return <Badge className="bg-[#F7ECD1] text-[#76500A] hover:bg-[#F7ECD1]">For review</Badge>;
       case "returned":
-        return <Badge className="bg-red-500 hover:bg-red-600">Returned</Badge>;
+        return <Badge className="bg-[#F7E3DE] text-[#A83224] hover:bg-[#F7E3DE]">Needs revision</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -317,19 +316,31 @@ export default function PublicSchoolStatus() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground">Loading dashboard...</p>
-      </div>
+      <main className="min-h-[calc(100dvh-4rem)] bg-[#F6F0E7]" aria-busy="true">
+        <div className="container max-w-7xl py-10">
+          <div className="animate-pulse space-y-6" role="status" aria-label="Loading public school status">
+            <div className="h-12 w-80 rounded-lg bg-[#D8D0C4]/70" />
+            <div className="h-24 rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]" />
+            <div className="h-80 rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]" />
+            <span className="sr-only">Loading school status…</span>
+          </div>
+        </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      <div className="flex-1 container py-8 max-w-7xl mx-auto px-4">
+    <main id="public-school-status-main" className="min-h-[calc(100dvh-4rem)] bg-[#F6F0E7] text-[#142019]">
+      <div className="container mx-auto flex max-w-7xl flex-col px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+        <header className="order-1 mb-7 border-b border-[#D8D0C4] pb-7">
+          <p className="mb-2 text-sm font-semibold text-[#526159]">Public school status · Read-only view</p>
+          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-[#173F2A] sm:text-5xl">{schoolInfo?.school_name || decodeURIComponent(schoolName || "School status")}</h1>
+          <p className="mt-3 max-w-2xl text-base leading-7 text-[#526159]">Follow weekly WeeLMat submission progress and view the learning matrices shared by the school.</p>
+        </header>
         {/* Account Information Card */}
-        <Card className="p-6 mb-6" style={{ borderColor: "#236130" }}>
-          <h2 className="text-lg font-bold mb-4" style={{ color: "#236130" }}>
-            Account Information
+        <Card className="order-6 mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+          <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
+            School contact
           </h2>
           <div className="flex items-start gap-6">
             <div className="w-24 h-28 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
@@ -344,7 +355,7 @@ export default function PublicSchoolStatus() {
               )}
             </div>
             <div className="flex-1">
-              <h3 className="text-xl font-bold mb-3" style={{ color: "#236130" }}>
+              <h3 className="font-display mb-3 text-xl font-semibold text-[#173F2A]">
                 {schoolInfo?.principal_name || "School Head"}
               </h3>
               <div className="grid md:grid-cols-2 gap-3 text-sm">
@@ -370,12 +381,12 @@ export default function PublicSchoolStatus() {
         </Card>
 
         {/* Manage Teachers Section (Read-Only) */}
-        <Card className="p-6 mb-6">
+        <Card className="order-7 mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
           <div className="flex items-center gap-2 mb-4">
             <Users className="h-5 w-5" style={{ color: "#236130" }} />
-            <h3 className="text-lg font-semibold" style={{ color: "#236130" }}>
+            <h2 className="font-display text-xl font-semibold text-[#173F2A]">
               Teachers ({teachers.length})
-            </h3>
+            </h2>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {teachers.map((teacher, idx) => (
@@ -416,17 +427,17 @@ export default function PublicSchoolStatus() {
         </Card>
 
         {/* This Week's Teacher Submissions */}
-        <Card className="p-6 mb-6">
+        <Card className="order-3 mb-7 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-[0_8px_24px_rgba(20,32,25,0.05)] sm:p-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-            <h3 className="text-lg font-semibold" style={{ color: "#236130" }}>
+            <h2 className="font-display text-2xl font-semibold text-[#173F2A]">
               This Week's Teacher Submissions ({currentWeek.displayText})
-            </h3>
+            </h2>
             <div className="flex items-center gap-1 border rounded-md p-1">
               <Button
                 variant={displayMode === "text" ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setDisplayMode("text")}
-                className="h-8 px-3 text-xs"
+                className="min-h-11 px-4 text-sm"
               >
                 Text
               </Button>
@@ -434,7 +445,7 @@ export default function PublicSchoolStatus() {
                 variant={displayMode === "image" ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setDisplayMode("image")}
-                className="h-8 px-3 text-xs"
+                className="min-h-11 px-4 text-sm"
               >
                 Image
               </Button>
@@ -562,9 +573,9 @@ export default function PublicSchoolStatus() {
         </Card>
 
         {/* Weekly Submission History Calendar */}
-        <Card className="mb-6">
+        <Card className="order-8 mb-6 border-[#D8D0C4] bg-[#FFFCF7] shadow-none">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="font-display flex items-center gap-2 text-2xl text-[#173F2A]">
               <Calendar className="w-5 h-5" />
               Weekly Submission History
             </CardTitle>
@@ -591,13 +602,14 @@ export default function PublicSchoolStatus() {
               <div className="mb-6">
                 <div className="flex justify-center">
                   <button
+                    type="button"
                     onClick={() => handleWeekClick(currentWeekData)}
-                    className={`p-6 rounded-xl border-4 border-[#f5ca47] shadow-lg hover:scale-105 transition-all cursor-pointer w-full max-w-md ${getColorClass(
+                    className={`min-h-44 w-full max-w-md cursor-pointer rounded-xl border-2 p-6 shadow-sm outline-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-[#236130] focus-visible:ring-offset-2 ${getColorClass(
                       currentWeekData.percentage
                     )}`}
                   >
                     <div className="text-center mb-3">
-                      <span className="bg-[#f5ca47] text-[#236130] text-sm font-bold px-4 py-1.5 rounded-full">
+                      <span className="inline-flex min-h-8 items-center rounded-full bg-[#D6A73D] px-4 py-1.5 text-sm font-bold text-[#173F2A]">
                         THIS WEEK
                       </span>
                     </div>
@@ -626,8 +638,9 @@ export default function PublicSchoolStatus() {
                   {displayedWeeks.map((week, idx) => (
                     <button
                       key={idx}
+                      type="button"
                       onClick={() => handleWeekClick(week)}
-                      className={`p-4 rounded-lg border-2 transition-all hover:scale-105 cursor-pointer ${getColorClass(
+                      className={`min-h-36 cursor-pointer rounded-lg border-2 p-4 outline-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-[#236130] focus-visible:ring-offset-2 ${getColorClass(
                         week.percentage
                       )}`}
                     >
@@ -648,7 +661,7 @@ export default function PublicSchoolStatus() {
                 <div className="flex justify-between items-center mt-4">
                   <Button
                     variant="outline"
-                    size="sm"
+                    className="min-h-11 border-[#CFC6B9] text-[#173F2A]"
                     onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
                     disabled={currentPage === 0}
                   >
@@ -662,7 +675,7 @@ export default function PublicSchoolStatus() {
                   </span>
                   <Button
                     variant="outline"
-                    size="sm"
+                    className="min-h-11 border-[#CFC6B9] text-[#173F2A]"
                     onClick={() => setCurrentPage(currentPage + 1)}
                     disabled={(currentPage + 1) * weeksPerPage >= otherWeeks.length}
                   >
@@ -676,11 +689,11 @@ export default function PublicSchoolStatus() {
         </Card>
 
         {/* Charts Section */}
-        <div className="grid md:grid-cols-2 gap-6 mb-6">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+        <section className="order-9 mb-6 grid gap-6 md:grid-cols-2" aria-label="Submission charts">
+          <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+            <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
               Submission Status Distribution
-            </h3>
+            </h2>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -721,10 +734,10 @@ export default function PublicSchoolStatus() {
             </ResponsiveContainer>
           </Card>
 
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+          <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+            <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
               Teacher Completion Rate
-            </h3>
+            </h2>
             <ResponsiveContainer width="100%" height={250}>
               <PieChart>
                 <Pie
@@ -748,54 +761,54 @@ export default function PublicSchoolStatus() {
               </PieChart>
             </ResponsiveContainer>
           </Card>
-        </div>
+        </section>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card className="p-4">
+        <section className="order-2 mb-7 grid overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7] shadow-[0_8px_26px_rgba(20,32,25,0.05)] sm:grid-cols-2 lg:grid-cols-4" aria-label="School submission summary">
+          <div className="border-b border-[#D8D0C4] p-4 sm:border-r lg:border-b-0 sm:p-5">
             <div className="flex items-center gap-3">
               <BookOpen className="h-8 w-8" style={{ color: "#236130" }} />
               <div>
-                <p className="text-2xl font-bold">{stats.total}</p>
-                <p className="text-sm text-muted-foreground">Total Submissions</p>
+                <p className="font-display text-2xl font-semibold tabular-nums text-[#173F2A]">{stats.total}</p>
+                <p className="text-sm text-[#526159]">Total submissions</p>
               </div>
             </div>
-          </Card>
-          <Card className="p-4">
+          </div>
+          <div className="border-b border-[#D8D0C4] p-4 lg:border-b-0 lg:border-r sm:p-5">
             <div className="flex items-center gap-3">
               <Calendar className="h-8 w-8 text-yellow-600" />
               <div>
-                <p className="text-2xl font-bold">{stats.pending}</p>
-                <p className="text-sm text-muted-foreground">Pending Review</p>
+                <p className="font-display text-2xl font-semibold tabular-nums text-[#173F2A]">{stats.pending}</p>
+                <p className="text-sm text-[#526159]">Pending review</p>
               </div>
             </div>
-          </Card>
-          <Card className="p-4">
+          </div>
+          <div className="border-b border-[#D8D0C4] p-4 sm:border-b-0 sm:border-r sm:p-5">
             <div className="flex items-center gap-3">
               <CheckCircle className="h-8 w-8 text-green-600" />
               <div>
-                <p className="text-2xl font-bold">{stats.reviewed}</p>
-                <p className="text-sm text-muted-foreground">Reviewed</p>
+                <p className="font-display text-2xl font-semibold tabular-nums text-[#173F2A]">{stats.reviewed}</p>
+                <p className="text-sm text-[#526159]">Reviewed</p>
               </div>
             </div>
-          </Card>
-          <Card className="p-4">
+          </div>
+          <div className="p-4 sm:p-5">
             <div className="flex items-center gap-3">
               <Users className="h-8 w-8 text-blue-600" />
               <div>
-                <p className="text-2xl font-bold">{teachers.length}</p>
-                <p className="text-sm text-muted-foreground">Teachers</p>
+                <p className="font-display text-2xl font-semibold tabular-nums text-[#173F2A]">{teachers.length}</p>
+                <p className="text-sm text-[#526159]">Teachers</p>
               </div>
             </div>
-          </Card>
-        </div>
+          </div>
+        </section>
 
         {/* Status Filter */}
-        <Card className="p-4 mb-4">
-          <div className="flex items-center gap-4">
-            <span className="font-semibold text-sm">Filter by Status:</span>
+        <Card className="order-4 mb-4 border-[#D8D0C4] bg-[#FFFCF7] p-4 shadow-none">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <label htmlFor="public-status-filter" className="font-semibold text-sm text-[#173F2A]">Filter by status</label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40">
+              <SelectTrigger id="public-status-filter" className="min-h-11 w-full border-[#CFC6B9] bg-white sm:w-48" aria-label="Filter submissions by status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -812,19 +825,19 @@ export default function PublicSchoolStatus() {
         </Card>
 
         {/* Tabbed Submissions View */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-          <TabsList>
-            <TabsTrigger value="all">All Submissions</TabsTrigger>
-            <TabsTrigger value="by-teacher">By Teacher</TabsTrigger>
-            <TabsTrigger value="by-subject">By Subject</TabsTrigger>
-            <TabsTrigger value="by-week">By Week</TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="order-5 mb-6">
+          <div className="overflow-x-auto pb-1">
+            <TabsList className="h-auto min-w-max border border-[#D8D0C4] bg-[#EEE8DE] p-1">
+              <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="all">All submissions</TabsTrigger>
+              <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="by-teacher">By teacher</TabsTrigger>
+              <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="by-subject">By learning area</TabsTrigger>
+              <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="by-week">By week</TabsTrigger>
+            </TabsList>
+          </div>
 
-          <TabsContent value="all" className="space-y-4">
+          <TabsContent value="all" className="mt-3 overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7] shadow-[0_8px_24px_rgba(20,32,25,0.05)]">
             {filteredSubmissions.length === 0 ? (
-              <Card className="p-6 text-center text-muted-foreground">
-                No submissions found
-              </Card>
+              <PublicEmptyState message="No submissions match this status filter." />
             ) : (
               filteredSubmissions.map((sub) => (
                 <SubmissionCard key={sub.id} submission={sub} getStatusBadge={getStatusBadge} />
@@ -836,13 +849,10 @@ export default function PublicSchoolStatus() {
             {Object.entries(groupedByTeacher).map(
               ([teacher, subs]: [string, Submission[]]) => (
                 <div key={teacher}>
-                  <h3
-                    className="text-xl font-semibold mb-3"
-                    style={{ color: "#236130" }}
-                  >
+                  <h3 className="font-display mb-3 text-xl font-semibold text-[#173F2A]">
                     {teacher} ({subs.length} submissions)
                   </h3>
-                  <div className="space-y-4">
+                  <div className="overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]">
                     {subs.map((sub) => (
                       <SubmissionCard key={sub.id} submission={sub} getStatusBadge={getStatusBadge} />
                     ))}
@@ -856,13 +866,10 @@ export default function PublicSchoolStatus() {
             {Object.entries(groupedBySubject).map(
               ([subject, subs]: [string, Submission[]]) => (
                 <div key={subject}>
-                  <h3
-                    className="text-xl font-semibold mb-3"
-                    style={{ color: "#236130" }}
-                  >
+                  <h3 className="font-display mb-3 text-xl font-semibold text-[#173F2A]">
                     {subject} ({subs.length} submissions)
                   </h3>
-                  <div className="space-y-4">
+                  <div className="overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]">
                     {subs.map((sub) => (
                       <SubmissionCard key={sub.id} submission={sub} getStatusBadge={getStatusBadge} />
                     ))}
@@ -874,19 +881,14 @@ export default function PublicSchoolStatus() {
 
           <TabsContent value="by-week" className="space-y-6">
             {sortedWeeks.length === 0 ? (
-              <Card className="p-6 text-center text-muted-foreground">
-                No submissions found
-              </Card>
+              <PublicEmptyState message="No weekly submissions are available yet." />
             ) : (
               sortedWeeks.map(({ weekStart, weekEnd, submissions: weekSubs }) => (
                 <div key={`${weekStart}_${weekEnd}`}>
-                  <h3
-                    className="text-xl font-semibold mb-3"
-                    style={{ color: "#236130" }}
-                  >
+                  <h3 className="font-display mb-3 text-xl font-semibold text-[#173F2A]">
                     Week of {format(new Date(weekStart), "MMM d")} - {format(new Date(weekEnd), "MMM d, yyyy")} ({weekSubs.length} submissions)
                   </h3>
-                  <div className="space-y-4">
+                  <div className="overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]">
                     {weekSubs.map((sub) => (
                       <SubmissionCard key={sub.id} submission={sub} getStatusBadge={getStatusBadge} />
                     ))}
@@ -898,16 +900,16 @@ export default function PublicSchoolStatus() {
         </Tabs>
 
         {/* Read-only notice */}
-        <div className="text-center text-xs text-muted-foreground mt-8 mb-4">
+        <div className="order-10 mb-4 mt-8 text-center text-xs text-[#526159]">
           <p>This is a read-only view of the school's dashboard.</p>
         </div>
       </div>
 
       {/* Week Detail Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-2xl overflow-y-auto border-[#D8D0C4] bg-[#FFFCF7] sm:max-h-[85dvh]">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="font-display text-2xl text-[#173F2A]">
               {selectedWeek &&
                 `Week of ${format(
                   new Date(selectedWeek.weekStart),
@@ -990,7 +992,18 @@ export default function PublicSchoolStatus() {
         </DialogContent>
       </Dialog>
 
-      <Footer />
+    </main>
+  );
+}
+
+function PublicEmptyState({ message }: { message: string }) {
+  return (
+    <div className="flex min-h-48 flex-col items-center justify-center px-6 py-10 text-center">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#E8EFE8] text-[#236130]">
+        <BookOpen className="h-6 w-6" aria-hidden="true" />
+      </span>
+      <p className="font-display mt-4 text-xl font-semibold text-[#173F2A]">Nothing to show yet</p>
+      <p className="mt-2 max-w-md text-sm leading-6 text-[#526159]">{message}</p>
     </div>
   );
 }
@@ -1003,29 +1016,25 @@ function SubmissionCard({
   getStatusBadge: (status: string) => JSX.Element;
 }) {
   return (
-    <Card className="p-4 hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start gap-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-semibold text-lg">{submission.teacher_name}</h3>
+    <article className="border-b border-[#E4DDD2] bg-[#FFFCF7] p-4 transition-colors last:border-b-0 hover:bg-white sm:p-5">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+        <div className="min-w-0">
+          <div className="mb-1 flex flex-wrap items-center gap-2">
+            <h3 className="font-semibold text-[#142019] sm:text-lg">{submission.teacher_name}</h3>
             {getStatusBadge(submission.status)}
           </div>
-          <p className="text-sm font-medium">
-            {submission.subject} - {submission.grade_level} ({submission.section})
+          <p className="text-sm font-semibold text-[#35443B]">
+            {submission.subject} · {submission.grade_level} ({submission.section})
           </p>
-          <p className="text-sm text-muted-foreground">
-            Week: {new Date(submission.week_start).toLocaleDateString()} to{" "}
-            {new Date(submission.week_end).toLocaleDateString()}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Submitted: {new Date(submission.created_at).toLocaleDateString()}
-          </p>
+          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs leading-5 text-[#526159]">
+            <span className="tabular-nums">Week: {new Date(submission.week_start).toLocaleDateString()} – {new Date(submission.week_end).toLocaleDateString()}</span>
+            <span className="tabular-nums">Submitted: {new Date(submission.created_at).toLocaleDateString()}</span>
+          </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
-            size="sm"
-            style={{ backgroundColor: "#236130", color: "white" }}
+            className="min-h-11 bg-[#236130] text-white hover:bg-[#173F2A]"
             asChild
           >
             <a
@@ -1034,23 +1043,25 @@ function SubmissionCard({
               )}`}
               target="_blank"
               rel="noopener noreferrer"
+              aria-label={`View ${submission.teacher_name}'s submission`}
             >
-              <ExternalLink className="h-4 w-4 mr-1" />
+              <ExternalLink className="mr-1.5 h-4 w-4" aria-hidden="true" />
               View
             </a>
           </Button>
-          <Button size="sm" variant="outline" asChild>
+          <Button variant="outline" className="min-h-11 min-w-11 border-[#CFC6B9] text-[#173F2A]" asChild>
             <a
               href={submission.file_url}
               target="_blank"
               rel="noopener noreferrer"
               download
+              aria-label={`Download ${submission.teacher_name}'s submission`}
             >
-              <Download className="h-4 w-4" />
+              <Download className="h-4 w-4" aria-hidden="true" />
             </a>
           </Button>
         </div>
       </div>
-    </Card>
+    </article>
   );
 }

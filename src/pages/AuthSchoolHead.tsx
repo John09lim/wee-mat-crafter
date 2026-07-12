@@ -1,20 +1,27 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
+import { useEffect, useState, type FormEvent } from "react";
+import { Lock, Mail, MapPin, School, User } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Building2, Mail, Lock, User, School as SchoolIcon, MapPin } from "lucide-react";
+
 import PasswordResetDialog from "@/components/PasswordResetDialog";
+import {
+  AuthField,
+  AuthPortal,
+  type AuthPortalMode,
+} from "@/components/auth/AuthPortal";
+import { supabase } from "@/integrations/supabase/client";
+
+const getErrorMessage = (error: unknown, fallback: string) =>
+  error instanceof Error && error.message ? error.message : fallback;
 
 export default function AuthSchoolHead() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
+  const [mode, setMode] = useState<AuthPortalMode>("login");
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [showPasswordResetDialog, setShowPasswordResetDialog] = useState(false);
-  
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -23,58 +30,63 @@ export default function AuthSchoolHead() {
   const [district, setDistrict] = useState("");
 
   useEffect(() => {
-    // Check for password recovery event from Supabase email link
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const checkUserRole = async (userId: string) => {
+      const { data: role } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .single();
+
+      if (role?.role === "school_head") {
+        navigate("/principal-dashboard");
+      }
+    };
+
+    const checkAuth = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user && !showPasswordResetDialog) {
+        await checkUserRole(user.id);
+      }
+    };
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {
         setShowPasswordResetDialog(true);
         return;
       }
-      
+
       if (session?.user && !showPasswordResetDialog) {
         checkUserRole(session.user.id);
       }
     });
-    
-    // Check URL hash for recovery tokens
+
     const hashParams = new URLSearchParams(location.hash.substring(1));
     const accessToken = hashParams.get("access_token");
     const type = hashParams.get("type");
-    
+
     if (type === "recovery" && accessToken) {
-      supabase.auth.setSession({
-        access_token: accessToken,
-        refresh_token: hashParams.get("refresh_token") || "",
-      }).then(() => {
-        setShowPasswordResetDialog(true);
-      });
+      supabase.auth
+        .setSession({
+          access_token: accessToken,
+          refresh_token: hashParams.get("refresh_token") || "",
+        })
+        .then(() => {
+          setShowPasswordResetDialog(true);
+        });
     } else {
       checkAuth();
     }
-    
+
     return () => subscription.unsubscribe();
-  }, [location.hash, showPasswordResetDialog]);
+  }, [location.hash, navigate, showPasswordResetDialog]);
 
-  const checkUserRole = async (userId: string) => {
-    const { data: role } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .single();
-    
-    if (role?.role === "school_head") {
-      navigate("/principal-dashboard");
-    }
-  };
-
-  const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user && !showPasswordResetDialog) {
-      checkUserRole(user.id);
-    }
-  };
-
-  const handlePasswordReset = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePasswordReset = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setFormError(null);
     setLoading(true);
 
     try {
@@ -86,28 +98,35 @@ export default function AuthSchoolHead() {
 
       toast.success("Password reset email sent! Check your inbox.");
       setMode("login");
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, "Failed to send password reset email");
       console.error("Password reset error:", error);
-      toast.error(error.message || "Failed to send password reset email");
+      setFormError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAuth = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setFormError(null);
     setLoading(true);
 
     try {
       if (mode === "signup") {
         if (password !== confirmPassword) {
-          toast.error("Passwords do not match");
+          const message = "Passwords do not match.";
+          setFormError(message);
+          toast.error(message);
           setLoading(false);
           return;
         }
 
         if (!name || !school || !district) {
-          toast.error("Please fill in all fields");
+          const message = "Please fill in all fields.";
+          setFormError(message);
+          toast.error(message);
           setLoading(false);
           return;
         }
@@ -120,14 +139,19 @@ export default function AuthSchoolHead() {
               emailRedirectTo: `${window.location.origin}/principal-dashboard`,
               data: {
                 full_name: name,
-                role: 'school_head'
-              }
+                role: "school_head",
+              },
             },
           });
 
           if (error) {
-            if (error.message.includes("already registered") || error.message.includes("User already registered")) {
-              toast.error("This email is already registered. Please log in instead.");
+            if (
+              error.message.includes("already registered") ||
+              error.message.includes("User already registered")
+            ) {
+              const message = "This email is already registered. Please log in instead.";
+              setFormError(message);
+              toast.error(message);
               setMode("login");
               return;
             }
@@ -147,33 +171,39 @@ export default function AuthSchoolHead() {
                 .from("schools")
                 .update({ principal_id: data.user.id })
                 .eq("id", schoolMatch.id);
-              
-              await supabase.from("profiles").upsert({
-                user_id: data.user.id,
-                email: email,
-                teacher_name: name,
-                school: schoolMatch.school_name,
-                district_name: schoolMatch.district_name,
-              }, { onConflict: "user_id" });
-              
+
+              await supabase.from("profiles").upsert(
+                {
+                  user_id: data.user.id,
+                  email,
+                  teacher_name: name,
+                  school: schoolMatch.school_name,
+                  district_name: schoolMatch.district_name,
+                },
+                { onConflict: "user_id" },
+              );
+
               toast.success(`Welcome! You've been linked to ${schoolMatch.school_name}!`);
             } else {
               await supabase.from("profiles").insert({
                 user_id: data.user.id,
-                email: email,
+                email,
                 teacher_name: name,
-                school: school,
+                school,
                 district_name: district,
               });
-              
+
               toast.success("Account created successfully!");
             }
-            
+
             navigate("/principal-dashboard");
           }
         } catch (profileError) {
           console.error("Error creating profile:", profileError);
-          toast.error("Account created but there was an error setting up your profile. Please contact support.");
+          const message =
+            "Account created but there was an error setting up your profile. Please contact support.";
+          setFormError(message);
+          toast.error(message);
         }
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
@@ -182,15 +212,14 @@ export default function AuthSchoolHead() {
         });
 
         if (error) {
-          if (error.message.includes("Invalid login credentials")) {
-            toast.error("Invalid email or password. Please try again.");
-          } else {
-            toast.error("Login failed. Please try again.");
-          }
+          const message = error.message.includes("Invalid login credentials")
+            ? "Invalid email or password. Please try again."
+            : "Login failed. Please try again.";
+          setFormError(message);
+          toast.error(message);
           return;
         }
 
-        // Check if profile exists, create if missing
         const { data: profile } = await supabase
           .from("profiles")
           .select("*")
@@ -201,14 +230,16 @@ export default function AuthSchoolHead() {
           await supabase.from("profiles").insert({
             user_id: data.user.id,
             email: data.user.email!,
-            teacher_name: data.user.user_metadata?.full_name || data.user.email?.split('@')[0] || 'School Head',
-            school: 'Please update',
-            district_name: 'Please update'
+            teacher_name:
+              data.user.user_metadata?.full_name ||
+              data.user.email?.split("@")[0] ||
+              "School Head",
+            school: "Please update",
+            district_name: "Please update",
           });
           toast("Profile created. Please update your school information.");
         }
 
-        // Check if user has school_head role, auto-assign if missing (for legacy users)
         const { data: roleData } = await supabase
           .from("user_roles")
           .select("role")
@@ -217,19 +248,20 @@ export default function AuthSchoolHead() {
           .maybeSingle();
 
         if (!roleData) {
-          // Auto-assign school_head role for legacy users without roles
           const { error: roleError } = await supabase
             .from("user_roles")
             .insert({ user_id: data.user.id, role: "school_head" });
-          
+
           if (roleError) {
             console.error("Role assignment error:", roleError);
-            toast.error("There was an issue with your account. Please contact support.");
+            const message = "There was an issue with your account. Please contact support.";
+            setFormError(message);
+            toast.error(message);
             await supabase.auth.signOut();
             setLoading(false);
             return;
           }
-          
+
           toast.success("Welcome back! Your account has been updated.");
         } else {
           toast.success("Login successful!");
@@ -237,167 +269,130 @@ export default function AuthSchoolHead() {
 
         navigate("/principal-dashboard");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, "Authentication failed");
       console.error("Auth error:", error);
-      toast.error(error.message || "Authentication failed");
+      setFormError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleModeChange = (nextMode: AuthPortalMode) => {
+    setFormError(null);
+    setMode(nextMode);
+  };
+
+  const mismatchError = formError === "Passwords do not match." ? formError : null;
+
   return (
     <>
-      <PasswordResetDialog 
-        open={showPasswordResetDialog} 
+      <PasswordResetDialog
+        open={showPasswordResetDialog}
         onClose={() => {
           setShowPasswordResetDialog(false);
           navigate("/principal-dashboard");
-        }} 
+        }}
       />
-    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: "#f9f0eb" }}>
-      <Card className="w-full max-w-md p-8 shadow-lg">
-        <div className="flex flex-col items-center mb-6">
-          <Building2 className="h-12 w-12 mb-3" style={{ color: "#236130" }} />
-          <h1 className="text-2xl font-bold" style={{ color: "#236130" }}>
-            School Head Portal
-          </h1>
-          <p className="text-muted-foreground text-center mt-2">
-            {mode === "login" 
-              ? "Sign in to your account" 
-              : mode === "signup" 
-                ? "Create your School Head account"
-                : "Reset your password"}
-          </p>
-        </div>
 
-        <form onSubmit={mode === "reset" ? handlePasswordReset : handleAuth} className="space-y-4">
-          {mode === "signup" && (
-            <>
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Principal Name
-                </label>
-                <Input
-                  type="text"
-                  placeholder="Enter your name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <SchoolIcon className="h-4 w-4" />
-                  School Name
-                </label>
-                <Input
-                  type="text"
-                  placeholder="Enter school name"
-                  value={school}
-                  onChange={(e) => setSchool(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  District Name
-                </label>
-                <Input
-                  type="text"
-                  placeholder="Enter district name"
-                  value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
-                  required
-                />
-              </div>
-            </>
-          )}
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-2">
-              <Mail className="h-4 w-4" />
-              Email
-            </label>
-            <Input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+      <AuthPortal
+        role="principal"
+        mode={mode}
+        loading={loading}
+        onSubmit={mode === "reset" ? handlePasswordReset : handleAuth}
+        onModeChange={handleModeChange}
+        formError={mismatchError ? null : formError}
+      >
+        {mode === "signup" ? (
+          <>
+            <AuthField
+              id="principal-name"
+              name="name"
+              label="Principal name"
+              icon={User}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Enter your complete name"
+              autoComplete="name"
               required
             />
-          </div>
-
-          {mode === "reset" ? null : (
-          <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-2">
-              <Lock className="h-4 w-4" />
-              Password
-            </label>
-            <Input
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+            <AuthField
+              id="principal-school"
+              name="organization"
+              label="School name"
+              icon={School}
+              value={school}
+              onChange={(event) => setSchool(event.target.value)}
+              placeholder="Enter your school name"
+              autoComplete="organization"
               required
             />
-          </div>
-          )}
+            <AuthField
+              id="principal-district"
+              name="address-level2"
+              label="District name"
+              icon={MapPin}
+              value={district}
+              onChange={(event) => setDistrict(event.target.value)}
+              placeholder="Enter your district name"
+              autoComplete="address-level2"
+              required
+            />
+          </>
+        ) : null}
 
-          {mode === "signup" && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <Lock className="h-4 w-4" />
-                Confirm Password
-              </label>
-              <Input
-                type="password"
-                placeholder="Confirm your password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-            </div>
-          )}
+        <AuthField
+          id="principal-email"
+          name="email"
+          label="Email address"
+          icon={Mail}
+          type="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="principal@example.com"
+          autoComplete="email"
+          helper="Use the email connected to your school record."
+          required
+        />
 
-          <Button
-            type="submit"
-            className="w-full"
-            style={{ backgroundColor: "#236130", color: "white" }}
-            disabled={loading}
-          >
-            {loading ? "Processing..." : mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : "Send Reset Email"}
-          </Button>
-        </form>
+        {mode !== "reset" ? (
+          <AuthField
+            id="principal-password"
+            name="password"
+            label="Password"
+            icon={Lock}
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="Enter your password"
+            autoComplete={mode === "login" ? "current-password" : "new-password"}
+            helper={mode === "login" ? "Enter your password to continue." : "Use at least 6 characters."}
+            minLength={mode === "signup" ? 6 : undefined}
+            required
+          />
+        ) : null}
 
-        <div className="mt-4 text-center space-y-2">
-          {mode === "login" && (
-            <button
-              onClick={() => setMode("reset")}
-              className="text-sm hover:underline block w-full"
-              style={{ color: "#236130" }}
-            >
-              Forgot password?
-            </button>
-          )}
-          <button
-            onClick={() => setMode(mode === "login" ? "signup" : "login")}
-            className="text-sm hover:underline"
-            style={{ color: "#236130" }}
-          >
-            {mode === "login" 
-              ? "Don't have an account? Sign up" 
-              : mode === "signup"
-                ? "Already have an account? Sign in"
-                : "Back to sign in"}
-          </button>
-        </div>
-
-      </Card>
-    </div>
+        {mode === "signup" ? (
+          <AuthField
+            id="principal-password-confirmation"
+            name="password-confirmation"
+            label="Confirm password"
+            icon={Lock}
+            type="password"
+            value={confirmPassword}
+            onChange={(event) => {
+              setConfirmPassword(event.target.value);
+              if (mismatchError) setFormError(null);
+            }}
+            placeholder="Enter your password again"
+            autoComplete="new-password"
+            error={mismatchError}
+            minLength={6}
+            required
+          />
+        ) : null}
+      </AuthPortal>
     </>
   );
 }

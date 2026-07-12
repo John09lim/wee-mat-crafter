@@ -1,5 +1,14 @@
-import { useState } from "react";
-import { Lock, School, BookOpen, FileText, ScanLine, BarChart3 } from "lucide-react";
+import { type FormEvent, useState } from "react";
+import {
+  BarChart3,
+  BookOpen,
+  FileText,
+  Info,
+  LoaderCircle,
+  LockKeyhole,
+  ScanLine,
+  School,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,112 +26,157 @@ interface PasscodeDialogProps {
   onPasscodeVerified: () => void;
 }
 
-export const PasscodeDialog: React.FC<PasscodeDialogProps> = ({ open, onPasscodeVerified }) => {
+const upcomingFeatures = [
+  {
+    icon: BookOpen,
+    name: "Lesson plan generator",
+    description: "Build a structured lesson plan from your weekly matrix.",
+  },
+  {
+    icon: FileText,
+    name: "Periodical test and TOS",
+    description: "Prepare aligned assessments and tables of specifications.",
+  },
+  {
+    icon: ScanLine,
+    name: "Grade scanner",
+    description: "Digitize class records with a faster review step.",
+  },
+  {
+    icon: BarChart3,
+    name: "Learning analytics",
+    description: "Follow completion and performance patterns over time.",
+  },
+] as const;
+
+export const PasscodeDialog = ({ open, onPasscodeVerified }: PasscodeDialogProps) => {
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setLoading(true);
     setError("");
 
-    // Simulate validation delay for better UX
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 500));
 
     const correctPasscode = import.meta.env.VITE_DASHBOARD_PASSCODE;
-    
+
     if (passcode === correctPasscode) {
       localStorage.setItem("dashboard_passcode_verified", "true");
       onPasscodeVerified();
     } else {
       setError("Invalid passcode. Please contact your administrator.");
     }
-    
+
     setLoading(false);
   };
 
-  const upcomingFeatures = [
-    { icon: BookOpen, name: "Lesson Plan Generator", description: "Create comprehensive lesson plans automatically" },
-    { icon: FileText, name: "Periodical Test & TOS Generator", description: "Generate assessments and table of specifications" },
-    { icon: ScanLine, name: "Grade Scanner", description: "Scan and digitize student grades efficiently" },
-    { icon: BarChart3, name: "Analytics Dashboard", description: "Track learning progress and performance" },
-  ];
-
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader className="text-center space-y-3">
-          <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
-            <School className="w-8 h-8 text-primary" />
+    <Dialog open={open} onOpenChange={() => undefined}>
+      <DialogContent className="max-h-[calc(100dvh-1.5rem)] overflow-y-auto border-warm-border bg-paper [&>button]:hidden sm:max-w-lg">
+        <DialogHeader className="space-y-3 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-forest text-paper shadow-sm">
+            <School aria-hidden="true" className="h-7 w-7" />
           </div>
-          <DialogTitle className="text-xl font-semibold">WeeLMat Generator Access</DialogTitle>
-          <DialogDescription className="text-base">
-            <span className="font-medium text-primary">Bacong District, Negros Oriental</span>
+          <DialogTitle>Educator workspace access</DialogTitle>
+          <DialogDescription>
+            <span className="font-semibold text-forest">Bacong District, Negros Oriental</span>
             <br />
-            School Initiative Platform
+            Enter the school-issued passcode to continue to the WeeLMat dashboard.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          <Alert className="border-accent/20 bg-accent/5">
-            <AlertDescription className="text-sm text-center">
-              <strong>We apologize for the inconvenience.</strong> The platform is currently undergoing improvements to better serve our educators.
-              <br />
-              <strong>Platform Status:</strong> Currently upgrading and improving features.
-              <br />
-              New educational tools will be available soon!
+        <div className="space-y-5">
+          <Alert className="border-info/20 bg-info/5 text-ink">
+            <Info aria-hidden="true" className="h-4 w-4 text-info" />
+            <AlertDescription className="text-sm leading-6">
+              WeeLMat is being improved in phases. The generator remains available while new
+              planning and reporting tools are prepared.
             </AlertDescription>
           </Alert>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-2">
-              <Label htmlFor="passcode" className="flex items-center gap-2">
-                <Lock className="w-4 h-4" />
-                Enter Access Passcode
+              <Label className="flex items-center gap-2 text-ink" htmlFor="passcode">
+                <LockKeyhole aria-hidden="true" className="h-4 w-4 text-primary" />
+                Access passcode
               </Label>
               <Input
+                aria-describedby={error ? "passcode-error" : "passcode-help"}
+                aria-invalid={Boolean(error)}
+                autoComplete="off"
+                autoFocus
+                className="text-center font-mono tracking-[0.3em]"
+                disabled={loading}
                 id="passcode"
+                inputMode="numeric"
+                onChange={(event) => setPasscode(event.target.value)}
+                placeholder="Enter passcode"
                 type="password"
                 value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                placeholder="Enter passcode to continue"
-                disabled={loading}
-                className="text-center"
-                autoFocus
               />
+              <p className="text-xs text-muted-foreground" id="passcode-help">
+                Use the passcode provided by your school administrator.
+              </p>
               {error && (
-                <p className="text-destructive text-sm text-center">{error}</p>
+                <p className="text-sm font-medium text-destructive" id="passcode-error" role="alert">
+                  {error}
+                </p>
               )}
             </div>
 
-            <Button type="submit" disabled={loading || !passcode.trim()} className="w-full">
-              {loading ? "Verifying..." : "Access Dashboard"}
+            <Button
+              className="w-full gap-2 bg-forest text-paper hover:bg-primary"
+              disabled={loading || !passcode.trim()}
+              type="submit"
+            >
+              {loading ? (
+                <>
+                  <LoaderCircle
+                    aria-hidden="true"
+                    className="h-4 w-4 animate-spin motion-reduce:animate-none"
+                  />
+                  Verifying passcode
+                </>
+              ) : (
+                <>
+                  <LockKeyhole aria-hidden="true" className="h-4 w-4" />
+                  Access dashboard
+                </>
+              )}
             </Button>
           </form>
 
-          <div className="space-y-3">
-            <h4 className="text-sm font-medium text-center text-muted-foreground">
-              Upcoming Features
-            </h4>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {upcomingFeatures.map((feature, index) => (
-                <div key={index} className="flex items-start gap-2 p-2 rounded-lg bg-muted/30">
-                  <feature.icon className="w-3 h-3 text-primary mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium text-primary">{feature.name}</p>
-                    <p className="text-muted-foreground leading-tight">{feature.description}</p>
+          <section aria-labelledby="upcoming-tools-title" className="border-t border-warm-border pt-4">
+            <h3 className="text-sm font-semibold text-forest" id="upcoming-tools-title">
+              Tools in development
+            </h3>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {upcomingFeatures.map((feature) => (
+                <div
+                  className="flex items-start gap-3 rounded-xl border border-warm-border bg-cream/45 p-3"
+                  key={feature.name}
+                >
+                  <feature.icon
+                    aria-hidden="true"
+                    className="mt-0.5 h-4 w-4 shrink-0 text-primary"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-forest">{feature.name}</p>
+                    <p className="mt-0.5 text-xs leading-5 text-muted-foreground">
+                      {feature.description}
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </section>
 
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">
-              For access support, contact your school administrator
-            </p>
-          </div>
+          <p className="text-center text-xs text-muted-foreground">
+            Need access support? Contact your school administrator.
+          </p>
         </div>
       </DialogContent>
     </Dialog>

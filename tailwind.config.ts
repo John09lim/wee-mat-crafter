@@ -1,4 +1,21 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
+import tailwindcssAnimate from "tailwindcss-animate";
+
+const addAuroraColorVariables = plugin(({ addBase, theme }) => {
+	addBase({
+		":root": {
+			"--transparent": "transparent",
+			"--white": theme("colors.white"),
+			"--black": theme("colors.black"),
+			"--blue-300": theme("colors.blue.300"),
+			"--blue-400": theme("colors.blue.400"),
+			"--blue-500": theme("colors.blue.500"),
+			"--indigo-300": theme("colors.indigo.300"),
+			"--violet-200": theme("colors.violet.200"),
+		},
+	});
+});
 
 export default {
 	darkMode: ["class"],
@@ -12,13 +29,21 @@ export default {
 	theme: {
 		container: {
 			center: true,
-			padding: '2rem',
+			padding: {
+				DEFAULT: '1rem',
+				sm: '1.5rem',
+				lg: '2rem',
+				xl: '3rem',
+			},
 			screens: {
 				'2xl': '1400px'
 			}
 		},
-		extend: {
+			extend: {
 			colors: {
+				forest: 'hsl(var(--forest))',
+				paper: 'hsl(var(--paper))',
+				ink: 'hsl(var(--ink))',
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',
@@ -35,6 +60,18 @@ export default {
 				destructive: {
 					DEFAULT: 'hsl(var(--destructive))',
 					foreground: 'hsl(var(--destructive-foreground))'
+				},
+				success: {
+					DEFAULT: 'hsl(var(--success))',
+					foreground: 'hsl(var(--success-foreground))'
+				},
+				warning: {
+					DEFAULT: 'hsl(var(--warning))',
+					foreground: 'hsl(var(--warning-foreground))'
+				},
+				info: {
+					DEFAULT: 'hsl(var(--info))',
+					foreground: 'hsl(var(--info-foreground))'
 				},
 				muted: {
 					DEFAULT: 'hsl(var(--muted))',
@@ -67,6 +104,11 @@ export default {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
 				sm: 'calc(var(--radius) - 4px)'
+			},
+			boxShadow: {
+				paper: '0 12px 32px -24px hsl(var(--ink) / 0.38)',
+				header: '0 8px 24px hsl(var(--ink) / 0.14)',
+				dialog: '0 28px 80px -24px hsl(var(--ink) / 0.55)',
 			},
 		keyframes: {
 			'accordion-down': {
@@ -172,25 +214,13 @@ export default {
 			'aurora': 'aurora 60s linear infinite'
 		},
 			fontFamily: {
-				sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+				sans: ["Raleway", "ui-sans-serif", "system-ui", "sans-serif"],
+				display: ["Lora", "Georgia", "serif"],
 			},
 		}
 	},
 	plugins: [
-		require("tailwindcss-animate"),
-		addVariablesForColors
+		tailwindcssAnimate,
+		addAuroraColorVariables,
 	],
 } satisfies Config;
-
-// This plugin adds each Tailwind color as a global CSS variable, e.g. var(--gray-200).
-function addVariablesForColors({ addBase, theme }: any) {
-	const flattenColorPalette = require("tailwindcss/lib/util/flattenColorPalette").default;
-	let allColors = flattenColorPalette(theme("colors"));
-	let newVars = Object.fromEntries(
-		Object.entries(allColors).map(([key, val]) => [`--${key}`, val])
-	);
-
-	addBase({
-		":root": newVars,
-	});
-}
