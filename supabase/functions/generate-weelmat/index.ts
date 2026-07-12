@@ -79,6 +79,8 @@ serve(async (req) => {
       code,
       customInstructions,
       language,
+      aiJsonOverride,
+      existingMatrixId,
     } = requestBody;
 
     // Enhanced validation with detailed logging
@@ -257,7 +259,10 @@ serve(async (req) => {
 
     // Step 1: Search (Tavily if available)
     let curatedSources: Array<{ title: string; url: string; note: string }> = [];
-    const searchQuery = `${subject} ${gradeLevel} learning activities references`.slice(0, 256);
+    const competencyResearchText = dailyFields
+      .map((day) => `${day.day}: ${day.competency}`)
+      .join("; ");
+    const searchQuery = `${subject} ${gradeLevel} Philippines DepEd curriculum ${competencyResearchText}`.slice(0, 380);
 
     if (TAVILY_API_KEY) {
       try {
@@ -293,6 +298,9 @@ serve(async (req) => {
 
     // Generate effective language
     const effectiveLanguage = language || "English";
+    const researchContext = curatedSources.length
+      ? curatedSources.map((source, index) => `${index + 1}. ${source.title}: ${source.note} (${source.url})`).join("\n")
+      : "No verified web sources were returned. Stay strictly within the teacher-provided competencies and do not invent curriculum facts.";
 
     // Create comprehensive system prompt for AI focused on Row 4 generation
     const systemPrompt = `You are an expert DepEd Philippines curriculum specialist creating Weekly Learning Matrix content.
@@ -304,6 +312,11 @@ CRITICAL JSON FORMAT REQUIREMENTS:
 4. NEVER modify the competency text provided
 5. Generate REAL questions - NO placeholders like "Option A, B, C, D"
 6. CREATE UNIQUE CONTENT FOR EACH DAY - Monday activities must differ from Tuesday, Wednesday, Thursday, and Friday
+7. Every question, direction, expected output, and reference MUST directly assess or teach that day's exact competency
+8. NEVER generate generic questions about the wording of a competency (for example, "Why is this competency important?")
+9. Use concrete lesson facts, examples, vocabulary, processes, people, places, texts, or problems appropriate to the stated subject and grade
+10. Before returning JSON, silently verify every activity against: subject, grade level, daily competency, assessment type, and question count
+11. If the competency is ambiguous, use the narrowest defensible interpretation and avoid unsupported factual claims
 
 LANGUAGE REQUIREMENTS:
 - Generate ALL content in ${effectiveLanguage}
@@ -332,6 +345,9 @@ Context:
 - Date Range: ${dateFrom} to ${dateTo}
 ${code ? `- Curriculum Code: ${code}` : ""}
 ${customInstructions ? `- Additional Instructions: ${customInstructions}` : ""}
+
+CURRICULUM RESEARCH CONTEXT:
+${researchContext}
 
 EXAM TYPE REQUIREMENTS - CREATE REAL QUESTIONS IN ${effectiveLanguage}:
 - Multiple Choice: Real questions with factual options (A, B, C, D) - mark correct answer with *
@@ -374,7 +390,7 @@ Return EXACTLY this JSON structure:
 }`;
 
     // Step 2: AI Generation with prioritized API calls
-    let aiJson: any = null;
+    let aiJson: any = aiJsonOverride && typeof aiJsonOverride === "object" ? aiJsonOverride : null;
     let aiError: string | null = null;
 
     // Check if any day is HOLIDAY - if so, skip AI and use HOLIDAY template
@@ -744,9 +760,7 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
 
     // Step 3: Save to database
     console.log("Saving matrix data to database...");
-    const { data: matrixData, error: insertError } = await supabase
-      .from("weelmat_matrices")
-      .insert({
+    const matrixPayload = {
         user_id: userId,
         subject,
         grade_level: gradeLevel,
@@ -757,9 +771,12 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
         code: code || null,
         custom_instructions: customInstructions || null,
         ai_json: aiJson,
-      })
-      .select()
-      .single();
+      };
+
+    const matrixQuery = existingMatrixId
+      ? supabase.from("weelmat_matrices").update(matrixPayload).eq("id", existingMatrixId).eq("user_id", userId)
+      : supabase.from("weelmat_matrices").insert(matrixPayload);
+    const { data: matrixData, error: insertError } = await matrixQuery.select().single();
 
     if (insertError) {
       console.error("Database insert error:", insertError);

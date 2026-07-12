@@ -16,6 +16,7 @@ import {
   Palette,
   ShieldCheck,
   Sparkles,
+  WandSparkles,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,8 @@ import {
 } from "@/components/ui/table";
 import { toast } from "@/components/ui/sonner";
 import { WeeLMatDownloadModal } from "@/components/WeeLMatDownloadModal";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 
 type FormValues = {
   subject: string;
@@ -163,6 +166,9 @@ const WeeLMatGeneratorWeeLMat = () => {
   const [savedMatrixId, setSavedMatrixId] = useState<string | null>(null);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
   const [pictureQuizImages, setPictureQuizImages] = useState<DayContent>({});
+  const [revisionTarget, setRevisionTarget] = useState<{ category: "references" | "activities"; day: DayKey; dayLabel: string; text: string } | null>(null);
+  const [revisionInstruction, setRevisionInstruction] = useState("");
+  const [revising, setRevising] = useState(false);
 
   useEffect(() => {
     document.title = "WeeLMat Generator | WeeLMat";
@@ -372,6 +378,66 @@ const WeeLMatGeneratorWeeLMat = () => {
     aiJson?.[day.competencyField] ??
     aiJson?.competencies?.[day.key] ??
     "";
+
+  const revisePreviewCell = async () => {
+    if (!revisionTarget || !revisionInstruction.trim() || !aiJson) return;
+    setRevising(true);
+    try {
+      const day = dayColumns.find((item) => item.key === revisionTarget.day)!;
+      const { data, error } = await supabase.functions.invoke("revise-weelmat-content", {
+        body: {
+          currentText: revisionTarget.text,
+          instruction: revisionInstruction,
+          category: revisionTarget.category,
+          day: revisionTarget.dayLabel,
+          subject,
+          gradeLevel,
+          competency: getCompetency(day),
+          language: values?.language ?? aiJson.language ?? "English",
+        },
+      });
+      if (error || !data?.revisedText) throw new Error(error?.message || data?.error || "Revision failed");
+
+      const revisedAiJson: AiJson = {
+        ...aiJson,
+        [revisionTarget.category]: {
+          ...(aiJson[revisionTarget.category] || {}),
+          [revisionTarget.day]: data.revisedText,
+        },
+      };
+      setAiJson(revisedAiJson);
+
+      if (values && savedMatrixId) {
+        const { data: regenerated, error: regenerationError } = await supabase.functions.invoke("generate-weelmat", {
+          body: { ...values, aiJsonOverride: revisedAiJson, existingMatrixId: savedMatrixId },
+        });
+        if (regenerationError || !regenerated) throw new Error(regenerationError?.message || "Files could not be updated");
+        setDocxUrl(regenerated.docx_url || docxUrl);
+        setStudentDocxUrl(regenerated.student_docx_url || studentDocxUrl);
+        setPdfUrl(regenerated.pdf_url || pdfUrl);
+      }
+
+      toast.success("Preview and downloadable files updated");
+      setRevisionTarget(null);
+      setRevisionInstruction("");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setRevising(false);
+    }
+  };
+
+  const EditableCell = ({ category, day, text, emptyText }: { category: "references" | "activities"; day: (typeof dayColumns)[number]; text?: string; emptyText: string }) => (
+    <button
+      type="button"
+      className="min-h-16 w-full rounded-md p-2 text-left transition-colors hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      onClick={() => setRevisionTarget({ category, day: day.key, dayLabel: day.label, text: text || "" })}
+      aria-label={`Revise ${day.label} ${category} with AI`}
+    >
+      <span className="whitespace-pre-wrap break-words">{text || <span className="text-muted-foreground">{emptyText}</span>}</span>
+      <span className="mt-2 flex items-center gap-1 text-[0.68rem] font-semibold text-primary"><WandSparkles className="h-3 w-3" /> Ask AI to revise</span>
+    </button>
+  );
 
   if (loading) {
     return (
@@ -609,7 +675,7 @@ const WeeLMatGeneratorWeeLMat = () => {
                       </TableCell>
                       {dayColumns.map((day) => (
                         <TableCell className="border-r border-warm-border text-xs leading-5 last:border-r-0" key={day.key}>
-                          {aiJson.references?.[day.key] || <span className="text-muted-foreground">No reference listed</span>}
+                          <EditableCell category="references" day={day} text={aiJson.references?.[day.key]} emptyText="No reference listed" />
                         </TableCell>
                       ))}
                     </TableRow>
@@ -640,7 +706,7 @@ const WeeLMatGeneratorWeeLMat = () => {
                               <span className="text-[0.7rem] text-muted-foreground">Open larger image</span>
                             </div>
                           ) : aiJson.activities?.[day.key] ? (
-                            <span className="whitespace-pre-wrap break-words">{aiJson.activities[day.key]}</span>
+                            <EditableCell category="activities" day={day} text={aiJson.activities?.[day.key]} emptyText="No activity listed" />
                           ) : (
                             <span className="text-muted-foreground">No activity listed</span>
                           )}
@@ -712,6 +778,27 @@ const WeeLMatGeneratorWeeLMat = () => {
           </aside>
         </div>
       </section>
+      <Dialog open={Boolean(revisionTarget)} onOpenChange={(open) => !open && setRevisionTarget(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Revise this preview content with AI</DialogTitle>
+            <DialogDescription>
+              Tell the AI exactly what should change. The revision will stay aligned to {revisionTarget?.dayLabel}'s competency.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="max-h-52 overflow-y-auto rounded-lg border bg-muted/35 p-3 text-sm whitespace-pre-wrap">{revisionTarget?.text}</div>
+            <Textarea value={revisionInstruction} onChange={(event) => setRevisionInstruction(event.target.value)} rows={5} placeholder="Example: Use a local Philippine history example, simplify the directions, and replace question 3 with an application question." />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRevisionTarget(null)} disabled={revising}>Cancel</Button>
+            <Button onClick={() => void revisePreviewCell()} disabled={revising || !revisionInstruction.trim()}>
+              {revising ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
+              Revise and update files
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 };
