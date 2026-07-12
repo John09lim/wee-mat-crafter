@@ -686,7 +686,7 @@ const watchedValues = watch();
                       })}
                     </div>
 
-                    <div id={`day-panel-${activeDay}`} role="tabpanel" aria-labelledby={`day-tab-${activeDay}`} className="space-y-6 bg-card p-5 sm:p-6">
+                    <div key={activeDay} id={`day-panel-${activeDay}`} role="tabpanel" aria-labelledby={`day-tab-${activeDay}`} className="space-y-6 bg-card p-5 sm:p-6">
                       <div className="flex items-center gap-3 border-b border-border pb-4">
                         <CalendarDays className="h-5 w-5 text-primary" aria-hidden="true" />
                         <h3 className="font-display text-2xl font-semibold text-foreground">{activeDayConfig.day}</h3>
