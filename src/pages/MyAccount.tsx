@@ -179,6 +179,11 @@ const MyAccount = () => {
         }));
       }
 
+      // Render the workspace as soon as identity and profile are ready.
+      // Submission history and school connections are secondary data and
+      // should never keep an authenticated teacher on an endless loader.
+      setLoading(false);
+
       // Fetch submission history (only for teachers)
       if (roleData?.role === 'teacher') {
         const { data: submissionsData, error: submissionsError } = await supabase
@@ -360,22 +365,13 @@ const MyAccount = () => {
       submitFormData.append("schoolName", selectedSchool.school_name);
       submitFormData.append("districtName", profile?.district_name || "");
 
-      const response = await fetch(
-        `https://velpueasbsrptocrjljg.supabase.co/functions/v1/submit-weelmat`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: submitFormData,
-        }
+      const { data: result, error: submissionError } = await supabase.functions.invoke(
+        "submit-weelmat",
+        { body: submitFormData },
       );
 
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Submission failed");
-      }
+      if (submissionError) throw submissionError;
+      if (result?.error) throw new Error(result.error);
 
       toast.success("WeeLMat submitted successfully to your School Head!");
       
@@ -628,7 +624,7 @@ const MyAccount = () => {
             <button 
               type="button"
               className="group rounded-2xl border border-primary/20 bg-primary p-7 text-left text-primary-foreground shadow-[0_18px_45px_-38px_rgba(20,32,25,.8)] transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              onClick={() => navigate("/dashboard")}
+              onClick={() => navigate("/create-weelmat")}
             >
               <div className="flex h-full flex-col justify-between gap-8">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full border border-secondary/60 text-secondary">
@@ -663,7 +659,7 @@ const MyAccount = () => {
                       Cannot Submit WeeLMat Yet
                     </p>
                     <p className="text-sm leading-6 text-warning/85">
-                      Please wait for your School Head to add you to their school in the Principal Dashboard.
+                      Your account is not yet connected to a school. Ask your school head to add your DepEd email before submitting a WeeLMat.
                     </p>
                   </div>
                 ) : (

@@ -54,6 +54,7 @@ const AppRoutes = () => (
     <Route path="/role-dashboard" element={<RoleDashboard />} />
     <Route path="/parent-dashboard" element={<ParentDashboard />} />
     <Route path="/dashboard" element={<Dashboard />} />
+    <Route path="/create-weelmat" element={<Dashboard />} />
     <Route path="/weelmatgenerator" element={<WeeLMatGenerator />} />
     <Route path="/premium" element={<WeeLMatGeneratorPremium />} />
     <Route path="/premium/weelmat" element={<Dashboard isPremium />} />
