@@ -138,6 +138,22 @@ export default function WeeklySubmissionCalendar({
 
   useEffect(() => {
     fetchWeeklyData();
+
+    // Keep an already-open dashboard aligned with the new school week.
+    const now = new Date();
+    const nextMonday = getMondayOfWeek(now);
+    nextMonday.setDate(nextMonday.getDate() + 7);
+    nextMonday.setHours(0, 0, 5, 0);
+    let weeklyInterval: number | undefined;
+    const timeout = window.setTimeout(() => {
+      fetchWeeklyData();
+      weeklyInterval = window.setInterval(fetchWeeklyData, 7 * 24 * 60 * 60 * 1000);
+    }, nextMonday.getTime() - now.getTime());
+
+    return () => {
+      window.clearTimeout(timeout);
+      if (weeklyInterval) window.clearInterval(weeklyInterval);
+    };
   }, [fetchWeeklyData]);
 
   const handleWeekClick = async (week: WeekData) => {

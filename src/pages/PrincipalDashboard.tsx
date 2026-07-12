@@ -529,7 +529,7 @@ export default function PrincipalDashboard() {
         </div>
       </section>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-7">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="order-4 mb-7">
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-display text-2xl font-semibold text-[#173F2A]">Recent submissions</h2>
@@ -600,7 +600,7 @@ export default function PrincipalDashboard() {
           ))}
         </TabsContent>
       </Tabs>      {/* Teacher Tracking for Current Week */}
-      <Card className="mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+      <Card className="order-1 mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <h2 className="font-display text-xl font-semibold text-[#173F2A]">
             This Week's Teacher Submissions ({(() => {
@@ -758,7 +758,7 @@ export default function PrincipalDashboard() {
 
       {/* Weekly Submission Calendar */}
       {profile && (
-        <section className="mb-6" aria-label="Weekly submission calendar">
+        <section className="order-2 mb-6" aria-label="Weekly submission calendar">
           <WeeklySubmissionCalendar
             schoolName={profile.school}
             managedTeachers={managedTeachers}
@@ -768,7 +768,7 @@ export default function PrincipalDashboard() {
 
       {/* Weekly Submission Summary Grid */}
       {managedTeachers.length > 0 && (
-        <section className="" aria-label="Weekly submission summary">
+        <section className="order-3" aria-label="Weekly submission summary">
           <WeeklySubmissionSummary
             managedTeachers={managedTeachers}
             submissions={submissions}
@@ -778,7 +778,7 @@ export default function PrincipalDashboard() {
       )}
 
       {/* Charts Section */}
-      <section className="mb-6 grid gap-6 md:grid-cols-2" aria-label="Submission charts">
+      <section className="order-5 mb-6 grid gap-6 md:grid-cols-2" aria-label="Submission charts">
         <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
           <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
             Submission Status Distribution
@@ -855,7 +855,7 @@ export default function PrincipalDashboard() {
 
       {/* Account Info Card */}
       {profile && (
-        <Card className="mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-[0_10px_30px_rgba(20,32,25,0.06)] sm:p-6">
+        <Card className="order-6 mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-[0_10px_30px_rgba(20,32,25,0.06)] sm:p-6">
           <div className="flex items-start gap-4">
             <div className="relative">
               <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
@@ -913,7 +913,7 @@ export default function PrincipalDashboard() {
 
       {/* Supervisor Info Card */}
       {supervisorInfo && (
-        <Card className="mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+        <Card className="order-7 mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
           <h2 className="font-display mb-3 text-lg font-semibold text-[#173F2A]">
             Your District Supervisor
           </h2>
@@ -940,7 +940,7 @@ export default function PrincipalDashboard() {
 
       {/* Teacher Management Section */}
       {profile && (
-        <section id="manage-teachers" className="mb-6 scroll-mt-24" aria-label="Teacher management">
+        <section id="manage-teachers" className="order-8 mb-6 scroll-mt-24" aria-label="Teacher management">
           <TeacherManagement 
             schoolName={profile.school}
             districtName={profile.district_name || ""}
