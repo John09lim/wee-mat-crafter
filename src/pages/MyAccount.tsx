@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -84,7 +84,9 @@ const MyAccount = () => {
   };
 
   useEffect(() => {
-    checkAuthAndFetchData();
+    void checkAuthAndFetchData();
+    // Account bootstrap should run once; subsequent refreshes are triggered by successful mutations.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkAuthAndFetchData = async () => {
@@ -157,7 +159,7 @@ const MyAccount = () => {
         // Fetch assigned principals
         await fetchAssignedPrincipals();
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error:", error);
       toast.error("Failed to load account data");
     } finally {
@@ -353,9 +355,9 @@ const MyAccount = () => {
       
       // Refresh submissions
       checkAuthAndFetchData();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Submission error:", error);
-      toast.error(error.message || "Submission failed");
+      toast.error(error instanceof Error ? error.message : "Submission failed");
     } finally {
       setSubmitting(false);
     }
@@ -388,12 +390,13 @@ const MyAccount = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading your account...</p>
+      <main className="flex min-h-[calc(100dvh-4rem)] items-center justify-center bg-background" aria-busy="true">
+        <div className="text-center" role="status" aria-live="polite">
+          <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+          <p className="font-medium text-foreground">Loading your workspace…</p>
+          <p className="mt-1 text-sm text-muted-foreground">Profile, files, and submissions are being prepared.</p>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -404,52 +407,46 @@ const MyAccount = () => {
         onClose={() => setShowPasswordDialog(false)} 
       />
       
-      <div className="min-h-screen" style={{ backgroundColor: "#f9f0eb" }}>
-        <div className="container py-12 max-w-6xl mx-auto">
+      <main className="min-h-[calc(100dvh-4rem)] bg-background py-8 sm:py-12">
+        <div className="container max-w-7xl">
           {/* Welcome Section */}
-          <div className="mb-8 flex items-center justify-between">
+          <header className="mb-8 grid gap-6 border-b border-border pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
             <div>
-              <h1 className="text-4xl font-bold mb-2" style={{ color: "#236130" }}>
-                My Account
-              </h1>
-              <p className="text-muted-foreground">
-                Manage your profile and view your activity
-              </p>
+              <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">My workspace</h1>
+              <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground sm:text-lg">Keep your profile, files, and submissions in one place.</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 onClick={() => setShowPasswordDialog(true)}
                 variant="outline"
-                style={{ borderColor: "#236130", color: "#236130" }}
+                className="gap-2"
               >
-                <Lock className="mr-2 h-4 w-4" />
+                <Lock className="h-4 w-4" aria-hidden="true" />
                 Change Password
               </Button>
               <Button
                 onClick={handleLogout}
-                variant="outline"
-                className="border-red-500 text-red-500 hover:bg-red-50"
+                variant="ghost"
+                className="gap-2 text-muted-foreground hover:text-destructive"
               >
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                Sign out
               </Button>
             </div>
-          </div>
+          </header>
 
         {/* Profile Card */}
-        <Card className="p-6 shadow-lg mb-8">
-          <div className="flex items-center justify-between mb-6">
+        <Card className="mb-8 border-border bg-card p-5 shadow-[0_18px_50px_-42px_rgba(20,32,25,.55)] sm:p-7">
+          <div className="mb-6 flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <User className="h-6 w-6" style={{ color: "#236130" }} />
-              <h2 className="text-2xl font-bold" style={{ color: "#236130" }}>
-                Profile Information
-              </h2>
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><User className="h-5 w-5" aria-hidden="true" /></span>
+              <div><h2 className="font-display text-2xl font-semibold text-foreground">Profile</h2><p className="mt-1 text-sm text-muted-foreground">The account details used across your WeeLMat workspace.</p></div>
             </div>
             {!isEditing ? (
               <Button
                 onClick={() => setIsEditing(true)}
                 variant="outline"
-                style={{ borderColor: "#236130", color: "#236130" }}
+                className="gap-2"
               >
                 <Edit2 className="mr-2 h-4 w-4" />
                 Edit Profile
@@ -458,7 +455,7 @@ const MyAccount = () => {
               <div className="flex gap-2">
                 <Button
                   onClick={handleSaveProfile}
-                  style={{ backgroundColor: "#236130", color: "white" }}
+                  className="gap-2"
                 >
                   <Save className="mr-2 h-4 w-4" />
                   Save
@@ -477,10 +474,10 @@ const MyAccount = () => {
             )}
           </div>
 
-          <div className="flex gap-8">
+          <div className="grid gap-7 lg:grid-cols-[14rem_minmax(0,1fr)]">
             {/* Profile Photo Section - Left Side */}
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-48 h-56 rounded-lg border-2 border-border overflow-hidden bg-muted flex items-center justify-center">
+            <div className="flex flex-col items-center gap-4 rounded-xl border border-border bg-muted/35 p-4">
+              <div className="h-40 w-36 overflow-hidden rounded-xl border border-border bg-card flex items-center justify-center">
                 {profile?.profile_image_url ? (
                   <img 
                     src={profile.profile_image_url} 
@@ -488,11 +485,11 @@ const MyAccount = () => {
                     className="w-full h-full object-cover"
                   />
                 ) : (
-                  <User className="h-24 w-24 text-muted-foreground" />
+                  <User className="h-16 w-16 text-muted-foreground" aria-hidden="true" />
                 )}
               </div>
               {isEditing && (
-                <div className="w-48">
+                <div className="w-full">
                   <input
                     type="file"
                     id="profile-image"
@@ -506,8 +503,7 @@ const MyAccount = () => {
                       type="button"
                       onClick={() => document.getElementById('profile-image')?.click()}
                       disabled={uploadingImage}
-                      style={{ backgroundColor: "#236130", color: "white" }}
-                      className="w-full"
+                      className="w-full gap-2"
                     >
                       <Upload className="mr-2 h-4 w-4" />
                       {uploadingImage ? "Uploading..." : "Upload Photo"}
@@ -518,7 +514,7 @@ const MyAccount = () => {
             </div>
 
             {/* Profile Information - Right Side */}
-            <div className="flex-1 grid md:grid-cols-2 gap-6">
+            <div className="grid content-start gap-5 md:grid-cols-2">
             <div>
               <Label className="text-sm font-medium text-muted-foreground">Role</Label>
               <div className="mt-1 flex items-center gap-2">
@@ -589,49 +585,47 @@ const MyAccount = () => {
 
         {/* Teacher Hub - Only for Teachers */}
         {userRole === 'teacher' && (
-          <div className="grid lg:grid-cols-3 gap-6 mb-8">
+          <section className="mb-8 grid gap-6 lg:grid-cols-3" aria-labelledby="teacher-actions-heading">
+            <h2 id="teacher-actions-heading" className="sr-only">Teacher actions</h2>
             {/* Create WeeLMat Card */}
-            <Card 
-              className="p-6 hover:shadow-xl transition-all cursor-pointer border-2"
-              style={{ borderColor: "#236130" }}
+            <button 
+              type="button"
+              className="group rounded-2xl border border-primary/20 bg-primary p-7 text-left text-primary-foreground shadow-[0_18px_45px_-38px_rgba(20,32,25,.8)] transition-transform duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               onClick={() => navigate("/dashboard")}
             >
-              <div className="flex flex-col items-center text-center gap-4">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: "#236130" }}>
-                  <Plus className="h-8 w-8 text-white" />
+              <div className="flex h-full flex-col justify-between gap-8">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-secondary/60 text-secondary">
+                  <Plus className="h-6 w-6" aria-hidden="true" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold mb-1" style={{ color: "#236130" }}>
-                    Create WeeLMat
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Generate a new Weekly Learning Matrix
-                  </p>
+                  <h3 className="font-display text-3xl font-semibold">Create a WeeLMat</h3>
+                  <p className="mt-3 text-sm leading-6 text-primary-foreground/75">Start a new Weekly Learning Matrix from your DLP, DLL, or learning material.</p>
+                  <span className="mt-6 inline-flex items-center text-sm font-semibold text-secondary">Open creator <span className="ml-2 transition-transform group-hover:translate-x-1">→</span></span>
                 </div>
               </div>
-            </Card>
+            </button>
 
             {/* Submit WeeLMat Card */}
-            <Card className="lg:col-span-2 shadow-lg">
-              <CardHeader>
+            <Card className="border-border bg-card shadow-[0_18px_50px_-42px_rgba(20,32,25,.55)] lg:col-span-2">
+              <CardHeader className="border-b border-border">
                 <CardTitle className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: "#236130" }}>
-                    <Send className="h-6 w-6 text-white" />
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                    <Send className="h-5 w-5" aria-hidden="true" />
                   </div>
                   <div>
-                    <div style={{ color: "#236130" }}>Submit WeeLMat</div>
+                    <div className="font-display text-2xl font-semibold text-foreground">Submit WeeLMat</div>
                     <p className="text-sm font-normal text-muted-foreground">Upload your completed WeeLMat for principal review</p>
                   </div>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {schoolOptions.length === 0 ? (
-                  <div className="p-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg text-center">
-                    <XCircle className="h-12 w-12 text-yellow-600 mx-auto mb-3" />
-                    <p className="text-yellow-800 font-semibold text-lg mb-2">
+                    <div className="rounded-xl border border-warning/25 bg-warning/10 p-6 text-center">
+                    <XCircle className="mx-auto mb-3 h-10 w-10 text-warning" aria-hidden="true" />
+                    <p className="mb-2 text-lg font-semibold text-warning">
                       Cannot Submit WeeLMat Yet
                     </p>
-                    <p className="text-yellow-700">
+                    <p className="text-sm leading-6 text-warning/85">
                       Please wait for your School Head to add you to their school in the Principal Dashboard.
                     </p>
                   </div>
@@ -640,8 +634,9 @@ const MyAccount = () => {
                     {/* Form Fields */}
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <Label>Teacher Name</Label>
+                        <Label htmlFor="account-submission-teacher">Teacher name</Label>
                         <Input
+                          id="account-submission-teacher"
                           value={formData.teacherName}
                           onChange={(e) => setFormData({...formData, teacherName: e.target.value})}
                           required
@@ -649,8 +644,9 @@ const MyAccount = () => {
                       </div>
                       
                       <div>
-                        <Label>School Name</Label>
+                        <Label htmlFor="account-submission-school">School name</Label>
                         <Input
+                          id="account-submission-school"
                           value={selectedSchool?.school_name || profile?.school || ""}
                           readOnly
                           className="bg-muted"
@@ -659,7 +655,7 @@ const MyAccount = () => {
 
                       {schoolOptions.length > 1 && (
                         <div className="md:col-span-2">
-                          <Label>Select School Head (if multiple)</Label>
+                          <Label htmlFor="account-submission-principal">School head</Label>
                           <Select
                             value={selectedSchool?.principal_id || ""}
                             onValueChange={(value) => {
@@ -668,7 +664,7 @@ const MyAccount = () => {
                             }}
                             required
                           >
-                            <SelectTrigger>
+                            <SelectTrigger id="account-submission-principal">
                               <SelectValue placeholder="Select your school head" />
                             </SelectTrigger>
                             <SelectContent>
@@ -683,8 +679,9 @@ const MyAccount = () => {
                       )}
 
                     <div>
-                      <Label>Subject</Label>
+                      <Label htmlFor="account-submission-subject">Learning area</Label>
                       <Input
+                        id="account-submission-subject"
                         value={formData.subject}
                         onChange={(e) => setFormData({...formData, subject: e.target.value})}
                         placeholder="e.g., Mathematics"
@@ -693,9 +690,10 @@ const MyAccount = () => {
                     </div>
 
                     <div>
-                      <Label>Grade & Section</Label>
+                      <Label>Grade and section</Label>
                       <div className="flex gap-2">
                         <Input
+                          aria-label="Grade level"
                           value={formData.gradeLevel}
                           onChange={(e) => setFormData({...formData, gradeLevel: e.target.value})}
                           placeholder="Grade"
@@ -703,6 +701,7 @@ const MyAccount = () => {
                           required
                         />
                         <Input
+                          aria-label="Section"
                           value={formData.section}
                           onChange={(e) => setFormData({...formData, section: e.target.value})}
                           placeholder="Section"
@@ -713,8 +712,9 @@ const MyAccount = () => {
                     </div>
 
                     <div>
-                      <Label>Week Start</Label>
+                      <Label htmlFor="account-submission-week-start">Week begins</Label>
                       <Input
+                        id="account-submission-week-start"
                         type="date"
                         value={formData.weekStart}
                         onChange={(e) => setFormData({...formData, weekStart: e.target.value})}
@@ -723,8 +723,9 @@ const MyAccount = () => {
                     </div>
 
                     <div>
-                      <Label>Week End</Label>
+                      <Label htmlFor="account-submission-week-end">Week ends</Label>
                       <Input
+                        id="account-submission-week-end"
                         type="date"
                         value={formData.weekEnd}
                         onChange={(e) => setFormData({...formData, weekEnd: e.target.value})}
@@ -735,12 +736,11 @@ const MyAccount = () => {
 
                   {/* Beautiful Upload Area */}
                   <div>
-                    <Label className="text-base font-semibold">Upload WeeLMat File</Label>
+                    <Label htmlFor="file-upload" className="text-base font-semibold">Upload WeeLMat file</Label>
                     <div className="mt-3">
                       <label
                         htmlFor="file-upload"
-                        className="flex flex-col items-center justify-center w-full h-40 border-3 border-dashed rounded-xl cursor-pointer hover:bg-muted/50 transition-all duration-300"
-                        style={{ borderColor: "#236130" }}
+                        className="flex min-h-40 w-full cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-primary/40 bg-primary/5 transition-colors duration-200 hover:bg-primary/10 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
                       >
                         <input
                           id="file-upload"
@@ -752,14 +752,13 @@ const MyAccount = () => {
                         />
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                           <div 
-                            className="w-16 h-16 rounded-full flex items-center justify-center mb-4 shadow-lg"
-                            style={{ backgroundColor: "#236130" }}
+                            className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm"
                           >
                             <Upload className="h-8 w-8 text-white" />
                           </div>
                           {file ? (
                             <div className="text-center">
-                              <p className="font-semibold text-lg mb-1" style={{ color: "#236130" }}>
+                              <p className="mb-1 text-lg font-semibold text-primary">
                                 {file.name}
                               </p>
                               <p className="text-sm text-muted-foreground">
@@ -768,7 +767,7 @@ const MyAccount = () => {
                             </div>
                           ) : (
                             <div className="text-center">
-                              <p className="font-semibold text-lg mb-1" style={{ color: "#236130" }}>
+                              <p className="mb-1 text-lg font-semibold text-primary">
                                 Click to upload or drag and drop
                               </p>
                               <p className="text-sm text-muted-foreground">
@@ -783,10 +782,7 @@ const MyAccount = () => {
 
                   {/* School Head Display */}
                   {selectedSchool && (
-                    <div 
-                      className="p-5 rounded-xl border-2"
-                      style={{ backgroundColor: "#f9f0eb", borderColor: "#236130" }}
-                    >
+                    <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-14 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
                           {selectedSchool.principal_profile_image_url ? (
@@ -796,14 +792,14 @@ const MyAccount = () => {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <User className="h-6 w-6 text-white" style={{ backgroundColor: "#236130" }} />
+                            <User className="h-6 w-6 text-primary" aria-hidden="true" />
                           )}
                         </div>
                         <div className="flex-1">
                           <p className="text-sm font-medium text-muted-foreground mb-1">
                             Submitting to:
                           </p>
-                          <p className="text-xl font-bold" style={{ color: "#236130" }}>
+                          <p className="font-display text-xl font-semibold text-primary">
                             {selectedSchool.principal_name}
                           </p>
                           <p className="text-sm text-muted-foreground">
@@ -817,8 +813,7 @@ const MyAccount = () => {
                   <Button 
                     type="submit" 
                     disabled={submitting || !selectedSchool}
-                    className="w-full h-12 text-base font-semibold hover:shadow-lg transition-all duration-300"
-                    style={{ backgroundColor: "#236130", color: "white" }}
+                    className="h-12 w-full text-base font-semibold"
                   >
                     <Send className="mr-2 h-5 w-5" />
                     {submitting ? "Submitting..." : "Submit to School Head"}
@@ -827,32 +822,33 @@ const MyAccount = () => {
                 )}
               </CardContent>
             </Card>
-          </div>
+          </section>
         )}
 
         {/* Submission History - Only for Teachers */}
         {userRole === 'teacher' && (
-          <Card className="p-6 shadow-lg">
-            <div className="flex items-center gap-3 mb-6">
-              <FileText className="h-6 w-6" style={{ color: "#236130" }} />
-              <h2 className="text-2xl font-bold" style={{ color: "#236130" }}>
+          <Card className="border-border bg-card p-5 shadow-[0_18px_50px_-42px_rgba(20,32,25,.55)] sm:p-7">
+            <div className="mb-6 flex items-center gap-3 border-b border-border pb-5">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary"><FileText className="h-5 w-5" aria-hidden="true" /></span>
+              <h2 className="font-display text-2xl font-semibold text-foreground">
                 Submission History
               </h2>
             </div>
 
             {submissions.length === 0 ? (
               <div className="text-center py-12">
-                <FileText className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No Submissions Yet</h3>
+                <FileText className="mx-auto mb-4 h-12 w-12 text-muted-foreground" aria-hidden="true" />
+                <h3 className="font-display mb-2 text-2xl font-semibold">No submissions yet</h3>
                 <p className="text-muted-foreground">
                   You haven't submitted any WeeLMats yet. Fill out the form above to submit your first one!
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-xl border border-border">
                 <Table>
+                  <caption className="sr-only">Your Weekly Learning Matrix submissions</caption>
                   <TableHeader>
-                    <TableRow>
+                    <TableRow className="bg-muted/45">
                       <TableHead>Subject</TableHead>
                       <TableHead>Grade</TableHead>
                       <TableHead>Section</TableHead>
@@ -882,7 +878,7 @@ const MyAccount = () => {
                               size="sm"
                               variant="outline"
                               onClick={() => handleViewFile(item.file_url)}
-                              title="View in new tab"
+                              aria-label={`View ${item.subject} submission in a new tab`}
                             >
                               <Eye className="h-4 w-4 mr-1" />
                               View
@@ -898,7 +894,7 @@ const MyAccount = () => {
           </Card>
         )}
         </div>
-      </div>
+      </main>
     </>
   );
 };

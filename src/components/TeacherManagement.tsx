@@ -205,7 +205,7 @@ export function TeacherManagement({
         const { error } = await supabase
           .from("school_assignments")
           .insert({
-            user_id: null as any,
+            user_id: null,
             school_name: schoolName,
             district_name: districtName,
             principal_id: principalId,
@@ -223,7 +223,7 @@ export function TeacherManagement({
       } else {
         // Multiple inserts for subject teachers (one per grade/subject pair)
         const inserts = gradeSubjectPairs.map(pair => ({
-          user_id: null as any,
+          user_id: null,
           school_name: schoolName,
           district_name: districtName,
           principal_id: principalId,
@@ -260,10 +260,10 @@ export function TeacherManagement({
       setGradeSubjectPairs([{ gradeLevel: "", subject: "" }]);
       setIsAdding(false);
       onRefresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to add the teacher.",
         variant: "destructive",
       });
     } finally {
@@ -389,7 +389,13 @@ export function TeacherManagement({
 
       if (teacherType === "regular") {
         // Single update for regular teacher
-        const updateData: any = {
+        const updateData: {
+          teacher_name: string;
+          teacher_email: string;
+          grade_level: string;
+          section: string;
+          profile_image_url?: string;
+        } = {
           teacher_name: teacherName,
           teacher_email: teacherEmail.toLowerCase(),
           grade_level: gradeLevel,
@@ -426,7 +432,7 @@ export function TeacherManagement({
 
         // Insert new assignments
         const inserts = gradeSubjectPairs.map(pair => ({
-          user_id: null as any,
+          user_id: null,
           school_name: schoolName,
           district_name: districtName,
           principal_id: principalId,
@@ -463,10 +469,10 @@ export function TeacherManagement({
       setGradeSubjectPairs([{ gradeLevel: "", subject: "" }]);
       setEditingId(null);
       onRefresh();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to update the teacher.",
         variant: "destructive",
       });
     } finally {
@@ -493,10 +499,10 @@ export function TeacherManagement({
         title: "Teacher Removed",
         description: `${teacherName || "Teacher"} has been removed from your school.`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to remove the teacher.",
         variant: "destructive",
       });
     } finally {

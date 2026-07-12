@@ -1,125 +1,106 @@
+﻿import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  ClipboardList,
+  FileText,
+  GraduationCap,
+} from "lucide-react";
+
 import { Button } from "@/components/ui/button";
-import { FileText, GraduationCap, ClipboardList, Sparkles, ArrowRight } from "lucide-react";
-import { useEffect } from "react";
+
+const generators = [
+  {
+    id: "weelmat",
+    number: "01",
+    icon: FileText,
+    title: "Weekly Learning Matrix",
+    description: "Build a five-day learner roadmap from your DLP, DLL, or learning material.",
+    features: ["Monday–Friday matrix", "Editable competencies", "Teacher and learner files"],
+    route: "/premium/weelmat",
+    action: "Create a WeeLMat",
+  },
+  {
+    id: "lesson-plan",
+    number: "02",
+    icon: GraduationCap,
+    title: "Lesson Plan",
+    description: "Prepare a structured lesson-plan draft following the details you provide.",
+    features: ["DepEd-oriented structure", "Learning activities", "Assessment guidance"],
+    route: "/premium/lesson-plan",
+    action: "Create a lesson plan",
+  },
+  {
+    id: "periodical-test",
+    number: "03",
+    icon: ClipboardList,
+    title: "Periodical Test & TOS",
+    description: "Configure an assessment draft with its accompanying Table of Specifications.",
+    features: ["Question distribution", "Answer key", "Competency alignment"],
+    route: "/premium/periodical-test",
+    action: "Create a test and TOS",
+  },
+];
 
 const WeeLMatGeneratorPremium = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    document.title = "Premium Features - WeeLMat Generator";
+    document.title = "Generator Suite - WeeLMat";
     const metaDescription = document.querySelector('meta[name="description"]');
-    if (metaDescription) {
-      metaDescription.setAttribute("content", "Choose from WeeLMat, Lesson Plan, and Periodical Test generators");
-    }
+    metaDescription?.setAttribute("content", "Choose a WeeLMat, lesson plan, or periodical test generator.");
   }, []);
 
-  const generators = [
-    {
-      id: "weelmat",
-      icon: FileText,
-      title: "WeeLMat Generator",
-      description: "Generate comprehensive Weekly Learning Matrices with AI-powered learning activities and assessments",
-      features: [
-        "5-day learning matrix",
-        "Unique questions for each day",
-        "Automatic competency analysis",
-        "Instant DOCX download"
-      ],
-      route: "/premium/weelmat",
-      color: "text-primary"
-    },
-    {
-      id: "lessonplan",
-      icon: GraduationCap,
-      title: "Lesson Plan Generator",
-      description: "Create comprehensive lesson plans automatically following DepEd format",
-      features: [
-        "Complete DepEd format",
-        "Structured learning activities",
-        "Assessment strategies included",
-        "Customizable by subject"
-      ],
-      route: "/premium/lesson-plan",
-      color: "text-primary"
-    },
-    {
-      id: "test",
-      icon: ClipboardList,
-      title: "Periodical Test & TOS Generator",
-      description: "Generate assessments with complete Table of Specifications",
-      features: [
-        "Multiple question types",
-        "Automatic TOS generation",
-        "Answer key included",
-        "Aligned to competencies"
-      ],
-      route: "/premium/periodical-test",
-      color: "text-primary"
-    }
-  ];
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/5">
-      <div className="container mx-auto py-12 px-4">
-        <div className="mb-12 text-center max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 bg-primary/10 rounded-full">
-            <Sparkles className="w-5 h-5 text-primary" />
-            <span className="text-sm font-semibold text-primary">Premium Features</span>
+    <main className="min-h-[calc(100dvh-4rem)] bg-background py-8 sm:py-12">
+      <div className="container max-w-6xl">
+        <Button variant="ghost" onClick={() => navigate("/dashboard")} className="mb-8 -ml-3 gap-2 text-foreground/70 hover:bg-primary/5 hover:text-primary">
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to dashboard
+        </Button>
+
+        <header className="grid gap-6 border-b border-border pb-9 lg:grid-cols-[1fr_.55fr] lg:items-end">
+          <div>
+            <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">Choose what you need to prepare.</h1>
+            <p className="mt-4 max-w-2xl text-lg leading-8 text-muted-foreground">
+              One focused workspace for weekly matrices, lesson plans, and periodical assessments.
+            </p>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Choose Your Generator</h1>
-          <p className="text-lg text-muted-foreground">
-            Select the type of educational material you want to create with AI
+          <p className="max-w-md border-l-2 border-secondary pl-5 text-sm leading-6 text-muted-foreground lg:justify-self-end">
+            Each generator creates an editable draft. Review content, references, difficulty, and learner suitability before use.
           </p>
-        </div>
+        </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-          {generators.map((generator) => {
-            const Icon = generator.icon;
-            return (
-              <Card 
-                key={generator.id}
-                className="group hover:shadow-lg transition-all duration-300 hover:scale-105 cursor-pointer border-2 hover:border-primary/50"
-                onClick={() => navigate(generator.route)}
-              >
-                <CardHeader>
-                  <div className="mb-4">
-                    <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-                      <Icon className={`w-7 h-7 ${generator.color}`} />
-                    </div>
-                  </div>
-                  <CardTitle className="text-xl">{generator.title}</CardTitle>
-                  <CardDescription className="text-base">
-                    {generator.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <ul className="space-y-2">
-                    {generator.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-sm text-muted-foreground">
-                        <span className="text-primary mt-0.5">✓</span>
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button className="w-full group-hover:gap-3 transition-all" variant="default">
-                    Get Started
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        <div className="mt-8 text-center">
-          <Button variant="outline" onClick={() => navigate("/dashboard")}>
-            Back to Dashboard
-          </Button>
-        </div>
+        <section className="divide-y divide-border" aria-label="Available generators">
+          {generators.map(({ id, number, icon: Icon, title, description, features, route, action }) => (
+            <article key={id} className="group grid gap-5 py-8 first:pt-10 md:grid-cols-[4rem_4rem_minmax(0,1fr)_minmax(15rem,.7fr)_auto] md:items-center">
+              <span className="font-display text-2xl font-semibold text-secondary" aria-hidden="true">{number}</span>
+              <span className="flex h-14 w-14 items-center justify-center rounded-full border border-primary/20 bg-card text-primary transition-colors duration-200 group-hover:bg-primary group-hover:text-primary-foreground">
+                <Icon className="h-6 w-6" aria-hidden="true" />
+              </span>
+              <div>
+                <h2 className="font-display text-2xl font-semibold text-foreground sm:text-3xl">{title}</h2>
+                <p className="mt-2 max-w-xl leading-7 text-muted-foreground">{description}</p>
+              </div>
+              <ul className="grid gap-2 text-sm text-foreground/75">
+                {features.map((feature) => (
+                  <li key={feature} className="flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                    {feature}
+                  </li>
+                ))}
+              </ul>
+              <Button onClick={() => navigate(route)} className="group/button w-full gap-2 md:w-auto" aria-label={action}>
+                Open
+                <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover/button:translate-x-1" aria-hidden="true" />
+              </Button>
+            </article>
+          ))}
+        </section>
       </div>
-    </div>
+    </main>
   );
 };
 

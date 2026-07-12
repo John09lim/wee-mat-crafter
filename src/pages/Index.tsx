@@ -1,463 +1,373 @@
+import { useRef, useState, type ComponentType } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  ArrowRight,
+  BookOpenCheck,
+  CheckCircle2,
+  Compass,
+  FileCheck2,
+  Landmark,
+  ShieldCheck,
+  WandSparkles,
+} from "lucide-react";
+import { motion, useReducedMotion, useScroll, useSpring } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { useNavigate } from "react-router-dom";
-import { Target, Clock, Zap, Edit, Sparkles, Download, Building2, Users, CheckCircle, ArrowRight } from "lucide-react";
-import { TypewriterText } from "@/components/animations/TypewriterText";
-import { ColorWaveText } from "@/components/animations/ColorWaveText";
-import { useScrollReveal } from "@/hooks/useScrollReveal";
-import { useState } from "react";
-const BenefitsSection = () => {
-  const {
-    ref: titleRef,
-    isVisible: titleVisible
-  } = useScrollReveal();
-  const {
-    ref: card1Ref,
-    isVisible: card1Visible
-  } = useScrollReveal();
-  const {
-    ref: card2Ref,
-    isVisible: card2Visible
-  } = useScrollReveal();
-  const {
-    ref: card3Ref,
-    isVisible: card3Visible
-  } = useScrollReveal();
-  return <section className="py-24 bg-muted/30">
-      <div className="container">
-        <div ref={titleRef} className={`text-center mb-16 space-y-4 scroll-reveal ${titleVisible ? 'is-visible' : ''}`}>
-          <h2 className="text-3xl md:text-4xl font-bold">Why Choose WeeLMat?</h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Designed specifically for Filipino educators to streamline weekly planning and ensure continuity
-          </p>
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { WeekMatrixDocument } from "@/components/marketing/WeekMatrixDocument";
+
+const easeOut = [0.22, 1, 0.36, 1] as const;
+
+const benefits = [
+  {
+    icon: BookOpenCheck,
+    title: "Grounded in your DLP or DLL",
+    copy: "Translate targeted competencies into a concise weekly sequence learners can understand.",
+  },
+  {
+    icon: Compass,
+    title: "Clear weekly direction",
+    copy: "Show objectives, activities, materials, and expected outputs before the week begins.",
+  },
+  {
+    icon: FileCheck2,
+    title: "Continuity-ready",
+    copy: "Keep manageable learning moving when face-to-face classes are disrupted.",
+  },
+];
+
+const workflow = [
+  {
+    number: "01",
+    title: "Prepare from the DLP or DLL",
+    copy: "Select the week's competencies, learning activities, materials, and manageable outputs.",
+  },
+  {
+    number: "02",
+    title: "Present the weekly roadmap",
+    copy: "Explain the matrix on Monday or the first class day in 15 minutes or less.",
+  },
+  {
+    number: "03",
+    title: "Track progress and continue",
+    copy: "Learners use the matrix as a daily checklist and a guide during class disruptions.",
+  },
+];
+
+const reviewSteps = [
+  "Read every activity and learner instruction",
+  "Confirm alignment with the selected competency",
+  "Check difficulty, inclusivity, and local context",
+  "Verify answer keys before distribution",
+];
+
+const disclaimers = [
+  ["AI-assisted draft", "Generated content may contain errors and must be reviewed before classroom use."],
+  ["Teacher responsibility", "You remain responsible for approving all activities, instructions, and answers."],
+  ["Curriculum alignment", "Confirm the output against current DepEd guidance and your local curriculum."],
+  ["Privacy", "Do not enter sensitive or personally identifiable learner information."],
+];
+
+type Benefit = {
+  icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+  title: string;
+  copy: string;
+};
+
+const WeekStory = () => {
+  const ref = useRef<HTMLElement>(null);
+  const reduceMotion = useReducedMotion();
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start 0.82", "end 0.42"] });
+  const routeProgress = useSpring(scrollYProgress, { stiffness: 150, damping: 28, mass: 0.45 });
+
+  return (
+    <section ref={ref} className="relative bg-[#f6f0e7] py-16 sm:py-20 lg:py-24" aria-labelledby="outcomes-heading">
+      <div className="container grid gap-8 lg:grid-cols-[84px_1fr] lg:gap-12">
+        <div className="relative hidden lg:block" aria-hidden="true">
+          <div className="absolute bottom-1 top-1 left-5 w-px bg-[#173f2a]/15" />
+          <motion.div
+            className="absolute left-5 top-1 h-[calc(100%-0.5rem)] w-px origin-top bg-[#d6a73d]"
+            style={{ scaleY: reduceMotion ? 1 : routeProgress }}
+          />
+          {["01", "02", "03", "04"].map((number, index) => (
+            <span key={number} className={`absolute left-0 font-mono text-sm font-bold ${index === 0 ? "text-[#173f2a]" : "text-[#173f2a]/35"}`} style={{ top: `${index * 31}%` }}>
+              {number}
+            </span>
+          ))}
         </div>
-        
-        <div className="grid md:grid-cols-3 gap-8">
-          <Card ref={card1Ref} className={`p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 scroll-reveal ${card1Visible ? 'is-visible' : ''}`}>
-            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-6">
-              <Target className="w-6 h-6 text-primary" />
+
+        <div>
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.35 }}
+            transition={{ duration: reduceMotion ? 0 : 0.48, ease: easeOut }}
+            className="max-w-4xl"
+          >
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#b07a10]">Built for Negros Oriental educators</p>
+            <h2 id="outcomes-heading" className="font-display mt-4 text-4xl font-semibold leading-tight tracking-tight text-[#142019] sm:text-5xl lg:text-6xl">
+              Designed around your week.<br />Built for your learners.
+            </h2>
+            <div className="mt-5 h-1 w-28 origin-left bg-[#d6a73d]" />
+          </motion.div>
+
+          <motion.div
+            className="mt-10 overflow-hidden rounded-[1.75rem] border border-[#173f2a]/12 bg-white shadow-[0_24px_70px_-48px_rgba(20,32,25,.55)]"
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, amount: 0.25 }}
+            variants={{ hidden: {}, show: { transition: { staggerChildren: reduceMotion ? 0 : 0.065 } } }}
+          >
+            <div className="grid md:grid-cols-3">
+              {benefits.map(({ icon: Icon, title, copy }: Benefit, index) => (
+                <motion.article
+                  key={title}
+                  variants={{ hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0, transition: { duration: reduceMotion ? 0 : 0.42, ease: easeOut } } }}
+                  className="group relative p-6 sm:p-8 md:min-h-72 md:border-l md:border-[#173f2a]/10 first:md:border-l-0"
+                  whileHover={reduceMotion ? undefined : { y: -4 }}
+                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                >
+                  <div className={`flex h-14 w-14 items-center justify-center rounded-full ${index === 1 ? "bg-[#d6a73d] text-[#142019]" : "bg-[#236130] text-white"}`}>
+                    <Icon className="h-6 w-6" aria-hidden="true" />
+                  </div>
+                  <h3 className="font-display mt-6 text-xl font-semibold text-[#142019]">{title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-[#455349]">{copy}</p>
+                  <Link to="/learn-more" className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#236130] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d6a73d]">
+                    Learn more <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
+                  </Link>
+                </motion.article>
+              ))}
             </div>
-            <h3 className="text-xl font-semibold mb-3">Grounded & Clear</h3>
-            <p className="text-muted-foreground leading-relaxed">
-              Crafted to be concise and learner‑friendly, aligned to competencies—no clutter, just clarity for effective learning.
-            </p>
-          </Card>
-          
-          <Card ref={card2Ref} className={`p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 scroll-reveal scroll-reveal-delay-2 ${card2Visible ? 'is-visible' : ''}`}>
-            <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center mb-6">
-              <Clock className="w-6 h-6 text-secondary" />
-            </div>
-            <h3 className="text-xl font-semibold mb-3">Continuity Ready</h3>
-            <p className="text-muted-foreground leading-relaxed">
-              Supports learning during suspensions—easy to display, copy, or print in minimal copies for uninterrupted education.
-            </p>
-          </Card>
-          
-          <Card ref={card3Ref} className={`p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 scroll-reveal scroll-reveal-delay-4 ${card3Visible ? 'is-visible' : ''}`}>
-            <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center mb-6">
-              <Zap className="w-6 h-6 text-accent" />
-            </div>
-            <h3 className="text-xl font-semibold mb-3">Fast Output</h3>
-            <p className="text-muted-foreground leading-relaxed">
-              Produce neat A4 DOCX/PDF matrices in seconds, with a simple, reliable flow that saves you hours of manual work.
-            </p>
-          </Card>
+          </motion.div>
         </div>
       </div>
-    </section>;
+    </section>
+  );
 };
-const HowItWorksSection = () => {
-  const {
-    ref: titleRef,
-    isVisible: titleVisible
-  } = useScrollReveal();
-  const {
-    ref: card1Ref,
-    isVisible: card1Visible
-  } = useScrollReveal();
-  const {
-    ref: card2Ref,
-    isVisible: card2Visible
-  } = useScrollReveal();
-  const {
-    ref: card3Ref,
-    isVisible: card3Visible
-  } = useScrollReveal();
-  return <section className="py-24">
+
+const WorkflowRoute = () => {
+  const ref = useRef<HTMLElement>(null);
+  const reduceMotion = useReducedMotion();
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start 0.78", "end 0.35"] });
+  const routeProgress = useSpring(scrollYProgress, { stiffness: 150, damping: 28, mass: 0.45 });
+
+  return (
+    <section ref={ref} className="bg-white py-16 sm:py-20 lg:py-24" aria-labelledby="workflow-heading">
       <div className="container">
-        <div ref={titleRef} className={`text-center mb-16 space-y-4 scroll-reveal ${titleVisible ? 'is-visible' : ''}`}>
-          <h2 className="text-3xl md:text-4xl font-bold">How It Works</h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Three simple steps to generate your professional WeeLMat documents
-          </p>
+        <div className="grid gap-8 lg:grid-cols-[.72fr_1.28fr] lg:items-end">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#b07a10]">A simple three-step flow</p>
+            <h2 id="workflow-heading" className="font-display mt-4 text-4xl font-semibold tracking-tight text-[#142019] sm:text-5xl">From competency to classroom-ready.</h2>
+          </div>
+          <p className="max-w-2xl text-lg leading-8 text-[#536057]">WeeLMat turns an existing instructional plan into a learner-facing weekly routine without replacing teacher judgment.</p>
         </div>
-        
-        <div className="grid md:grid-cols-3 gap-8 relative">
-          <div className="hidden md:block absolute top-1/4 left-1/4 right-1/4 h-0.5 bg-gradient-to-r from-primary via-secondary to-accent -z-10" />
-          
-          <Card ref={card1Ref} className={`p-8 relative bg-card border-2 scroll-reveal ${card1Visible ? 'is-visible' : ''}`}>
-            <div className="absolute -top-6 left-8 w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-bold shadow-lg">
-              1
-            </div>
-            <div className="mt-4 space-y-4">
-              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Edit className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="text-xl font-semibold">Enter Details</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Provide subject, grade level, section, dates, and the week's learning competency. Simple form, complete control.
-              </p>
-            </div>
-          </Card>
-          
-          <Card ref={card2Ref} className={`p-8 relative bg-card border-2 scroll-reveal scroll-reveal-delay-2 ${card2Visible ? 'is-visible' : ''}`}>
-            <div className="absolute -top-6 left-8 w-12 h-12 rounded-full bg-secondary text-primary-foreground flex items-center justify-center text-xl font-bold shadow-lg">
-              2
-            </div>
-            <div className="mt-4 space-y-4">
-              <div className="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-secondary" />
-              </div>
-              <h3 className="text-xl font-semibold">AI Generates</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Our AI creates a clean, learner‑friendly WeeLMat with daily tasks, activities, and expected outputs automatically.
-              </p>
-            </div>
-          </Card>
-          
-          <Card ref={card3Ref} className={`p-8 relative bg-card border-2 scroll-reveal scroll-reveal-delay-4 ${card3Visible ? 'is-visible' : ''}`}>
-            <div className="absolute -top-6 left-8 w-12 h-12 rounded-full bg-accent text-primary-foreground flex items-center justify-center text-xl font-bold shadow-lg">
-              3
-            </div>
-            <div className="mt-4 space-y-4">
-              <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center">
-                <Download className="w-6 h-6 text-accent" />
-              </div>
-              <h3 className="text-xl font-semibold">Download & Share</h3>
-              <p className="text-muted-foreground leading-relaxed">
-                Get A4‑ready DOCX/PDF files for display, projection, printing, or sharing with students and administrators.
-              </p>
-            </div>
-          </Card>
+
+        <div className="relative mt-12">
+          <div className="absolute left-6 top-0 h-full w-px bg-[#173f2a]/15 md:left-0 md:right-0 md:top-7 md:h-px md:w-full" aria-hidden="true" />
+          <motion.div
+            className="absolute left-6 top-0 h-full w-px origin-top bg-[#d6a73d] md:left-0 md:right-0 md:top-7 md:h-px md:w-full md:origin-left"
+            style={reduceMotion ? undefined : { scaleX: routeProgress, scaleY: routeProgress }}
+            aria-hidden="true"
+          />
+          <ol className="grid gap-8 md:grid-cols-3 md:gap-6">
+            {workflow.map(({ number, title, copy }, index) => (
+              <motion.li
+                key={number}
+                className="relative pl-16 md:pl-0 md:pt-16"
+                initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.4 }}
+                transition={{ duration: reduceMotion ? 0 : 0.44, delay: reduceMotion ? 0 : index * 0.06, ease: easeOut }}
+              >
+                <span className="absolute left-0 top-0 flex h-12 w-12 items-center justify-center rounded-full border-4 border-white bg-[#173f2a] font-mono text-sm font-bold text-[#f6f0e7] shadow-sm md:left-0 md:top-1">{number}</span>
+                <h3 className="font-display text-2xl font-semibold text-[#142019]">{title}</h3>
+                <p className="mt-3 max-w-sm leading-7 text-[#536057]">{copy}</p>
+              </motion.li>
+            ))}
+          </ol>
         </div>
       </div>
-    </section>;
+    </section>
+  );
 };
+
 const Index = () => {
   const navigate = useNavigate();
+  const reduceMotion = useReducedMotion();
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
-  
-  return <main className="min-h-[calc(100vh-160px)] flex flex-col bg-background">
-      {/* Hero Section - Enhanced */}
-      <section className="relative overflow-hidden py-[50px]">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/5 pointer-events-none" />
-        <div className="absolute top-20 left-10 w-72 h-72 bg-secondary/20 rounded-full blur-3xl animate-pulse pointer-events-none" />
-        <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary/10 rounded-full blur-3xl animate-pulse pointer-events-none" style={{
-        animationDelay: '1s'
-      }} />
-        
-        <div className="container relative grid md:grid-cols-2 gap-16 items-center">
-          <div className="space-y-8 animate-fade-in">
-            <div className="inline-flex items-center gap-2 text-xs rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-primary font-medium">
-              <Sparkles className="w-3 h-3" />
-              Built for Teachers • WeeLMat Generator
-            </div>
-            
-          <h1 className="text-5xl md:text-6xl font-extrabold leading-tight">
-            <span className="block bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/80 to-secondary">
-              <TypewriterText text="WeeLMat Generator" />
-            </span>
-            <span className="block text-foreground mt-1">
-              <ColorWaveText text="Craft AI-driven Weekly Learning Matrices" />
-            </span>
-            <span className="block text-foreground">
-              <ColorWaveText text="in seconds" />
-            </span>
-          </h1>
-            
-            <p className="text-lg text-muted-foreground max-w-prose leading-relaxed">
-              Transform your weekly competencies into clear, learner‑friendly plans. Generate polished DOCX/PDF output ready for class use or contingency days—fast, consistent, and aligned with DepEd guidance.
-            </p>
 
-            <div className="flex flex-wrap gap-4">
-              <Button size="lg" className="text-base transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-primary/20" onClick={() => navigate("/auth")}>
-                Get Started Free
-                <ArrowRight className="ml-2 w-4 h-4" />
-              </Button>
-              <Button variant="outline" size="lg" className="text-base transition-all duration-300 hover:scale-105" onClick={() => navigate("/learn-more")}>
-                Learn More
-              </Button>
-            </div>
-            
-            <div className="flex flex-wrap gap-6 text-sm text-muted-foreground pt-4">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-primary" />
-                <span>DepEd aligned</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-primary" />
-                <span>Instant generation</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-3xl border-2 border-primary/10 bg-card p-4 shadow-2xl animate-fade-in hover-scale">
-            <div className="w-full overflow-hidden rounded-2xl border bg-muted/30">
-              <img src="/weelmat-logo.png" alt="WeeLMat Generator preview showing sample weekly planning matrix" className="w-full h-auto object-contain" loading="eager" />
-            </div>
-          </div>
+  return (
+    <main className="overflow-x-clip bg-[#f6f0e7] text-[#142019]">
+      <section className="relative overflow-hidden border-b border-[#173f2a]/10 bg-[#f6f0e7] lg:min-h-[calc(100svh-4rem)]">
+        <div className="absolute inset-x-0 bottom-0 h-[38%] lg:h-[44%]" aria-hidden="true">
+          <img
+            src="/division-negros-oriental.webp"
+            alt=""
+            className="h-full w-full object-cover object-center"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#f6f0e7] via-[#f6f0e7]/10 to-transparent" />
         </div>
-      </section>
 
-      {/* Benefits Section - Enhanced */}
-      <BenefitsSection />
-
-      {/* How it Works - Enhanced */}
-      <HowItWorksSection />
-
-      {/* Create & Submit WeeLMat Section */}
-      <section className="py-20 bg-gradient-to-br from-primary/5 to-secondary/5">
-        <div className="container">
-          <div className="text-center mb-12 space-y-4">
-            <h2 className="text-3xl md:text-4xl font-bold">Get Started with WeeLMat</h2>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Choose your action to begin creating or submitting your weekly learning matrix
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            <Card className="p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 cursor-pointer group" onClick={() => navigate("/auth")}>
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors">
-                <Edit className="w-8 h-8 text-primary" />
-              </div>
-              <h3 className="text-2xl font-semibold mb-3">Create WeeLMat</h3>
-              <p className="text-muted-foreground leading-relaxed mb-6">
-                Generate your weekly learning matrix instantly with AI-powered assistance. Input your competencies and get professional DOCX files in seconds.
-              </p>
-              <Button className="w-full group-hover:bg-primary/90">
-                Get Started
-                <ArrowRight className="ml-2 w-4 h-4" />
-              </Button>
-            </Card>
-
-            <Card className="p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 bg-card border-2 cursor-pointer group" onClick={() => navigate("/auth")}>
-              <div className="w-16 h-16 rounded-full bg-secondary/10 flex items-center justify-center mb-6 group-hover:bg-secondary/20 transition-colors">
-                <Download className="w-8 h-8 text-secondary" />
-              </div>
-              <h3 className="text-2xl font-semibold mb-3">Submit WeeLMat</h3>
-              <p className="text-muted-foreground leading-relaxed mb-6">
-                Submit your completed WeeLMat to your school head for review and tracking. Keep your submissions organized and accessible.
-              </p>
-              <Button variant="secondary" className="w-full group-hover:bg-secondary/90">
-                Submit Now
-                <ArrowRight className="ml-2 w-4 h-4" />
-              </Button>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Disclaimers Button */}
-      <section className="py-12 bg-primary/5">
-        <div className="container">
-          <div className="max-w-4xl mx-auto text-center space-y-4">
-            <h3 className="text-2xl font-bold text-foreground">Before You Begin</h3>
-            <p className="text-muted-foreground">Please review the important disclaimers about AI-generated content and teacher responsibilities</p>
-            <Button 
-              variant="outline" 
-              size="lg"
-              className="border-primary text-primary hover:bg-primary/10 mt-4"
-              onClick={() => setDisclaimerOpen(true)}
+        <div className="container relative z-10 grid gap-10 py-12 lg:min-h-[calc(100svh-4rem)] lg:grid-cols-[.86fr_1.14fr] lg:items-center lg:py-16">
+          <div className="max-w-2xl pb-4 lg:pb-24">
+            <h1 className="font-display text-[clamp(3.4rem,7vw,7.2rem)] font-semibold leading-[.88] tracking-[-0.055em] text-[#173f2a]">
+              <span className="block overflow-hidden pb-2">
+                <motion.span className="block" initial={reduceMotion ? false : { y: "108%" }} animate={{ y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.58, ease: easeOut }}>WeeLMat</motion.span>
+              </span>
+              <span className="block overflow-hidden pb-3">
+                <motion.span className="block" initial={reduceMotion ? false : { y: "108%" }} animate={{ y: 0 }} transition={{ duration: reduceMotion ? 0 : 0.58, delay: reduceMotion ? 0 : 0.08, ease: easeOut }}>Generator</motion.span>
+              </span>
+            </h1>
+            <motion.p
+              className="mt-5 max-w-xl text-2xl font-medium leading-tight tracking-tight text-[#142019] sm:text-3xl lg:text-[2rem]"
+              initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.48, delay: reduceMotion ? 0 : 0.22, ease: easeOut }}
             >
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-              Read Important Disclaimers
+              Craft <span className="text-[#b07a10]">AI-driven</span> Weekly Learning Matrices in seconds.
+            </motion.p>
+            <motion.p
+              className="mt-6 max-w-xl text-base leading-7 text-[#4f5d53] sm:text-lg sm:leading-8"
+              initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.48, delay: reduceMotion ? 0 : 0.3, ease: easeOut }}
+            >
+              Turn your Daily Lesson Plan or Daily Lesson Log into a concise weekly roadmap of competencies, activities, materials, and expected outputs—clear enough for learners to follow in class or during disruptions.
+            </motion.p>
+            <motion.div
+              className="mt-8 flex flex-col gap-3 sm:flex-row"
+              initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reduceMotion ? 0 : 0.48, delay: reduceMotion ? 0 : 0.38, ease: easeOut }}
+            >
+              <motion.div whileHover={reduceMotion ? undefined : { y: -2 }} whileTap={reduceMotion ? undefined : { scale: 0.98 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
+                <Button size="lg" className="group h-[3.25rem] w-full cursor-pointer rounded-lg bg-[#236130] px-7 text-base font-semibold text-white shadow-[0_14px_30px_-18px_rgba(23,63,42,.8)] hover:bg-[#173f2a]" onClick={() => navigate("/auth")}>
+                  Create a WeeLMat <ArrowRight className="ml-3 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
+                </Button>
+              </motion.div>
+              <motion.div whileHover={reduceMotion ? undefined : { y: -2 }} whileTap={reduceMotion ? undefined : { scale: 0.98 }} transition={{ type: "spring", stiffness: 400, damping: 30 }}>
+                <Button variant="outline" size="lg" className="group h-[3.25rem] w-full cursor-pointer rounded-lg border-[#236130] bg-[#f6f0e7]/90 px-7 text-base font-semibold text-[#173f2a] hover:bg-white" onClick={() => navigate("/learn-more")}>
+                  See how it works <ArrowRight className="ml-3 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
+                </Button>
+              </motion.div>
+            </motion.div>
+          </div>
+
+          <div className="relative mx-auto w-full max-w-2xl self-center pb-4 lg:-mr-4 lg:pb-16">
+            <WeekMatrixDocument />
+          </div>
+        </div>
+      </section>
+
+      <WeekStory />
+
+      <section className="relative overflow-hidden bg-[#173f2a] py-16 text-[#f6f0e7] sm:py-20" aria-labelledby="policy-heading">
+        <div className="container grid gap-10 lg:grid-cols-[1.15fr_.85fr] lg:items-center">
+          <motion.div initial={reduceMotion ? false : { opacity: 0, x: -18 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.35 }} transition={{ duration: reduceMotion ? 0 : 0.5, ease: easeOut }}>
+            <p className="font-display text-3xl font-semibold leading-snug sm:text-4xl lg:text-5xl">On Monday, learners see the week ahead. If classes are interrupted, the same roadmap keeps learning moving.</p>
+            <div className="mt-8 grid grid-cols-5 gap-2" aria-label="Monday to Friday learning route">
+              {["Mon", "Tue", "Wed", "Thu", "Fri"].map((day, index) => (
+                <div key={day} className="border-t border-[#f6f0e7]/25 pt-3">
+                  <p className="text-xs font-bold uppercase tracking-widest text-[#d6a73d]">{day}</p>
+                  <motion.div className="mt-3 h-1 origin-left rounded-full bg-[#d6a73d]" initial={reduceMotion ? false : { scaleX: 0 }} whileInView={{ scaleX: 1 }} viewport={{ once: true }} transition={{ duration: reduceMotion ? 0 : 0.35, delay: reduceMotion ? 0 : index * 0.06 }} />
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          <motion.aside
+            className="rounded-[1.75rem] border border-[#d6a73d]/30 bg-[#f6f0e7] p-6 text-[#142019] shadow-[0_24px_70px_-42px_rgba(0,0,0,.7)] sm:p-8"
+            initial={reduceMotion ? false : { opacity: 0, x: 18 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, amount: 0.35 }}
+            transition={{ duration: reduceMotion ? 0 : 0.5, ease: easeOut }}
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#d6a73d] text-[#142019]"><Landmark className="h-5 w-5" aria-hidden="true" /></div>
+            <p className="mt-6 text-xs font-bold uppercase tracking-[0.24em] text-[#9a6910]">Policy and purpose</p>
+            <h2 id="policy-heading" className="font-display mt-3 text-3xl font-semibold">Learner awareness, self-direction, and continuity.</h2>
+            <p className="mt-4 leading-7 text-[#536057]">WeeLMat supports DepEd's learning-continuity direction and aligns with K to 12 implementation, curriculum enrichment, employee welfare, and transparent school leadership.</p>
+            <Button variant="outline" className="group mt-6 h-11 border-[#236130] bg-transparent font-semibold text-[#173f2a] hover:bg-white" onClick={() => navigate("/learn-more")}>
+              Learn more about WeeLMat <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
             </Button>
-          </div>
+          </motion.aside>
         </div>
       </section>
 
-      {/* Validation Instructions Section */}
-      <section className="py-20 bg-gradient-to-br from-primary/5 to-secondary/5">
-        <div className="container">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-10">
-              <div className="inline-flex items-center gap-2 text-primary mb-3">
-                <CheckCircle className="w-8 h-8" />
-                <h2 className="text-3xl font-bold">Before Submitting Your WeeLMat</h2>
-              </div>
-              <p className="text-xl text-muted-foreground">Always review and validate your output</p>
-            </div>
-            
-            <Card className="p-8 bg-white shadow-lg">
-              <div className="space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg mb-1">Review Generated Content Thoroughly</h3>
-                    <p className="text-muted-foreground">Read through all learning activities, questions, and instructions to ensure accuracy and appropriateness.</p>
-                  </div>
-                </div>
+      <WorkflowRoute />
 
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg mb-1">Verify Competencies Match Your Curriculum</h3>
-                    <p className="text-muted-foreground">Confirm that learning competencies align with DepEd standards and your grade level requirements.</p>
-                  </div>
-                </div>
+      <section className="bg-[#f6f0e7] py-16 sm:py-20 lg:py-24" aria-labelledby="review-heading">
+        <div className="container grid gap-8 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
+          <motion.div className="relative rounded-[1.75rem] border border-[#d6a73d]/45 bg-[#fff9df] p-7 shadow-[0_18px_50px_-38px_rgba(20,32,25,.55)] sm:p-9" initial={reduceMotion ? false : { opacity: 0, x: -16 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.35 }} transition={{ duration: reduceMotion ? 0 : 0.46, ease: easeOut }}>
+            <div className="absolute -right-3 -top-3 h-12 w-12 rotate-6 rounded-sm bg-[#d6a73d]/35" aria-hidden="true" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#d6a73d] text-[#142019]"><ShieldCheck className="h-6 w-6" aria-hidden="true" /></div>
+            <h2 id="review-heading" className="font-display mt-6 text-4xl font-semibold tracking-tight">AI drafts. Teachers decide.</h2>
+            <p className="mt-4 leading-7 text-[#536057]">WeeLMat helps with structure and speed, but professional review remains essential before any document reaches learners.</p>
+            <Button variant="outline" className="mt-6 h-11 border-[#b07a10] bg-white font-semibold text-[#142019] hover:bg-[#fff4c3]" onClick={() => setDisclaimerOpen(true)}>Read responsible-use guidance</Button>
+          </motion.div>
 
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg mb-1">Check Learning Activities for Appropriateness</h3>
-                    <p className="text-muted-foreground">Ensure all tasks and activities are age-appropriate, culturally sensitive, and achievable for your learners.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg mb-1">Validate Answer Keys for Accuracy</h3>
-                    <p className="text-muted-foreground">Double-check all quiz answers and solutions to prevent teaching incorrect information.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Target className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg mb-1 text-primary">Only Submit After Complete Validation</h3>
-                    <p className="text-muted-foreground">Submit your WeeLMat to <strong>learners, parents, and school heads</strong> only after you have verified all content is accurate, appropriate, and aligned with curriculum standards.</p>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          </div>
+          <motion.div initial="hidden" whileInView="show" viewport={{ once: true, amount: 0.35 }} variants={{ hidden: {}, show: { transition: { staggerChildren: reduceMotion ? 0 : 0.05 } } }}>
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-[#236130]">Before you share</p>
+            <h2 className="font-display mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">A quick review protects every learner.</h2>
+            <ul className="mt-8 space-y-5">
+              {reviewSteps.map((step) => (
+                <motion.li key={step} className="flex items-start gap-4 border-b border-[#173f2a]/10 pb-5 text-[#445248]" variants={{ hidden: { opacity: 0, x: 16 }, show: { opacity: 1, x: 0, transition: { duration: reduceMotion ? 0 : 0.38, ease: easeOut } } }}>
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[#178d61]" aria-hidden="true" />
+                  <span className="leading-6">{step}</span>
+                </motion.li>
+              ))}
+            </ul>
+          </motion.div>
         </div>
       </section>
 
-      {/* Final CTA Section */}
-      <section className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-secondary/10 to-accent/10" />
-        <div className="container relative">
-          <div className="max-w-4xl mx-auto text-center space-y-8">
-            <h2 className="text-4xl md:text-5xl font-bold leading-tight">
-              Ready to Transform Your
-              <span className="block text-primary">Weekly Planning?</span>
-            </h2>
-            
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Join hundreds of Filipino educators already using WeeLMat Generator to create professional, DepEd-aligned weekly learning materials.
-            </p>
-            
-            <div className="flex flex-wrap gap-4 justify-center pt-4">
-              <Button size="lg" className="text-lg px-8" onClick={() => navigate("/auth")}>
-                Get Started Free
-                <ArrowRight className="ml-2 w-5 h-5" />
+      <section className="bg-white py-16 sm:py-20">
+        <motion.div className="container" initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.985 }} whileInView={{ opacity: 1, y: 0, scale: 1 }} viewport={{ once: true, amount: 0.35 }} transition={{ duration: reduceMotion ? 0 : 0.48, ease: easeOut }}>
+          <div className="grid gap-5 lg:grid-cols-[1.08fr_.92fr] lg:items-stretch">
+            <div className="flex rounded-[2rem] bg-[#173f2a] px-6 py-12 text-center text-[#f6f0e7] sm:px-10 sm:py-16">
+              <div className="m-auto">
+              <WandSparkles className="mx-auto h-8 w-8 text-[#d6a73d]" aria-hidden="true" />
+              <h2 className="font-display mx-auto mt-5 max-w-3xl text-4xl font-semibold tracking-tight sm:text-5xl">Give your next weekly plan a better starting point.</h2>
+              <p className="mx-auto mt-4 max-w-xl leading-7 text-[#f6f0e7]/75">Create a WeeLMat draft, review it with your teaching expertise, and download it when it is ready.</p>
+              <Button size="lg" className="group mt-8 h-12 bg-[#d6a73d] px-7 font-bold text-[#142019] hover:bg-[#e2b94f]" onClick={() => navigate("/auth")}>
+                Start creating for free <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1" aria-hidden="true" />
               </Button>
-              <Button variant="outline" size="lg" className="text-lg px-8" onClick={() => navigate("/learn-more")}>
-                View Examples
-              </Button>
-            </div>
-            
-            <div className="flex flex-wrap gap-8 justify-center text-sm text-muted-foreground pt-8">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-primary" />
-                <span>Secure & Private</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-primary" />
-                <span>DepEd Compliant</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-primary" />
-                <span>Always Updated</span>
               </div>
             </div>
-          </div>
-        </div>
+            <figure className="relative min-h-72 overflow-hidden rounded-[2rem] border border-[#173f2a]/10 bg-[#f6f0e7] shadow-[0_22px_55px_-38px_rgba(20,32,25,.65)] lg:min-h-full">
+              <img
+                src="/sdo-negros-oriental-building.webp"
+                alt="Schools Division of Negros Oriental building"
+                className="absolute inset-0 h-full w-full object-cover object-center"
+                loading="lazy"
+              />
+            </figure>
+            </div>
+        </motion.div>
       </section>
 
-      {/* Disclaimer Dialog */}
       <Dialog open={disclaimerOpen} onOpenChange={setDisclaimerOpen}>
-        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto border-[#173f2a]/15 bg-[#f6f0e7]">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-2xl text-primary">
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-              Important Disclaimers
-            </DialogTitle>
-            <DialogDescription>
-              Please read carefully before using WeeLMat Generator
-            </DialogDescription>
+            <DialogTitle className="font-display flex items-center gap-3 text-2xl text-[#142019]"><ShieldCheck className="h-6 w-6 text-[#236130]" aria-hidden="true" />Responsible use of WeeLMat</DialogTitle>
+            <DialogDescription className="leading-6 text-[#536057]">Keep these safeguards in mind whenever you create an AI-assisted learning document.</DialogDescription>
           </DialogHeader>
-          
-          <div className="grid gap-4 mt-4">
-            <Card className="p-6 bg-white border-l-4 border-primary">
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">1</div>
-                <div>
-                  <h3 className="font-semibold text-lg mb-2">AI-Generated Content</h3>
-                  <p className="text-muted-foreground">The WeeLMat outputs are generated by AI and may contain errors, inaccuracies, or inappropriate content. This tool assists but does not replace human judgment.</p>
-                </div>
+          <div className="mt-3 grid gap-3">
+            {disclaimers.map(([title, copy], index) => (
+              <div key={title} className="flex gap-4 rounded-xl border border-[#173f2a]/12 bg-white p-4">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#236130] text-xs font-bold text-white">{index + 1}</div>
+                <div><h3 className="font-bold text-[#142019]">{title}</h3><p className="mt-1 text-sm leading-6 text-[#536057]">{copy}</p></div>
               </div>
-            </Card>
-
-            <Card className="p-6 bg-white border-l-4 border-primary">
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">2</div>
-                <div>
-                  <h3 className="font-semibold text-lg mb-2">Teacher Responsibility</h3>
-                  <p className="text-muted-foreground">Teachers are fully responsible for reviewing, validating, and approving all content before distributing to learners, parents, or school administrators.</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-6 bg-white border-l-4 border-primary">
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">3</div>
-                <div>
-                  <h3 className="font-semibold text-lg mb-2">Curriculum Alignment Required</h3>
-                  <p className="text-muted-foreground">Always ensure the generated output aligns with your specific curriculum, DepEd guidelines, and grade-level standards before use.</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-6 bg-white border-l-4 border-primary">
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">4</div>
-                <div>
-                  <h3 className="font-semibold text-lg mb-2">Not a Replacement for Professional Judgment</h3>
-                  <p className="text-muted-foreground">This tool is a planning assistant. It does not replace your professional expertise, pedagogical knowledge, or teaching experience.</p>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="p-6 bg-white border-l-4 border-primary">
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">5</div>
-                <div>
-                  <h3 className="font-semibold text-lg mb-2">Privacy and Data Security</h3>
-                  <p className="text-muted-foreground">Your submitted data is processed securely. Do not include sensitive personal information about students in your inputs.</p>
-                </div>
-              </div>
-            </Card>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
-    </main>;
+    </main>
+  );
 };
+
 export default Index;

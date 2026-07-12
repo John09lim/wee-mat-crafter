@@ -7,28 +7,66 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Download, CheckCircle, Users, BookOpen, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload, Share2, Copy, Printer } from "lucide-react";
+import { Download, CheckCircle, Users, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload, Share2, Copy, Printer, FileText } from "lucide-react";
 import { SubmissionsReportModal } from "@/components/SubmissionsReportModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import DocumentViewer from "@/components/DocumentViewer";
-import Footer from "@/components/layout/Footer";
 
 import { TeacherManagement } from "@/components/TeacherManagement";
 import WeeklySubmissionCalendar from "@/components/WeeklySubmissionCalendar";
 import { WeeklySubmissionSummary } from "@/components/WeeklySubmissionSummary";
 
+interface Submission {
+  id: string;
+  user_id: string;
+  teacher_name: string;
+  subject: string;
+  grade_level: string;
+  section?: string | null;
+  week_start: string;
+  week_end: string;
+  created_at: string;
+  status: string;
+  file_url?: string | null;
+  principal_notes?: string | null;
+}
+
+interface PrincipalProfile {
+  user_id: string;
+  school: string;
+  district_name?: string | null;
+  teacher_name?: string | null;
+  full_name?: string | null;
+  email?: string | null;
+  profile_image_url?: string | null;
+}
+
+interface ManagedTeacher {
+  user_id: string;
+  teacher_name: string;
+  grade_level?: string | null;
+  section?: string | null;
+  profile_image_url?: string | null;
+}
+
+interface SupervisorInfo {
+  teacher_name?: string | null;
+  email?: string | null;
+  profile_image_url?: string | null;
+}
+
 export default function PrincipalDashboard() {
-  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
-  const [profile, setProfile] = useState<any>(null);
-  const [allTeachers, setAllTeachers] = useState<any[]>([]);
+  const [profile, setProfile] = useState<PrincipalProfile | null>(null);
+  const [allTeachers, setAllTeachers] = useState<ManagedTeacher[]>([]);
   const [newSubmissionsCount, setNewSubmissionsCount] = useState(0);
   const initialLoadComplete = useRef(false);
-  const [managedTeachers, setManagedTeachers] = useState<any[]>([]);
+  const [managedTeachers, setManagedTeachers] = useState<ManagedTeacher[]>([]);
   const [uploadingProfile, setUploadingProfile] = useState(false);
-  const [supervisorInfo, setSupervisorInfo] = useState<any>(null);
+  const [supervisorInfo, setSupervisorInfo] = useState<SupervisorInfo | null>(null);
   const [displayMode, setDisplayMode] = useState<'text' | 'image'>('text');
   const [showReportModal, setShowReportModal] = useState(false);
 
@@ -52,7 +90,7 @@ export default function PrincipalDashboard() {
         },
         (payload) => {
           if (initialLoadComplete.current) {
-            const newSubmission = payload.new;
+            const newSubmission = payload.new as Submission;
             toast.success(
               `New submission from ${newSubmission.teacher_name}`,
               {
@@ -93,7 +131,7 @@ export default function PrincipalDashboard() {
         return;
       }
 
-      setProfile(profileData);
+      setProfile(profileData as PrincipalProfile);
 
       // Fetch supervisor information
       const { data: schoolData } = await supabase
@@ -109,7 +147,7 @@ export default function PrincipalDashboard() {
           .eq("user_id", schoolData.supervisor_id)
           .maybeSingle();
         
-        setSupervisorInfo(supervisorProfile);
+        setSupervisorInfo(supervisorProfile as SupervisorInfo | null);
       }
 
       // Fetch managed teachers from school_assignments
@@ -119,7 +157,7 @@ export default function PrincipalDashboard() {
         .eq("school_name", profileData.school)
         .eq("principal_id", user.id);
       
-      setManagedTeachers(managedTeachersData || []);
+      setManagedTeachers((managedTeachersData || []) as ManagedTeacher[]);
 
       // Fetch all teachers from this school with their profiles
       const { data: teachersData } = await supabase
@@ -141,7 +179,7 @@ export default function PrincipalDashboard() {
           grade_level: t.grade_level,
           section: t.section
         })) || [];
-        setAllTeachers(enrichedTeachers);
+        setAllTeachers(enrichedTeachers as ManagedTeacher[]);
       } else {
         setAllTeachers([]);
       }
@@ -157,10 +195,10 @@ export default function PrincipalDashboard() {
         console.error("Error:", error);
         toast.error("Failed to load submissions");
       } else {
-        setSubmissions(data || []);
+        setSubmissions((data || []) as Submission[]);
         initialLoadComplete.current = true;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error:", error);
       toast.error("Failed to load submissions");
     } finally {
@@ -169,7 +207,7 @@ export default function PrincipalDashboard() {
   };
 
   const updateStatus = async (id: string, newStatus: string, notes?: string) => {
-    const updateData: any = { status: newStatus };
+    const updateData: { status: string; principal_notes?: string } = { status: newStatus };
     if (notes !== undefined) {
       updateData.principal_notes = notes;
     }
@@ -234,9 +272,9 @@ export default function PrincipalDashboard() {
 
       if (error) throw error;
       toast.success("Weekly report sent to Supervisor!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error:", error);
-      toast.error(error.message || "Failed to mark week as complete");
+      toast.error(error instanceof Error ? error.message : "Failed to mark week as complete");
     }
   };
 
@@ -269,9 +307,9 @@ export default function PrincipalDashboard() {
 
       setProfile({ ...profile, profile_image_url: publicUrl });
       toast.success("Profile image updated successfully!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error:", error);
-      toast.error(error.message || "Failed to upload profile image");
+      toast.error(error instanceof Error ? error.message : "Failed to upload profile image");
     } finally {
       setUploadingProfile(false);
     }
@@ -297,20 +335,13 @@ export default function PrincipalDashboard() {
     if (!acc[sub.teacher_name]) acc[sub.teacher_name] = [];
     acc[sub.teacher_name].push(sub);
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {} as Record<string, Submission[]>);
 
   const groupedBySubject = submissions.reduce((acc, sub) => {
     if (!acc[sub.subject]) acc[sub.subject] = [];
     acc[sub.subject].push(sub);
     return acc;
-  }, {} as Record<string, any[]>);
-
-  const stats = {
-    total: submissions.length,
-    pending: submissions.filter(s => s.status === 'pending').length,
-    reviewed: submissions.filter(s => s.status === 'reviewed').length,
-    returned: submissions.filter(s => s.status === 'returned').length,
-  };
+  }, {} as Record<string, Submission[]>);
 
   // Calculate current week's submissions and bounds (Monday-Friday)
   const getMondayOfWeekCalc = (date: Date) => {
@@ -355,132 +386,47 @@ export default function PrincipalDashboard() {
 
   // Data for charts - using weekly stats
   const statusChartData = [
-    { name: "Reviewed", value: weeklyStats.reviewed, color: "#1eba83" },
-    { name: "Pending", value: weeklyStats.pending, color: "#f59e0b" },
-    { name: "Returned", value: weeklyStats.returned, color: "#ef4444" }
+    { name: "Reviewed", value: weeklyStats.reviewed, color: "#17613A" },
+    { name: "Pending", value: weeklyStats.pending, color: "#D6A73D" },
+    { name: "Returned", value: weeklyStats.returned, color: "#A83224" }
   ];
 
   const submissionCompletionData = [
-    { name: "Submitted", value: submittedTeachers.length, color: "#1eba83" },
-    { name: "Not Submitted", value: notSubmittedTeachers.length, color: "#ef4444" }
+    { name: "Submitted", value: submittedTeachers.length, color: "#17613A" },
+    { name: "Not Submitted", value: notSubmittedTeachers.length, color: "#A83224" }
   ];
+
+  const currentWeekLabel = `${currentMonday.toLocaleDateString("en-US", { month: "short", day: "numeric" })} – ${currentFriday.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+  const attentionSubmissions = submissions.filter((submission) =>
+    submission.status === "pending" || submission.status === "submitted" || submission.status === "returned"
+  );
 
   if (loading) {
     return (
-      <div className="container py-8 flex items-center justify-center">
-        <p>Loading dashboard...</p>
-      </div>
+      <main className="min-h-[calc(100dvh-4rem)] bg-[#F6F0E7]" aria-busy="true">
+        <div className="container max-w-7xl py-10 sm:py-14">
+          <div className="animate-pulse space-y-6" role="status" aria-label="Loading principal dashboard">
+            <div className="h-12 w-72 rounded-lg bg-[#D8D0C4]/70" />
+            <div className="h-24 rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]" />
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+              <div className="h-80 rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]" />
+              <div className="h-80 rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]" />
+            </div>
+            <span className="sr-only">Loading dashboard data…</span>
+          </div>
+        </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div className="flex-1 container py-8 max-w-7xl mx-auto">
-      {/* Account Info Card */}
-      {profile && (
-        <Card className="p-6 mb-6" style={{ borderColor: "#236130" }}>
-          <div className="flex items-start gap-4">
-            <div className="relative">
-              <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
-                {profile.profile_image_url ? (
-                  <img 
-                    src={profile.profile_image_url} 
-                    alt={profile.teacher_name || "Principal"} 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <UserCircle className="h-12 w-12" style={{ color: "#236130" }} />
-                )}
-              </div>
-              <label 
-                htmlFor="principalProfileImage" 
-                className="absolute -bottom-1 -right-1 cursor-pointer"
-              >
-                <div 
-                  className="w-8 h-8 rounded-full flex items-center justify-center shadow-lg hover:opacity-80 transition-opacity"
-                  style={{ backgroundColor: "#236130" }}
-                >
-                  <Upload className="w-4 h-4 text-white" />
-                </div>
-              </label>
-              <input
-                id="principalProfileImage"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleProfileImageUpload(file);
-                }}
-                disabled={uploadingProfile}
-              />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold mb-2" style={{ color: "#236130" }}>
-                Account Information
-              </h2>
-              <div className="grid md:grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="font-semibold">Name:</span> {profile.teacher_name}
-                </div>
-                <div>
-                  <span className="font-semibold">Email:</span> {profile.email}
-                </div>
-                <div>
-                  <span className="font-semibold">School:</span> {profile.school}
-                </div>
-                <div>
-                  <span className="font-semibold">District:</span> {profile.district_name || "N/A"}
-                </div>
-              </div>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Supervisor Info Card */}
-      {supervisorInfo && (
-        <Card className="p-6 mb-6" style={{ borderColor: "#f5ca47" }}>
-          <h2 className="text-lg font-bold mb-3" style={{ color: "#236130" }}>
-            Your District Supervisor
-          </h2>
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
-              {supervisorInfo.profile_image_url ? (
-                <img 
-                  src={supervisorInfo.profile_image_url} 
-                  alt={supervisorInfo.teacher_name || "Supervisor"} 
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <UserCircle className="h-12 w-12" style={{ color: "#236130" }} />
-              )}
-            </div>
-            <div>
-              <p className="font-semibold text-lg">{supervisorInfo.teacher_name}</p>
-              <p className="text-sm text-muted-foreground">{supervisorInfo.email}</p>
-              <p className="text-xs text-muted-foreground mt-1">District Supervisor</p>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Teacher Management Section */}
-      {profile && (
-        <div className="mb-6">
-          <TeacherManagement 
-            schoolName={profile.school}
-            districtName={profile.district_name || ""}
-            principalId={profile.user_id}
-            teachers={managedTeachers}
-            onRefresh={fetchSubmissions}
-          />
-        </div>
-      )}
-
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-4">
-          <h1 className="text-3xl font-bold" style={{ color: "#236130" }}>Principal Dashboard</h1>
+    <main id="principal-dashboard-main" className="min-h-[calc(100dvh-4rem)] bg-[#F6F0E7] text-[#142019]">
+      <div className="container mx-auto flex max-w-7xl flex-col px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+      <header className="mb-7 flex flex-col gap-5 border-b border-[#D8D0C4] pb-7 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="mb-2 text-sm font-semibold text-[#526159]">{profile?.school || "School workspace"} · {currentWeekLabel}</p>
+          <div className="flex flex-wrap items-center gap-4">
+          <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-[#173F2A] sm:text-5xl">Weekly submission overview</h1>
           {newSubmissionsCount > 0 && (
             <div className="flex items-center gap-2">
               <div className="relative">
@@ -496,27 +442,162 @@ export default function PrincipalDashboard() {
                 size="sm"
                 variant="outline"
                 onClick={() => setNewSubmissionsCount(0)}
-                style={{ borderColor: "#236130", color: "#236130" }}
+                className="min-h-11 border-[#D8D0C4] bg-[#FFFCF7] text-[#173F2A] hover:bg-white"
               >
-                Clear
+                Clear alert
               </Button>
             </div>
           )}
+          </div>
+          <p className="mt-3 max-w-2xl text-base leading-7 text-[#526159]">Review this week’s WeeLMat submissions, follow up on revisions, and keep your school’s reporting current.</p>
         </div>
         <Button 
           onClick={markWeekComplete}
-          style={{ backgroundColor: "#f5ca47", color: "#236130" }}
-          className="hover:opacity-90"
+          className="min-h-12 w-full bg-[#236130] px-5 text-white shadow-[0_10px_24px_rgba(23,63,42,0.16)] hover:bg-[#173F2A] sm:w-auto"
         >
           <CheckCircle className="mr-2 h-4 w-4" />
           Mark This Week as Completed
         </Button>
-      </div>
+      </header>
 
-      {/* Teacher Tracking for Current Week */}
-      <Card className="p-6 mb-6">
+      {/* Stats Cards */}
+      <section className="mb-7 grid overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7] shadow-[0_8px_26px_rgba(20,32,25,0.05)] sm:grid-cols-2 lg:grid-cols-4" aria-label="This week’s submission summary">
+        <div className="border-b border-[#D8D0C4] p-4 sm:border-r lg:border-b-0 sm:p-5">
+          <div className="flex items-center gap-3">
+            <Users className="h-8 w-8 text-[#236130]" aria-hidden="true" />
+            <div>
+              <p className="font-display text-2xl font-semibold tabular-nums text-[#173F2A]">{managedTeachers.length}</p>
+              <p className="text-sm text-[#526159]">Teachers</p>
+            </div>
+          </div>
+        </div>
+        <div className="border-b border-[#D8D0C4] p-4 lg:border-b-0 lg:border-r sm:p-5">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="h-8 w-8 text-[#17613A]" aria-hidden="true" />
+            <div>
+              <p className="font-display text-2xl font-semibold tabular-nums text-[#173F2A]">{submittedTeachers.length}</p>
+              <p className="text-sm text-[#526159]">Submitted this week</p>
+            </div>
+          </div>
+        </div>
+        <div className="border-b border-[#D8D0C4] p-4 sm:border-b-0 sm:border-r sm:p-5">
+          <div className="flex items-center gap-3">
+            <Calendar className="h-8 w-8 text-[#8A5A00]" aria-hidden="true" />
+            <div>
+              <p className="font-display text-2xl font-semibold tabular-nums text-[#173F2A]">{weeklyStats.pending}</p>
+              <p className="text-sm text-[#526159]">Pending review</p>
+            </div>
+          </div>
+        </div>
+        <div className="p-4 sm:p-5">
+          <div className="flex items-center gap-3">
+            <XCircle className="h-8 w-8 text-[#A83224]" aria-hidden="true" />
+            <div>
+              <p className="font-display text-2xl font-semibold tabular-nums text-[#173F2A]">{weeklyStats.returned}</p>
+              <p className="text-sm text-[#526159]">Needs revision</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mb-6" aria-labelledby="requires-attention-heading">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="requires-attention-heading" className="font-display text-2xl font-semibold text-[#173F2A]">Requires attention</h2>
+            <p className="mt-1 text-sm text-[#526159]">Submissions waiting for review or revision follow-up.</p>
+          </div>
+          <span className="inline-flex min-h-8 items-center rounded-full bg-[#F1E2BC] px-3 text-sm font-bold text-[#76500A]" aria-label={`${attentionSubmissions.length} submissions require attention`}>
+            {attentionSubmissions.length}
+          </span>
+        </div>
+        <div className="overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7] shadow-[0_8px_24px_rgba(20,32,25,0.05)]">
+          {attentionSubmissions.length === 0 ? (
+            <div className="flex min-h-28 items-center gap-3 px-5 py-6 text-[#526159]">
+              <CheckCircle2 className="h-6 w-6 text-[#17613A]" aria-hidden="true" />
+              <div><p className="font-semibold text-[#173F2A]">You’re all caught up.</p><p className="mt-1 text-sm">No submissions currently need review or revision.</p></div>
+            </div>
+          ) : (
+            attentionSubmissions.slice(0, 4).map((submission) => (
+              <SubmissionCard key={`attention-${submission.id}`} submission={submission} onStatusUpdate={updateStatus} compact />
+            ))
+          )}
+        </div>
+      </section>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-7">
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-display text-2xl font-semibold text-[#173F2A]">Recent submissions</h2>
+            <p className="mt-1 text-sm text-[#526159]">Open a record to review the file, update its status, or leave notes.</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setShowReportModal(true)}
+            className="min-h-11 gap-2 border-[#236130] text-[#173F2A] hover:bg-[#E8EFE8]"
+          >
+            <Printer className="h-4 w-4" aria-hidden="true" />
+            Print report
+          </Button>
+        </div>
+        <div className="overflow-x-auto pb-1">
+          <TabsList className="h-auto min-w-max border border-[#D8D0C4] bg-[#EEE8DE] p-1">
+            <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="all">All submissions</TabsTrigger>
+            <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="by-teacher">By teacher</TabsTrigger>
+            <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="by-subject">By learning area</TabsTrigger>
+          </TabsList>
+        </div>
+
+        <TabsContent value="all" className="mt-3 overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7] shadow-[0_8px_24px_rgba(20,32,25,0.05)]">
+          {submissions.length === 0 ? <DashboardEmptyState /> : submissions.map((sub) => (
+            <SubmissionCard 
+              key={sub.id} 
+              submission={sub} 
+              onStatusUpdate={updateStatus}
+            />
+          ))}
+        </TabsContent>
+
+        <TabsContent value="by-teacher" className="space-y-6">
+          {Object.entries(groupedByTeacher).map(([teacher, subs]) => (
+            <div key={teacher}>
+              <h3 className="font-display mb-3 text-xl font-semibold text-[#173F2A]">
+                {teacher} ({subs.length} submissions)
+              </h3>
+              <div className="overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]">
+                {subs.map((sub) => (
+                  <SubmissionCard 
+                    key={sub.id} 
+                    submission={sub} 
+                    onStatusUpdate={updateStatus}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </TabsContent>
+
+        <TabsContent value="by-subject" className="space-y-6">
+          {Object.entries(groupedBySubject).map(([subject, subs]) => (
+            <div key={subject}>
+              <h3 className="font-display mb-3 text-xl font-semibold text-[#173F2A]">
+                {subject} ({subs.length} submissions)
+              </h3>
+              <div className="overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]">
+                {subs.map((sub) => (
+                  <SubmissionCard 
+                    key={sub.id} 
+                    submission={sub} 
+                    onStatusUpdate={updateStatus}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </TabsContent>
+      </Tabs>      {/* Teacher Tracking for Current Week */}
+      <Card className="mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-          <h3 className="text-lg font-semibold" style={{ color: "#236130" }}>
+          <h2 className="font-display text-xl font-semibold text-[#173F2A]">
             This Week's Teacher Submissions ({(() => {
               const today = new Date();
               const day = today.getDay();
@@ -532,14 +613,14 @@ export default function PrincipalDashboard() {
               const formatDate = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
               return `${formatDate(monday).replace(/, /g, ' ').replace(' 2025', '')}-${friday.getDate()}, ${friday.getFullYear()}`;
             })()})
-          </h3>
+          </h2>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1 border rounded-md p-1">
               <Button
                 variant={displayMode === 'text' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setDisplayMode('text')}
-                className="h-8 px-3 text-xs"
+                className="min-h-11 px-4 text-sm"
               >
                 Text
               </Button>
@@ -547,7 +628,7 @@ export default function PrincipalDashboard() {
                 variant={displayMode === 'image' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setDisplayMode('image')}
-                className="h-8 px-3 text-xs"
+                className="min-h-11 px-4 text-sm"
               >
                 Image
               </Button>
@@ -557,8 +638,7 @@ export default function PrincipalDashboard() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-2 h-9"
-                  style={{ borderColor: "#236130", color: "#236130" }}
+                  className="min-h-11 gap-2 border-[#236130] text-[#173F2A]"
                 >
                   <Share2 className="w-4 h-4" />
                   Share Status
@@ -569,7 +649,7 @@ export default function PrincipalDashboard() {
                   onClick={handleShareStatus}
                   variant="ghost"
                   size="sm"
-                  className="justify-start gap-2 h-9 w-full"
+                  className="min-h-11 w-full justify-start gap-2"
                 >
                   <Copy className="w-4 h-4" />
                   Copy Link
@@ -673,29 +753,31 @@ export default function PrincipalDashboard() {
 
       {/* Weekly Submission Calendar */}
       {profile && (
-        <div className="mb-6">
+        <section className="mb-6" aria-label="Weekly submission calendar">
           <WeeklySubmissionCalendar
             schoolName={profile.school}
             managedTeachers={managedTeachers}
           />
-        </div>
+        </section>
       )}
 
       {/* Weekly Submission Summary Grid */}
       {managedTeachers.length > 0 && (
-        <WeeklySubmissionSummary
-          managedTeachers={managedTeachers}
-          submissions={submissions}
-          schoolName={profile?.school || ""}
-        />
+        <section className="" aria-label="Weekly submission summary">
+          <WeeklySubmissionSummary
+            managedTeachers={managedTeachers}
+            submissions={submissions}
+            schoolName={profile?.school || ""}
+          />
+        </section>
       )}
 
       {/* Charts Section */}
-      <div className="grid md:grid-cols-2 gap-6 mb-6">
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+      <section className="mb-6 grid gap-6 md:grid-cols-2" aria-label="Submission charts">
+        <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+          <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
             Submission Status Distribution
-          </h3>
+          </h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -739,10 +821,10 @@ export default function PrincipalDashboard() {
           </ResponsiveContainer>
         </Card>
 
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+        <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+          <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
             Teacher Completion Rate
-          </h3>
+          </h2>
           <ResponsiveContainer width="100%" height={250}>
             <PieChart>
               <Pie
@@ -764,115 +846,107 @@ export default function PrincipalDashboard() {
             </PieChart>
           </ResponsiveContainer>
         </Card>
-      </div>
+      </section>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <BookOpen className="h-8 w-8" style={{ color: "#236130" }} />
-            <div>
-              <p className="text-2xl font-bold">{stats.total}</p>
-              <p className="text-sm text-muted-foreground">Total Submissions</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <Calendar className="h-8 w-8 text-yellow-600" />
-            <div>
-              <p className="text-2xl font-bold">{stats.pending}</p>
-              <p className="text-sm text-muted-foreground">Pending Review</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <CheckCircle className="h-8 w-8 text-green-600" />
-            <div>
-              <p className="text-2xl font-bold">{stats.reviewed}</p>
-              <p className="text-sm text-muted-foreground">Reviewed</p>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <Users className="h-8 w-8 text-blue-600" />
-            <div>
-              <p className="text-2xl font-bold">{Object.keys(groupedByTeacher).length}</p>
-              <p className="text-sm text-muted-foreground">Teachers</p>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <TabsList>
-            <TabsTrigger value="all">All Submissions</TabsTrigger>
-            <TabsTrigger value="by-teacher">By Teacher</TabsTrigger>
-            <TabsTrigger value="by-subject">By Subject</TabsTrigger>
-          </TabsList>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowReportModal(true)}
-            className="gap-2"
-            style={{ borderColor: "#236130", color: "#236130" }}
-          >
-            <Printer className="h-4 w-4" />
-            Print Report
-          </Button>
-        </div>
-
-        <TabsContent value="all" className="space-y-4">
-          {submissions.map((sub) => (
-            <SubmissionCard 
-              key={sub.id} 
-              submission={sub} 
-              onStatusUpdate={updateStatus}
-            />
-          ))}
-        </TabsContent>
-
-        <TabsContent value="by-teacher" className="space-y-6">
-          {Object.entries(groupedByTeacher).map(([teacher, subs]: [string, any[]]) => (
-            <div key={teacher}>
-              <h3 className="text-xl font-semibold mb-3" style={{ color: "#236130" }}>
-                {teacher} ({subs.length} submissions)
-              </h3>
-              <div className="space-y-4">
-                {subs.map((sub) => (
-                  <SubmissionCard 
-                    key={sub.id} 
-                    submission={sub} 
-                    onStatusUpdate={updateStatus}
+      {/* Account Info Card */}
+      {profile && (
+        <Card className="mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-[0_10px_30px_rgba(20,32,25,0.06)] sm:p-6">
+          <div className="flex items-start gap-4">
+            <div className="relative">
+              <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
+                {profile.profile_image_url ? (
+                  <img 
+                    src={profile.profile_image_url} 
+                    alt={profile.teacher_name || "Principal"} 
+                    className="w-full h-full object-cover"
                   />
-                ))}
+                ) : (
+                  <UserCircle className="h-12 w-12" style={{ color: "#236130" }} />
+                )}
+              </div>
+              <label 
+                htmlFor="principalProfileImage" 
+                className="absolute -bottom-2 -right-2 flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-full border-4 border-[#FFFCF7] bg-[#236130] text-white shadow-md transition-colors hover:bg-[#173F2A] focus-within:ring-2 focus-within:ring-[#D6A73D]"
+                aria-label="Upload principal profile photo"
+              >
+                <Upload className="h-4 w-4" aria-hidden="true" />
+              </label>
+              <input
+                id="principalProfileImage"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleProfileImageUpload(file);
+                }}
+                disabled={uploadingProfile}
+              />
+            </div>
+            <div className="flex-1">
+              <h2 className="font-display mb-2 text-xl font-semibold text-[#173F2A]">
+                Account Information
+              </h2>
+              <div className="grid md:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="font-semibold">Name:</span> {profile.teacher_name}
+                </div>
+                <div>
+                  <span className="font-semibold">Email:</span> {profile.email}
+                </div>
+                <div>
+                  <span className="font-semibold">School:</span> {profile.school}
+                </div>
+                <div>
+                  <span className="font-semibold">District:</span> {profile.district_name || "N/A"}
+                </div>
               </div>
             </div>
-          ))}
-        </TabsContent>
+          </div>
+        </Card>
+      )}
 
-        <TabsContent value="by-subject" className="space-y-6">
-          {Object.entries(groupedBySubject).map(([subject, subs]: [string, any[]]) => (
-            <div key={subject}>
-              <h3 className="text-xl font-semibold mb-3" style={{ color: "#236130" }}>
-                {subject} ({subs.length} submissions)
-              </h3>
-              <div className="space-y-4">
-                {subs.map((sub) => (
-                  <SubmissionCard 
-                    key={sub.id} 
-                    submission={sub} 
-                    onStatusUpdate={updateStatus}
-                  />
-                ))}
-              </div>
+      {/* Supervisor Info Card */}
+      {supervisorInfo && (
+        <Card className="mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+          <h2 className="font-display mb-3 text-lg font-semibold text-[#173F2A]">
+            Your District Supervisor
+          </h2>
+          <div className="flex items-center gap-4">
+            <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
+              {supervisorInfo.profile_image_url ? (
+                <img 
+                  src={supervisorInfo.profile_image_url} 
+                  alt={supervisorInfo.teacher_name || "Supervisor"} 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <UserCircle className="h-12 w-12" style={{ color: "#236130" }} />
+              )}
             </div>
-          ))}
-        </TabsContent>
-      </Tabs>
+            <div>
+              <p className="font-semibold text-lg">{supervisorInfo.teacher_name}</p>
+              <p className="text-sm text-muted-foreground">{supervisorInfo.email}</p>
+              <p className="text-xs text-muted-foreground mt-1">District Supervisor</p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Teacher Management Section */}
+      {profile && (
+        <section className="mb-6" aria-label="Teacher management">
+          <TeacherManagement 
+            schoolName={profile.school}
+            districtName={profile.district_name || ""}
+            principalId={profile.user_id}
+            teachers={managedTeachers}
+            onRefresh={fetchSubmissions}
+          />
+        </section>
+      )}
+
+
       </div>
 
       <SubmissionsReportModal
@@ -883,43 +957,74 @@ export default function PrincipalDashboard() {
         principalName={profile?.full_name || ""}
       />
       
-      <Footer />
+    </main>
+  );
+}
+
+function DashboardEmptyState() {
+  return (
+    <div className="flex min-h-52 flex-col items-center justify-center px-6 py-10 text-center">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#E8EFE8] text-[#236130]">
+        <FileText className="h-6 w-6" aria-hidden="true" />
+      </span>
+      <p className="font-display mt-4 text-xl font-semibold text-[#173F2A]">No submissions yet</p>
+      <p className="mt-2 max-w-md text-sm leading-6 text-[#526159]">New teacher submissions will appear here as soon as they are received.</p>
     </div>
   );
 }
 
-function SubmissionCard({ submission, onStatusUpdate }: { submission: any; onStatusUpdate: (id: string, status: string, notes?: string) => void }) {
+type SubmissionCardProps = {
+  submission: Submission;
+  onStatusUpdate: (id: string, status: string, notes?: string) => void;
+  compact?: boolean;
+};
+
+function SubmissionCard({ submission, onStatusUpdate, compact = false }: SubmissionCardProps) {
   const [notes, setNotes] = useState(submission.principal_notes || "");
   const [showNotes, setShowNotes] = useState(false);
 
+  const statusStyles = submission.status === "reviewed"
+    ? "bg-[#E3EFE5] text-[#17613A]"
+    : submission.status === "returned"
+      ? "bg-[#F7E3DE] text-[#A83224]"
+      : "bg-[#F7ECD1] text-[#8A5A00]";
+
+  const statusLabel = submission.status === "reviewed"
+    ? "Reviewed"
+    : submission.status === "returned"
+      ? "Needs revision"
+      : "For review";
+
   return (
-    <Card className="p-4 hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start gap-4">
-        <div className="flex-1">
-          <h3 className="font-semibold text-lg">{submission.teacher_name}</h3>
-          <p className="text-sm font-medium">{submission.subject} - {submission.grade_level} ({submission.section})</p>
-          <p className="text-sm text-muted-foreground">
-            Week: {new Date(submission.week_start).toLocaleDateString()} to {new Date(submission.week_end).toLocaleDateString()}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Submitted: {new Date(submission.created_at).toLocaleDateString()}
-          </p>
+    <article className={`border-b border-[#E4DDD2] bg-[#FFFCF7] p-4 transition-colors last:border-b-0 hover:bg-white sm:p-5 ${compact ? "" : ""}`}>
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,auto)] lg:items-start">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-semibold text-[#142019] sm:text-lg">{submission.teacher_name}</h3>
+            <span className={`inline-flex min-h-7 items-center rounded-full px-2.5 text-xs font-bold ${statusStyles}`}>{statusLabel}</span>
+          </div>
+          <p className="mt-1 text-sm font-semibold text-[#35443B]">{submission.subject} · {submission.grade_level} ({submission.section})</p>
+          <div className={`mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs leading-5 text-[#526159] ${compact ? "sm:text-sm" : ""}`}>
+            <span className="tabular-nums">Week: {new Date(submission.week_start).toLocaleDateString()} – {new Date(submission.week_end).toLocaleDateString()}</span>
+            <span className="tabular-nums">Submitted: {new Date(submission.created_at).toLocaleDateString()}</span>
+          </div>
           
           {showNotes && (
-            <div className="mt-3">
+            <div className="mt-4 rounded-lg border border-[#D8D0C4] bg-[#F8F3EB] p-3">
+              <label htmlFor={`notes-${submission.id}`} className="mb-2 block text-sm font-semibold text-[#173F2A]">Notes for {submission.teacher_name}</label>
               <Textarea
+                id={`notes-${submission.id}`}
                 placeholder="Add notes for the teacher..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="mb-2"
+                className="mb-3 min-h-28 border-[#CFC6B9] bg-white focus-visible:ring-[#236130]"
               />
               <Button 
-                size="sm" 
                 onClick={() => {
                   onStatusUpdate(submission.id, submission.status, notes);
                   setShowNotes(false);
                 }}
-                style={{ backgroundColor: "#236130", color: "white" }}
+                className="min-h-11 bg-[#236130] text-white hover:bg-[#173F2A]"
               >
                 Save Notes
               </Button>
@@ -927,12 +1032,12 @@ function SubmissionCard({ submission, onStatusUpdate }: { submission: any; onSta
           )}
         </div>
         
-        <div className="flex flex-col gap-2 min-w-[200px]">
+        <div className="flex min-w-0 flex-col gap-3">
           <Select
             value={submission.status}
             onValueChange={(value) => onStatusUpdate(submission.id, value)}
           >
-            <SelectTrigger>
+            <SelectTrigger className="min-h-11 border-[#CFC6B9] bg-white text-[#142019]" aria-label={`Update status for ${submission.teacher_name}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -942,14 +1047,15 @@ function SubmissionCard({ submission, onStatusUpdate }: { submission: any; onSta
             </SelectContent>
           </Select>
           
-          <div className="flex gap-2">
-            <Button size="sm" style={{ backgroundColor: "#236130", color: "white" }} asChild>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <Button className="min-h-11 bg-[#236130] px-4 text-white hover:bg-[#173F2A]" asChild>
               <a
                 href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(submission.file_url)}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label={`Open ${submission.teacher_name}'s submission in a new tab`}
               >
-                <ExternalLink className="h-4 w-4 mr-1" />
+                <ExternalLink className="mr-1.5 h-4 w-4" aria-hidden="true" />
                 Open
               </a>
             </Button>
@@ -957,22 +1063,23 @@ function SubmissionCard({ submission, onStatusUpdate }: { submission: any; onSta
               fileUrl={submission.file_url}
               fileName={`${submission.teacher_name}_${submission.subject}`}
             />
-            <Button size="sm" variant="outline" asChild className="flex-1">
-              <a href={submission.file_url} target="_blank" rel="noopener noreferrer" download>
-                <Download className="h-4 w-4" />
+            <Button variant="outline" asChild className="min-h-11 min-w-11 border-[#CFC6B9] text-[#173F2A]">
+              <a href={submission.file_url} target="_blank" rel="noopener noreferrer" download aria-label={`Download ${submission.teacher_name}'s submission`}>
+                <Download className="h-4 w-4" aria-hidden="true" />
               </a>
             </Button>
             <Button 
-              size="sm" 
               variant="outline"
               onClick={() => setShowNotes(!showNotes)}
-              className="flex-1"
+              className="min-h-11 border-[#CFC6B9] text-[#173F2A]"
+              aria-expanded={showNotes}
+              aria-controls={`notes-${submission.id}`}
             >
               Notes
             </Button>
           </div>
         </div>
       </div>
-    </Card>
+    </article>
   );
 }

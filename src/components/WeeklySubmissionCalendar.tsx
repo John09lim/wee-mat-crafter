@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
@@ -30,6 +30,29 @@ interface WeeklySubmissionCalendarProps {
   managedTeachers: Array<{ teacher_name: string; user_id: string | null }>;
 }
 
+const WEEKS_PER_PAGE = 4;
+const CALENDAR_START_DATE = new Date(2025, 7, 11);
+
+function getMondayOfWeek(date: Date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function getFridayOfWeek(monday: Date) {
+  const friday = new Date(monday);
+  friday.setDate(monday.getDate() + 4);
+  friday.setHours(23, 59, 59, 999);
+  return friday;
+}
+
+function isCurrentWeek(monday: Date) {
+  return monday.getTime() === getMondayOfWeek(new Date()).getTime();
+}
+
 export default function WeeklySubmissionCalendar({
   schoolName,
   managedTeachers,
@@ -41,39 +64,7 @@ export default function WeeklySubmissionCalendar({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentWeekData, setCurrentWeekData] = useState<WeekData | null>(null);
 
-  const weeksPerPage = 4;
-  const startDate = new Date(2025, 7, 11); // August 11, 2025 (month is 0-indexed)
-
-  // Helper to get Monday of the week
-  const getMondayOfWeek = (date: Date) => {
-    const d = new Date(date);
-    const day = d.getDay();
-    const diff = day === 0 ? -6 : 1 - day; // Handle Sunday as -6, else 1 - day
-    d.setDate(d.getDate() + diff);
-    d.setHours(0, 0, 0, 0);
-    return d;
-  };
-
-  // Helper to get Friday of the week
-  const getFridayOfWeek = (monday: Date) => {
-    const friday = new Date(monday);
-    friday.setDate(monday.getDate() + 4);
-    friday.setHours(23, 59, 59, 999);
-    return friday;
-  };
-
-  // Check if a date is in the current week
-  const isCurrentWeek = (monday: Date) => {
-    const today = new Date();
-    const currentMonday = getMondayOfWeek(today);
-    return monday.getTime() === currentMonday.getTime();
-  };
-
-  useEffect(() => {
-    fetchWeeklyData();
-  }, [schoolName, managedTeachers]);
-
-  const fetchWeeklyData = async () => {
+  const fetchWeeklyData = useCallback(async () => {
     const weeksData: WeekData[] = [];
     
     // Dynamically calculate current week based on today's date
@@ -84,7 +75,7 @@ export default function WeeklySubmissionCalendar({
                        day === 0 ? new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000) : today;
     const currentMonday = getMondayOfWeek(targetDate);
     
-    const startMonday = getMondayOfWeek(startDate);
+    const startMonday = getMondayOfWeek(CALENDAR_START_DATE);
 
     // Calculate weeks from startDate to 4 weeks into the future from current week
     let currentWeek = new Date(startMonday);
@@ -140,9 +131,13 @@ export default function WeeklySubmissionCalendar({
 
     // Set current page to show weeks after current week
     if (currentWeekIndex >= 0) {
-      setCurrentPage(Math.floor(currentWeekIndex / weeksPerPage));
+      setCurrentPage(Math.floor(currentWeekIndex / WEEKS_PER_PAGE));
     }
-  };
+  }, [managedTeachers, schoolName]);
+
+  useEffect(() => {
+    fetchWeeklyData();
+  }, [fetchWeeklyData]);
 
   const handleWeekClick = async (week: WeekData) => {
     setSelectedWeek(week);
@@ -173,38 +168,38 @@ export default function WeeklySubmissionCalendar({
   };
 
   const getColorClass = (percentage: number) => {
-    if (percentage === 100) return "bg-green-500/20 border-green-500 text-green-700";
-    if (percentage >= 50) return "bg-yellow-500/20 border-yellow-500 text-yellow-700";
-    return "bg-red-500/20 border-red-500 text-red-700";
+    if (percentage === 100) return "bg-[#E3EFE5] border-[#17613A] text-[#17613A]";
+    if (percentage >= 50) return "bg-[#F7ECD1] border-[#D6A73D] text-[#76500A]";
+    return "bg-[#F7E3DE] border-[#A83224] text-[#A83224]";
   };
 
   const displayedWeeks = weeks.slice(
-    currentPage * weeksPerPage,
-    (currentPage + 1) * weeksPerPage
+    currentPage * WEEKS_PER_PAGE,
+    (currentPage + 1) * WEEKS_PER_PAGE
   );
 
   return (
     <>
-      <Card>
+      <Card className="border-[#D8D0C4] bg-[#FFFCF7] shadow-none">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
+          <CardTitle className="font-display flex items-center gap-2 text-2xl text-[#173F2A]">
+            <Calendar className="h-5 w-5 text-[#236130]" aria-hidden="true" />
             Weekly Submission History
           </CardTitle>
         </CardHeader>
         <CardContent>
           {/* Color Legend */}
-          <div className="flex items-center justify-center gap-6 mb-6 text-sm flex-wrap">
+          <div className="mb-6 flex flex-wrap items-center justify-start gap-x-6 gap-y-3 text-sm text-[#526159]" aria-label="Submission percentage legend">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-red-500"></div>
+              <div className="h-4 w-4 rounded border border-[#A83224] bg-[#F7E3DE]"></div>
               <span>0-49% Submitted</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-yellow-500"></div>
+              <div className="h-4 w-4 rounded border border-[#D6A73D] bg-[#F7ECD1]"></div>
               <span>50-99% Submitted</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-green-500"></div>
+              <div className="h-4 w-4 rounded border border-[#17613A] bg-[#E3EFE5]"></div>
               <span>100% Submitted</span>
             </div>
           </div>
@@ -214,13 +209,15 @@ export default function WeeklySubmissionCalendar({
             <div className="mb-6">
               <div className="flex justify-center">
                 <button
+                  type="button"
                   onClick={() => handleWeekClick(currentWeekData)}
-                  className={`p-6 rounded-xl border-4 border-[#f5ca47] shadow-lg hover:scale-105 transition-all cursor-pointer w-full max-w-md ${getColorClass(
+                  className={`min-h-44 w-full max-w-md cursor-pointer rounded-xl border-2 p-6 shadow-sm outline-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-[#236130] focus-visible:ring-offset-2 ${getColorClass(
                     currentWeekData.percentage
                   )}`}
+                  aria-label={`View submission details for this week, ${currentWeekData.percentage} percent complete`}
                 >
                   <div className="text-center mb-3">
-                    <span className="bg-[#f5ca47] text-[#236130] text-sm font-bold px-4 py-1.5 rounded-full">
+                    <span className="inline-flex min-h-8 items-center rounded-full bg-[#D6A73D] px-4 py-1.5 text-sm font-bold text-[#173F2A]">
                       THIS WEEK
                     </span>
                   </div>
@@ -242,17 +239,19 @@ export default function WeeklySubmissionCalendar({
 
           {/* Other Weeks Grid */}
           <div className="space-y-4">
-            <h4 className="text-sm font-semibold text-muted-foreground text-center">
+            <h4 className="text-sm font-semibold text-[#526159]">
               Other Weeks
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {displayedWeeks.map((week, idx) => (
                 <button
                   key={idx}
+                  type="button"
                   onClick={() => handleWeekClick(week)}
-                  className={`p-4 rounded-lg border-2 transition-all hover:scale-105 cursor-pointer ${getColorClass(
+                  className={`min-h-36 cursor-pointer rounded-lg border-2 p-4 outline-none transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-[#236130] focus-visible:ring-offset-2 ${getColorClass(
                     week.percentage
                   )}`}
+                  aria-label={`View week of ${format(week.weekStart, "MMM d")}, ${week.percentage} percent complete`}
                 >
                   <div className="text-sm font-medium mb-2">
                     {format(week.weekStart, "MMM d")} - {format(week.weekEnd, "MMM d")}
@@ -266,37 +265,37 @@ export default function WeeklySubmissionCalendar({
             </div>
           </div>
 
-          <div className="flex justify-between items-center mt-4">
+          <div className="mt-5 flex flex-col items-center justify-between gap-3 sm:flex-row">
             <Button
               variant="outline"
-              size="sm"
+              className="min-h-11 w-full border-[#CFC6B9] text-[#173F2A] sm:w-auto"
               onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
               disabled={currentPage === 0}
             >
-              <ChevronLeft className="w-4 h-4 mr-1" />
+              <ChevronLeft className="mr-1 h-4 w-4" aria-hidden="true" />
               Previous
             </Button>
             <span className="text-sm text-muted-foreground">
-              Week {currentPage * weeksPerPage + 1}-
-              {Math.min((currentPage + 1) * weeksPerPage, weeks.length)} of {weeks.length}
+              Week {currentPage * WEEKS_PER_PAGE + 1}-
+              {Math.min((currentPage + 1) * WEEKS_PER_PAGE, weeks.length)} of {weeks.length}
             </span>
             <Button
               variant="outline"
-              size="sm"
+              className="min-h-11 w-full border-[#CFC6B9] text-[#173F2A] sm:w-auto"
               onClick={() => setCurrentPage(currentPage + 1)}
-              disabled={(currentPage + 1) * weeksPerPage >= weeks.length}
+              disabled={(currentPage + 1) * WEEKS_PER_PAGE >= weeks.length}
             >
               Next
-              <ChevronRight className="w-4 h-4 ml-1" />
+              <ChevronRight className="ml-1 h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
         </CardContent>
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-2xl overflow-y-auto border-[#D8D0C4] bg-[#FFFCF7] sm:max-h-[85dvh]">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="font-display text-2xl text-[#173F2A]">
               {selectedWeek &&
                 `Week of ${format(selectedWeek.weekStart, "MMM dd")} - ${format(
                   selectedWeek.weekEnd,
@@ -307,18 +306,18 @@ export default function WeeklySubmissionCalendar({
 
           {weekDetail && selectedWeek && (
             <div className="space-y-4">
-              <div className="text-center p-4 bg-muted rounded-lg">
-                <div className="text-2xl font-bold">{selectedWeek.percentage}%</div>
-                <div className="text-sm text-muted-foreground">
+              <div className="rounded-lg border border-[#D8D0C4] bg-[#F8F3EB] p-4 text-center">
+                <div className="font-display text-3xl font-semibold tabular-nums text-[#173F2A]">{selectedWeek.percentage}%</div>
+                <div className="text-sm text-[#526159]">
                   {selectedWeek.submittedCount} / {selectedWeek.totalCount} teachers
                   submitted
                 </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-4">
-                <Card className="border-green-500/20">
+                <Card className="border-[#B9D1BE] bg-[#EAF3EB] shadow-none">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-[#1eba83]">
+                    <CardTitle className="flex items-center gap-2 text-[#17613A]">
                       <CheckCircle2 className="w-5 h-5" />
                       Submitted ({weekDetail.submitted.length})
                     </CardTitle>
@@ -330,7 +329,7 @@ export default function WeeklySubmissionCalendar({
                       <ul className="space-y-2">
                         {weekDetail.submitted.map((teacher, idx) => (
                           <li key={idx} className="flex items-center gap-2 text-sm">
-                            <CheckCircle2 className="w-4 h-4 text-[#1eba83]" />
+                            <CheckCircle2 className="h-4 w-4 text-[#17613A]" />
                             <span>{teacher}</span>
                           </li>
                         ))}
@@ -339,9 +338,9 @@ export default function WeeklySubmissionCalendar({
                   </CardContent>
                 </Card>
 
-                <Card className="border-red-500/20">
+                <Card className="border-[#E0B8AE] bg-[#FAECE8] shadow-none">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-red-500">
+                    <CardTitle className="flex items-center gap-2 text-[#A83224]">
                       <XCircle className="w-5 h-5" />
                       Not Submitted ({weekDetail.notSubmitted.length})
                     </CardTitle>
@@ -355,7 +354,7 @@ export default function WeeklySubmissionCalendar({
                       <ul className="space-y-2">
                         {weekDetail.notSubmitted.map((teacher, idx) => (
                           <li key={idx} className="flex items-center gap-2 text-sm">
-                            <XCircle className="w-4 h-4 text-red-500" />
+                            <XCircle className="h-4 w-4 text-[#A83224]" />
                             <span>{teacher}</span>
                           </li>
                         ))}

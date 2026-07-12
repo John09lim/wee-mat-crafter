@@ -5,22 +5,66 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { School, Users, CheckCircle, TrendingUp, UserCircle, ExternalLink, Upload } from "lucide-react";
+import { School, Users, CheckCircle, TrendingUp, UserCircle, ExternalLink, Upload, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import DocumentViewer from "@/components/DocumentViewer";
-import Footer from "@/components/layout/Footer";
 
 import { SchoolManagement } from "@/components/SchoolManagement";
 import { PrincipalDashboardView } from "@/components/PrincipalDashboardView";
 
+interface WeeklyReport {
+  id: string;
+  school_name: string;
+  week_start: string;
+  week_end: string;
+  created_at: string;
+  status: string;
+  submitted_teachers: number;
+  total_teachers: number;
+}
+
+interface SchoolAssignment {
+  user_id: string;
+  school_name: string;
+}
+
+interface ManagedSchool {
+  id: string;
+  school_name: string;
+  principal_name?: string | null;
+}
+
+interface TeacherSubmission {
+  id: string;
+  user_id: string;
+  school_name: string;
+  teacher_name: string;
+  subject: string;
+  grade_level: string;
+  section?: string | null;
+  week_start: string;
+  week_end: string;
+  created_at: string;
+  status: string;
+  file_url: string;
+}
+
+interface SupervisorProfile {
+  user_id: string;
+  district_name: string;
+  teacher_name?: string | null;
+  email?: string | null;
+  profile_image_url?: string | null;
+}
+
 export default function SupervisorDashboard() {
-  const [reports, setReports] = useState<any[]>([]);
-  const [schools, setSchools] = useState<any[]>([]);
+  const [reports, setReports] = useState<WeeklyReport[]>([]);
+  const [schools, setSchools] = useState<SchoolAssignment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [profile, setProfile] = useState<any>(null);
-  const [teacherSubmissions, setTeacherSubmissions] = useState<any[]>([]);
-  const [managedSchools, setManagedSchools] = useState<any[]>([]);
+  const [profile, setProfile] = useState<SupervisorProfile | null>(null);
+  const [teacherSubmissions, setTeacherSubmissions] = useState<TeacherSubmission[]>([]);
+  const [managedSchools, setManagedSchools] = useState<ManagedSchool[]>([]);
   const [uploadingProfile, setUploadingProfile] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<string | null>(null);
 
@@ -49,7 +93,7 @@ export default function SupervisorDashboard() {
         return;
       }
 
-      setProfile(profileData);
+      setProfile(profileData as SupervisorProfile);
 
       // Fetch managed schools from schools table
       const { data: managedSchoolsData } = await supabase
@@ -58,7 +102,7 @@ export default function SupervisorDashboard() {
         .eq("district_name", profileData.district_name)
         .eq("supervisor_id", user.id);
       
-      setManagedSchools(managedSchoolsData || []);
+      setManagedSchools((managedSchoolsData || []) as ManagedSchool[]);
 
       // Fetch ONLY reports from supervisor's district
       const { data: reportsData, error: reportsError } = await supabase
@@ -86,9 +130,9 @@ export default function SupervisorDashboard() {
 
       if (submissionsError) throw submissionsError;
 
-      setReports(reportsData || []);
-      setSchools(schoolsData || []);
-      setTeacherSubmissions(submissionsData || []);
+      setReports((reportsData || []) as WeeklyReport[]);
+      setSchools((schoolsData || []) as SchoolAssignment[]);
+      setTeacherSubmissions((submissionsData || []) as TeacherSubmission[]);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -125,9 +169,9 @@ export default function SupervisorDashboard() {
 
       setProfile({ ...profile, profile_image_url: publicUrl });
       toast.success("Profile image updated successfully!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error:", error);
-      toast.error(error.message || "Failed to upload profile image");
+      toast.error(error instanceof Error ? error.message : "Failed to upload profile image");
     } finally {
       setUploadingProfile(false);
     }
@@ -140,7 +184,7 @@ export default function SupervisorDashboard() {
     }
     acc[report.school_name].push(report);
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {} as Record<string, WeeklyReport[]>);
 
   // Calculate overall statistics
   const totalSchools = Object.keys(schoolReports).length;
@@ -191,9 +235,18 @@ export default function SupervisorDashboard() {
 
   if (loading) {
     return (
-      <div className="container py-8 flex items-center justify-center">
-        <p>Loading dashboard...</p>
-      </div>
+      <main className="min-h-[calc(100dvh-4rem)] bg-[#F6F0E7]" aria-busy="true">
+        <div className="container max-w-7xl py-10">
+          <div className="animate-pulse space-y-6" role="status" aria-label="Loading supervisor dashboard">
+            <div className="h-12 w-80 rounded-lg bg-[#D8D0C4]/70" />
+            <div className="h-24 rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]" />
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {[0, 1, 2].map((item) => <div key={item} className="h-64 rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]" />)}
+            </div>
+            <span className="sr-only">Loading district data…</span>
+          </div>
+        </div>
+      </main>
     );
   }
 
@@ -204,96 +257,265 @@ export default function SupervisorDashboard() {
     }
     acc[sub.school_name].push(sub);
     return acc;
-  }, {} as Record<string, any[]>);
+  }, {} as Record<string, TeacherSubmission[]>);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <div className="flex-1 container py-8 max-w-7xl mx-auto">
-      {/* Account Info Card */}
-      {profile && (
-        <Card className="p-6 mb-6" style={{ borderColor: "#236130" }}>
-          <div className="flex items-start gap-4">
-            <div className="relative">
-              <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
-                {profile.profile_image_url ? (
-                  <img 
-                    src={profile.profile_image_url} 
-                    alt={profile.teacher_name || "Supervisor"} 
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <UserCircle className="h-12 w-12" style={{ color: "#236130" }} />
-                )}
-              </div>
-              <label 
-                htmlFor="supervisorProfileImage" 
-                className="absolute -bottom-1 -right-1 cursor-pointer"
-              >
-                <div 
-                  className="w-8 h-8 rounded-full flex items-center justify-center shadow-lg hover:opacity-80 transition-opacity"
-                  style={{ backgroundColor: "#236130" }}
-                >
-                  <Upload className="w-4 h-4 text-white" />
-                </div>
-              </label>
-              <input
-                id="supervisorProfileImage"
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleProfileImageUpload(file);
-                }}
-              />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold mb-2" style={{ color: "#236130" }}>
-                Account Information
-              </h2>
-              <div className="grid md:grid-cols-3 gap-3 text-sm">
-                <div>
-                  <span className="font-semibold">Name:</span> {profile.teacher_name}
-                </div>
-                <div>
-                  <span className="font-semibold">Email:</span> {profile.email}
-                </div>
-                <div>
-                  <span className="font-semibold">District:</span> {profile.district_name || "N/A"}
-                </div>
-              </div>
+    <main id="supervisor-dashboard-main" className="min-h-[calc(100dvh-4rem)] bg-[#F6F0E7] text-[#142019]">
+      <div className="container mx-auto flex max-w-7xl flex-col px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
+      <header className="mb-7 border-b border-[#D8D0C4] pb-7">
+        <p className="mb-2 text-sm font-semibold text-[#526159]">{profile?.district_name || "District"} · Administrative oversight</p>
+        <h1 className="font-display text-4xl font-semibold tracking-[-0.035em] text-[#173F2A] sm:text-5xl">
+          District submission overview
+        </h1>
+        <p className="mt-3 max-w-2xl text-base leading-7 text-[#526159]">
+          Monitor weekly learning matrix submissions, review school-level progress, and identify where follow-up is needed.
+        </p>
+      </header>
+
+      {/* Overview Stats */}
+      <section className="mb-7 grid overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7] shadow-[0_8px_26px_rgba(20,32,25,0.05)] sm:grid-cols-2 lg:grid-cols-4" aria-label="District summary">
+        <div className="border-b border-[#D8D0C4] p-4 sm:border-r lg:border-b-0 sm:p-5">
+          <div className="flex items-center gap-3">
+            <School className="h-8 w-8" style={{ color: "#236130" }} />
+            <div>
+              <p className="font-display text-2xl font-semibold tabular-nums text-[#173F2A]">{totalSchools}</p>
+              <p className="text-sm text-[#526159]">Schools reporting</p>
             </div>
           </div>
-        </Card>
-      )}
-
-      {/* School Management Section */}
-      {profile && profile.district_name && (
-        <div className="mb-6">
-          <SchoolManagement 
-            districtName={profile.district_name}
-            supervisorId={profile.user_id}
-            schools={managedSchools}
-            onRefresh={fetchData}
-          />
         </div>
-      )}
+        
+        <div className="border-b border-[#D8D0C4] p-4 lg:border-b-0 lg:border-r sm:p-5">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="h-8 w-8 text-green-600" />
+            <div>
+              <p className="font-display text-2xl font-semibold tabular-nums text-[#173F2A]">{completedThisWeek}</p>
+              <p className="text-sm text-[#526159]">Completed this week</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="border-b border-[#D8D0C4] p-4 sm:border-b-0 sm:border-r sm:p-5">
+          <div className="flex items-center gap-3">
+            <TrendingUp className="h-8 w-8" style={{ color: "#f5ca47" }} />
+            <div>
+              <p className="font-display text-2xl font-semibold tabular-nums text-[#173F2A]">{overallCompliance}%</p>
+              <p className="text-sm text-[#526159]">Overall compliance</p>
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-4 sm:p-5">
+          <div className="flex items-center gap-3">
+            <Users className="h-8 w-8 text-blue-600" />
+            <div>
+              <p className="font-display text-2xl font-semibold tabular-nums text-[#173F2A]">{totalTeachersTracked}</p>
+              <p className="text-sm text-[#526159]">Teachers tracked</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2" style={{ color: "#236130" }}>
-          Supervisor Dashboard - {profile?.district_name || "District"}
-        </h1>
-        <p className="text-muted-foreground">
-          Monitor weekly learning matrix submissions across all schools
-        </p>
-      </div>
+      <Tabs defaultValue="overview" className="mb-7">
+        <div className="mb-4">
+          <h2 className="font-display text-2xl font-semibold text-[#173F2A]">Schools requiring attention</h2>
+          <p className="mt-1 text-sm text-[#526159]">Open a school to review teachers, files, and recent reporting history.</p>
+        </div>
+        <div className="overflow-x-auto pb-1">
+          <TabsList className="h-auto min-w-max border border-[#D8D0C4] bg-[#EEE8DE] p-1">
+            <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="overview">Overview</TabsTrigger>
+            <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="by-school">By school</TabsTrigger>
+            <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="recent">Recent reports</TabsTrigger>
+            <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="teacher-files">Teacher files</TabsTrigger>
+          </TabsList>
+        </div>
 
-      {/* Charts Section */}
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+        <TabsContent value="overview" className="space-y-4">
+          {selectedSchool ? (
+            <PrincipalDashboardView
+              schoolName={selectedSchool}
+              districtName={profile?.district_name || ""}
+              onClose={() => setSelectedSchool(null)}
+            />
+          ) : (
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {managedSchools.map((school) => {
+                const schoolReportsForSchool = reports.filter(r => r.school_name === school.school_name);
+                const latestReport = schoolReportsForSchool[0];
+                
+                // Get teacher count from school_assignments
+                const teachersInSchool = schools.filter(s => s.school_name === school.school_name);
+                const teacherCount = teachersInSchool.length;
+                
+                // Get submissions for this school this week
+                const today = new Date();
+                const startOfWeek = new Date(today);
+                startOfWeek.setDate(today.getDate() - today.getDay());
+                
+                const thisWeekSubmissions = teacherSubmissions.filter(sub => {
+                  const subDate = new Date(sub.created_at);
+                  return sub.school_name === school.school_name && subDate >= startOfWeek;
+                });
+                
+                const submittedCount = new Set(thisWeekSubmissions.map(s => s.user_id)).size;
+                const completionRate = teacherCount > 0
+                  ? Math.round((submittedCount / teacherCount) * 100)
+                  : 0;
+
+                return (
+                  <button
+                    key={school.id} 
+                    type="button"
+                    className="min-h-64 cursor-pointer rounded-xl border border-[#D8D0C4] bg-[#FFFCF7] p-5 text-left shadow-[0_8px_22px_rgba(20,32,25,0.04)] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-[#A8B6A7] hover:shadow-[0_14px_30px_rgba(20,32,25,0.09)] focus-visible:ring-2 focus-visible:ring-[#236130] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F6F0E7]"
+                    onClick={() => setSelectedSchool(school.school_name)}
+                    aria-label={`View ${school.school_name} school details`}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <h3 className="font-display text-xl font-semibold text-[#173F2A]">{school.school_name}</h3>
+                      <Badge variant={latestReport?.status === 'completed' ? 'default' : 'secondary'}>
+                        {latestReport?.status || 'No Reports'}
+                      </Badge>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Teachers Submitted:</span>
+                        <span className="font-semibold">
+                          {submittedCount} / {teacherCount}
+                        </span>
+                      </div>
+                      
+                      <Progress value={completionRate} className="h-2" />
+                      
+                      {latestReport && (
+                        <div className="text-sm text-muted-foreground">
+                          Last Report: {new Date(latestReport.week_start).toLocaleDateString()}
+                        </div>
+                      )}
+                      
+                      <div className="text-xs text-muted-foreground">
+                        Principal: {school.principal_name || "Not assigned"}
+                      </div>
+                      
+                      <span className="mt-3 flex min-h-11 w-full items-center justify-between rounded-lg border border-[#236130] px-3 text-sm font-semibold text-[#173F2A]">
+                        View teachers <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+              {managedSchools.length === 0 && (
+                <div className="col-span-full flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed border-[#CFC6B9] bg-[#FFFCF7] px-6 py-10 text-center text-[#526159]">
+                  <School className="h-10 w-10 text-[#236130]" aria-hidden="true" />
+                  <p className="font-display mt-3 text-xl font-semibold text-[#173F2A]">No schools added yet</p>
+                  <p className="mt-2 max-w-md text-sm leading-6">Use Manage Schools below to add the first school in this district.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="by-school" className="space-y-6">
+          {Object.entries(schoolReports).map(([schoolName, schoolReports]) => (
+            <Card key={schoolName} className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+              <h3 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
+                {schoolName}
+              </h3>
+              <div className="space-y-3">
+                {schoolReports.map((report) => (
+                  <div key={report.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div>
+                      <p className="font-medium">
+                        Week: {new Date(report.week_start).toLocaleDateString()} - {new Date(report.week_end).toLocaleDateString()}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {report.submitted_teachers} / {report.total_teachers} teachers submitted
+                      </p>
+                    </div>
+                    <Badge variant={report.status === 'completed' ? 'default' : 'secondary'}>
+                      {report.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ))}
+        </TabsContent>
+
+        <TabsContent value="recent" className="space-y-4">
+          {reports.slice(0, 20).map((report) => (
+            <Card key={report.id} className="border-[#D8D0C4] bg-[#FFFCF7] p-4 shadow-none sm:p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-semibold">{report.school_name}</h4>
+                  <p className="text-sm text-muted-foreground">
+                    Week: {new Date(report.week_start).toLocaleDateString()} - {new Date(report.week_end).toLocaleDateString()}
+                  </p>
+                  <p className="text-sm">
+                    {report.submitted_teachers} / {report.total_teachers} teachers ({Math.round((report.submitted_teachers / report.total_teachers) * 100)}%)
+                  </p>
+                </div>
+                <div className="text-right">
+                  <Badge variant={report.status === 'completed' ? 'default' : 'secondary'}>
+                    {report.status}
+                  </Badge>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    {new Date(report.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </TabsContent>
+
+        <TabsContent value="teacher-files" className="space-y-6">
+          {Object.entries(submissionsBySchool).map(([schoolName, submissions]) => (
+            <Card key={schoolName} className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+              <h3 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
+                {schoolName} ({submissions.length} submissions)
+              </h3>
+              <div className="space-y-3">
+                {submissions.map((submission) => (
+                  <Card key={submission.id} className="border-[#E4DDD2] bg-white p-4 shadow-none transition-colors hover:bg-[#FFFCF7]">
+                    <div className="flex justify-between items-start gap-4">
+                      <div className="flex-1">
+                        <h4 className="font-semibold">{submission.teacher_name}</h4>
+                        <p className="text-sm">{submission.subject} - {submission.grade_level} ({submission.section})</p>
+                        <p className="text-sm text-muted-foreground">
+                          Week: {new Date(submission.week_start).toLocaleDateString()} to {new Date(submission.week_end).toLocaleDateString()}
+                        </p>
+                        <Badge variant={submission.status === 'accepted' ? 'default' : 'secondary'} className="mt-2">
+                          {submission.status}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-2">
+                        <a
+                          href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(submission.file_url)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Button className="min-h-11 bg-[#236130] text-white hover:bg-[#173F2A]">
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Open in New Tab
+                          </Button>
+                        </a>
+                        <DocumentViewer 
+                          fileUrl={submission.file_url}
+                          fileName={`${submission.teacher_name}_${submission.subject}`}
+                        />
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </Card>
+          ))}
+        </TabsContent>
+      </Tabs>      {/* Charts Section */}
+      <section className="mb-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3" aria-label="District charts">
+        <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+          <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
             School Compliance
-          </h3>
+          </h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -341,10 +563,10 @@ export default function SupervisorDashboard() {
           </ResponsiveContainer>
         </Card>
 
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+        <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+          <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
             Teacher Submissions
-          </h3>
+          </h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -392,10 +614,10 @@ export default function SupervisorDashboard() {
           </ResponsiveContainer>
         </Card>
 
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4" style={{ color: "#236130" }}>
+        <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6 md:col-span-2 xl:col-span-1">
+          <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
             Submission Rate by School
-          </h3>
+          </h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={schoolBarData}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -413,253 +635,82 @@ export default function SupervisorDashboard() {
               />
               <Tooltip 
                 contentStyle={{ fontSize: 12 }}
-                formatter={(value: any) => `${value}%`}
+                formatter={(value: number | string) => `${value}%`}
               />
               <Bar dataKey="rate" fill="#236130" name="Completion Rate (%)" />
             </BarChart>
           </ResponsiveContainer>
         </Card>
-      </div>
+      </section>
 
-      {/* Overview Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <School className="h-8 w-8" style={{ color: "#236130" }} />
-            <div>
-              <p className="text-2xl font-bold">{totalSchools}</p>
-              <p className="text-sm text-muted-foreground">Schools</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <CheckCircle className="h-8 w-8 text-green-600" />
-            <div>
-              <p className="text-2xl font-bold">{completedThisWeek}</p>
-              <p className="text-sm text-muted-foreground">Completed This Week</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <TrendingUp className="h-8 w-8" style={{ color: "#f5ca47" }} />
-            <div>
-              <p className="text-2xl font-bold">{overallCompliance}%</p>
-              <p className="text-sm text-muted-foreground">Overall Compliance</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <Users className="h-8 w-8 text-blue-600" />
-            <div>
-              <p className="text-2xl font-bold">{totalTeachersTracked}</p>
-              <p className="text-sm text-muted-foreground">Teachers Tracked</p>
-            </div>
-          </div>
-        </Card>
-      </div>
+      {/* School Management Section */}
+      {profile && profile.district_name && (
+        <section className="mb-6" aria-label="School management">
+          <SchoolManagement 
+            districtName={profile.district_name}
+            supervisorId={profile.user_id}
+            schools={managedSchools}
+            onRefresh={fetchData}
+          />
+        </section>
+      )}
 
-      <Tabs defaultValue="overview" className="mb-6">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="by-school">By School</TabsTrigger>
-          <TabsTrigger value="recent">Recent Reports</TabsTrigger>
-          <TabsTrigger value="teacher-files">Teacher Files</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          {selectedSchool ? (
-            <PrincipalDashboardView
-              schoolName={selectedSchool}
-              districtName={profile?.district_name || ""}
-              onClose={() => setSelectedSchool(null)}
-            />
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {managedSchools.map((school) => {
-                const schoolReportsForSchool = reports.filter(r => r.school_name === school.school_name);
-                const latestReport = schoolReportsForSchool[0];
-                
-                // Get teacher count from school_assignments
-                const teachersInSchool = schools.filter(s => s.school_name === school.school_name);
-                const teacherCount = teachersInSchool.length;
-                
-                // Get submissions for this school this week
-                const today = new Date();
-                const startOfWeek = new Date(today);
-                startOfWeek.setDate(today.getDate() - today.getDay());
-                
-                const thisWeekSubmissions = teacherSubmissions.filter(sub => {
-                  const subDate = new Date(sub.created_at);
-                  return sub.school_name === school.school_name && subDate >= startOfWeek;
-                });
-                
-                const submittedCount = new Set(thisWeekSubmissions.map(s => s.user_id)).size;
-                const completionRate = teacherCount > 0
-                  ? Math.round((submittedCount / teacherCount) * 100)
-                  : 0;
-
-                return (
-                  <Card 
-                    key={school.id} 
-                    className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
-                    onClick={() => setSelectedSchool(school.school_name)}
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <h3 className="font-semibold text-lg">{school.school_name}</h3>
-                      <Badge variant={latestReport?.status === 'completed' ? 'default' : 'secondary'}>
-                        {latestReport?.status || 'No Reports'}
-                      </Badge>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Teachers Submitted:</span>
-                        <span className="font-semibold">
-                          {submittedCount} / {teacherCount}
-                        </span>
-                      </div>
-                      
-                      <Progress value={completionRate} className="h-2" />
-                      
-                      {latestReport && (
-                        <div className="text-sm text-muted-foreground">
-                          Last Report: {new Date(latestReport.week_start).toLocaleDateString()}
-                        </div>
-                      )}
-                      
-                      <div className="text-xs text-muted-foreground">
-                        Principal: {school.principal_name || "Not assigned"}
-                      </div>
-                      
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full mt-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedSchool(school.school_name);
-                        }}
-                      >
-                        View Teachers
-                      </Button>
-                    </div>
-                  </Card>
-                );
-              })}
-              {managedSchools.length === 0 && (
-                <div className="col-span-3 text-center py-12 text-muted-foreground">
-                  No schools added yet. Use "Manage Schools" to add schools to your district.
-                </div>
-              )}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="by-school" className="space-y-6">
-          {Object.entries(schoolReports).map(([schoolName, schoolReports]: [string, any[]]) => (
-            <Card key={schoolName} className="p-6">
-              <h3 className="text-xl font-semibold mb-4" style={{ color: "#236130" }}>
-                {schoolName}
-              </h3>
-              <div className="space-y-3">
-                {schoolReports.map((report) => (
-                  <div key={report.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                    <div>
-                      <p className="font-medium">
-                        Week: {new Date(report.week_start).toLocaleDateString()} - {new Date(report.week_end).toLocaleDateString()}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {report.submitted_teachers} / {report.total_teachers} teachers submitted
-                      </p>
-                    </div>
-                    <Badge variant={report.status === 'completed' ? 'default' : 'secondary'}>
-                      {report.status}
-                    </Badge>
-                  </div>
-                ))}
+      {/* Account Info Card */}
+      {profile && (
+        <Card className="mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+          <div className="flex items-start gap-4">
+            <div className="relative">
+              <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
+                {profile.profile_image_url ? (
+                  <img 
+                    src={profile.profile_image_url} 
+                    alt={profile.teacher_name || "Supervisor"} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <UserCircle className="h-12 w-12" style={{ color: "#236130" }} />
+                )}
               </div>
-            </Card>
-          ))}
-        </TabsContent>
-
-        <TabsContent value="recent" className="space-y-4">
-          {reports.slice(0, 20).map((report) => (
-            <Card key={report.id} className="p-4">
-              <div className="flex items-center justify-between">
+              <label 
+                htmlFor="supervisorProfileImage" 
+                className="absolute -bottom-2 -right-2 flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-full border-4 border-[#FFFCF7] bg-[#236130] text-white shadow-md transition-colors hover:bg-[#173F2A] focus-within:ring-2 focus-within:ring-[#D6A73D]"
+                aria-label="Upload supervisor profile photo"
+              >
+                <Upload className="h-4 w-4" aria-hidden="true" />
+              </label>
+              <input
+                id="supervisorProfileImage"
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleProfileImageUpload(file);
+                }}
+              />
+            </div>
+            <div className="flex-1">
+              <h2 className="font-display mb-2 text-xl font-semibold text-[#173F2A]">
+                Account Information
+              </h2>
+              <div className="grid md:grid-cols-3 gap-3 text-sm">
                 <div>
-                  <h4 className="font-semibold">{report.school_name}</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Week: {new Date(report.week_start).toLocaleDateString()} - {new Date(report.week_end).toLocaleDateString()}
-                  </p>
-                  <p className="text-sm">
-                    {report.submitted_teachers} / {report.total_teachers} teachers ({Math.round((report.submitted_teachers / report.total_teachers) * 100)}%)
-                  </p>
+                  <span className="font-semibold">Name:</span> {profile.teacher_name}
                 </div>
-                <div className="text-right">
-                  <Badge variant={report.status === 'completed' ? 'default' : 'secondary'}>
-                    {report.status}
-                  </Badge>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {new Date(report.created_at).toLocaleDateString()}
-                  </p>
+                <div>
+                  <span className="font-semibold">Email:</span> {profile.email}
+                </div>
+                <div>
+                  <span className="font-semibold">District:</span> {profile.district_name || "N/A"}
                 </div>
               </div>
-            </Card>
-          ))}
-        </TabsContent>
+            </div>
+          </div>
+        </Card>
+      )}
 
-        <TabsContent value="teacher-files" className="space-y-6">
-          {Object.entries(submissionsBySchool).map(([schoolName, submissions]: [string, any[]]) => (
-            <Card key={schoolName} className="p-6">
-              <h3 className="text-xl font-semibold mb-4" style={{ color: "#236130" }}>
-                {schoolName} ({submissions.length} submissions)
-              </h3>
-              <div className="space-y-3">
-                {submissions.map((submission) => (
-                  <Card key={submission.id} className="p-4 hover:shadow-md transition-shadow">
-                    <div className="flex justify-between items-start gap-4">
-                      <div className="flex-1">
-                        <h4 className="font-semibold">{submission.teacher_name}</h4>
-                        <p className="text-sm">{submission.subject} - {submission.grade_level} ({submission.section})</p>
-                        <p className="text-sm text-muted-foreground">
-                          Week: {new Date(submission.week_start).toLocaleDateString()} to {new Date(submission.week_end).toLocaleDateString()}
-                        </p>
-                        <Badge variant={submission.status === 'accepted' ? 'default' : 'secondary'} className="mt-2">
-                          {submission.status}
-                        </Badge>
-                      </div>
-                      <div className="flex gap-2">
-                        <a
-                          href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(submission.file_url)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Button size="sm" style={{ backgroundColor: "#236130", color: "white" }}>
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            Open in New Tab
-                          </Button>
-                        </a>
-                        <DocumentViewer 
-                          fileUrl={submission.file_url}
-                          fileName={`${submission.teacher_name}_${submission.subject}`}
-                        />
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            </Card>
-          ))}
-        </TabsContent>
-      </Tabs>
+
       </div>
-      <Footer />
-    </div>
+    </main>
   );
 }

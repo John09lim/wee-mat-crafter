@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/sonner";
 import { WeeLMatDownloadModal } from "@/components/WeeLMatDownloadModal";
+import { ArrowLeft, ClipboardList, Download, FileCheck2, Info, Loader2, Send, ShieldCheck } from "lucide-react";
 
 // Form values passed from Dashboard
 type FormValues = {
@@ -33,6 +34,11 @@ type FormValues = {
   language?: string;
 };
 
+interface GeneratedMatrixContent {
+  references?: Record<string, string>;
+  activities?: Record<string, string>;
+}
+
 const logoUrl = "/weelmat-logo.png";
 
 const WeeLMatGenerator = () => {
@@ -57,7 +63,7 @@ const WeeLMatGenerator = () => {
   const [docxUrl, setDocxUrl] = useState<string | null>(null);
   const [studentDocxUrl, setStudentDocxUrl] = useState<string | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
-  const [aiJson, setAiJson] = useState<any | null>(null);
+  const [aiJson, setAiJson] = useState<GeneratedMatrixContent | null>(null);
   const [matrixId, setMatrixId] = useState<string | null>(null);
   const [showDownloadModal, setShowDownloadModal] = useState(false);
 
@@ -104,7 +110,7 @@ const WeeLMatGenerator = () => {
 
     console.log("WeeLMatGenerator: Received form values:", formValues);
 
-    let timers: number[] = [];
+    const timers: number[] = [];
     // Minimum 15-second loading with staged progression
     timers.push(window.setTimeout(() => setStepIndex(1), 3000));
     timers.push(window.setTimeout(() => setStepIndex(2), 6000));
@@ -140,11 +146,11 @@ const WeeLMatGenerator = () => {
         setDocxUrl(data?.docx_url || null);
         setStudentDocxUrl(data?.student_docx_url || null);
         setPdfUrl(data?.pdf_url || null);
-        setAiJson(data?.ai_json || null);
+        setAiJson((data?.ai_json as GeneratedMatrixContent | null) || null);
         setMatrixId(data?.matrix_id || null);
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error("WeeLMatGenerator: Error details:", err);
-        const errorMessage = err.message || "Generation failed";
+        const errorMessage = err instanceof Error ? err.message : "Generation failed";
         toast(`Error: ${errorMessage}. Please check that all form fields are complete and try again.`);
       } finally {
         setLoading(false);
@@ -282,9 +288,9 @@ const WeeLMatGenerator = () => {
       await downloadFile(data.docx_url, data.filename || "logsheet.docx");
       toast("Log Sheet downloaded successfully!");
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error generating LogSheet:", error);
-      toast(`Error: ${error.message || "Failed to generate Log Sheet"}`);
+      toast(`Error: ${error instanceof Error ? error.message : "Failed to generate Log Sheet"}`);
     }
   };
 
@@ -328,9 +334,9 @@ const WeeLMatGenerator = () => {
             url: studentDocxUrl
           });
           toast("Shared successfully!");
-        } catch (error: any) {
+        } catch (error: unknown) {
           // User cancelled share or error occurred
-          if (error.name !== 'AbortError') {
+          if (!(error instanceof DOMException && error.name === 'AbortError')) {
             console.error('Share failed:', error);
             // Fallback to copy link
             await copyLinkFallback();
@@ -423,25 +429,29 @@ const WeeLMatGenerator = () => {
     };
 
     return (
-      <section className="container max-w-[95%] animate-fade-in">
-        <article className="rounded-2xl border bg-card text-card-foreground shadow-sm overflow-hidden">
-          <header className="px-6 pt-6 pb-4 border-b flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-semibold">WeeLMat is ready</h1>
-              <p className="text-sm text-muted-foreground mt-1">
+      <section className="container max-w-7xl animate-fade-in">
+        <article className="overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-[0_18px_50px_-42px_rgba(20,32,25,.55)]">
+          <header className="grid gap-5 border-b border-border px-5 py-6 sm:px-7 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div className="flex items-start gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"><FileCheck2 className="h-6 w-6" aria-hidden="true" /></span>
+              <div>
+              <h1 className="font-display text-3xl font-semibold text-foreground">Your WeeLMat draft is ready.</h1>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 Preview below, then download or save to your files.
               </p>
+              </div>
             </div>
-            <Button variant="outline" onClick={() => navigate("/dashboard")}>
-              Back to Dashboard
+            <Button variant="outline" onClick={() => navigate("/dashboard")} className="gap-2">
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Back to creator
             </Button>
           </header>
-          <div className="p-6 space-y-5">
+          <div className="space-y-6 p-5 sm:p-7">
             {/* Instructions Panel - Collapsible */}
-            <div className="rounded-xl border bg-muted/30 p-4">
+            <div className="rounded-xl border border-secondary/35 bg-secondary/10 p-4">
               <details className="group">
-                <summary className="cursor-pointer font-semibold text-sm text-muted-foreground hover:text-foreground transition-colors">
-                  📋 Instructions & Tips (click to expand)
+                <summary className="cursor-pointer list-none text-sm font-semibold text-foreground transition-colors hover:text-primary">
+                  <span className="inline-flex items-center gap-2"><Info className="h-4 w-4 text-primary" aria-hidden="true" />Review guidance before downloading</span>
                 </summary>
                 <div className="mt-3 text-sm text-muted-foreground space-y-2 group-open:animate-fade-in">
                   <p><strong>About WeeLMat:</strong> This tool generates a Weekly Learning Matrix following DepEd guidelines for curriculum planning.</p>
@@ -452,48 +462,49 @@ const WeeLMatGenerator = () => {
               </details>
             </div>
             
-            <div className="rounded-xl border bg-background p-4">
+            <div className="rounded-xl border border-border bg-[#fffdf9] p-4 sm:p-6">
               <div className="text-center space-y-1 mb-4">
                 {values?.language === 'Filipino' ? (
                   <>
-                    <p className="font-semibold">Lingguhang Matris ng Pagkatuto (WeeLMat)</p>
+                    <p className="font-display text-2xl font-semibold text-primary">Lingguhang Matris ng Pagkatuto (WeeLMat)</p>
                     <p className="text-sm text-muted-foreground">{values?.subject} • {values?.gradeLevel} • {values?.section}</p>
                     <p className="text-sm text-muted-foreground">Petsa na Nasaklaw: {values?.dateFrom} – {values?.dateTo}</p>
                   </>
                 ) : (
                   <>
-                    <p className="font-semibold">Weekly Learning Matrix (WeeLMat)</p>
+                    <p className="font-display text-2xl font-semibold text-primary">Weekly Learning Matrix (WeeLMat)</p>
                     <p className="text-sm text-muted-foreground">{values?.subject} • {values?.gradeLevel} • {values?.section}</p>
                     <p className="text-sm text-muted-foreground">Covered Dates: {values?.dateFrom} – {values?.dateTo}</p>
                   </>
                 )}
               </div>
               {aiJson ? (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto rounded-lg border border-border">
                   <Table>
+                    <caption className="sr-only">Generated Weekly Learning Matrix preview</caption>
                     <TableBody>
                       <TableRow>
                         <TableCell className="text-xs min-w-[120px] font-semibold"></TableCell>
                         {calculateWeekdayDates().map((date, i) => (
-                          <TableCell key={i} className="text-xs min-w-[120px] font-semibold text-center whitespace-pre-line">{date}</TableCell>
+                         <TableCell key={i} className="min-w-[140px] whitespace-pre-line bg-primary text-center text-xs font-semibold text-primary-foreground">{date}</TableCell>
                         ))}
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-semibold text-xs min-w-[120px]">
                           {values?.language === 'Filipino' ? 'Kompetensya' : 'Competency'}
                         </TableCell>
-                        <TableCell className="text-xs min-w-[120px] break-words">{values?.mondayCompetency || ""}</TableCell>
-                        <TableCell className="text-xs min-w-[120px] break-words">{values?.tuesdayCompetency || ""}</TableCell>
-                        <TableCell className="text-xs min-w-[120px] break-words">{values?.wednesdayCompetency || ""}</TableCell>
-                        <TableCell className="text-xs min-w-[120px] break-words">{values?.thursdayCompetency || ""}</TableCell>
-                        <TableCell className="text-xs min-w-[120px] break-words">{values?.fridayCompetency || ""}</TableCell>
+                        <TableCell className="min-w-[140px] break-words text-sm leading-6">{values?.mondayCompetency || ""}</TableCell>
+                        <TableCell className="min-w-[140px] break-words text-sm leading-6">{values?.tuesdayCompetency || ""}</TableCell>
+                        <TableCell className="min-w-[140px] break-words text-sm leading-6">{values?.wednesdayCompetency || ""}</TableCell>
+                        <TableCell className="min-w-[140px] break-words text-sm leading-6">{values?.thursdayCompetency || ""}</TableCell>
+                        <TableCell className="min-w-[140px] break-words text-sm leading-6">{values?.fridayCompetency || ""}</TableCell>
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-semibold text-xs min-w-[120px]">
                           {values?.language === 'Filipino' ? 'Mungkahing Materyales/Sanggunian' : 'Suggested Learning Material/Reference'}
                         </TableCell>
                         {["mon","tue","wed","thu","fri"].map((d) => (
-                          <TableCell key={d} className="text-xs min-w-[120px] break-words">{aiJson?.references?.[d] || ""}</TableCell>
+                         <TableCell key={d} className="min-w-[140px] break-words text-sm leading-6">{aiJson?.references?.[d] || ""}</TableCell>
                         ))}
                       </TableRow>
                       <TableRow>
@@ -501,7 +512,7 @@ const WeeLMatGenerator = () => {
                           {values?.language === 'Filipino' ? 'Mga Gawain/Aktividad sa Pagkatuto' : 'Learning Activities/Tasks'}
                         </TableCell>
                         {["mon","tue","wed","thu","fri"].map((d) => (
-                          <TableCell key={d} className="text-xs min-w-[120px] break-words">
+                          <TableCell key={d} className="min-w-[140px] break-words text-sm leading-6">
                             <div className="space-y-1">
                               {formatActivityForPreview(aiJson?.activities?.[d] || "")}
                             </div>
@@ -516,20 +527,25 @@ const WeeLMatGenerator = () => {
               )}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-center flex-wrap">
+            <div className="flex flex-col flex-wrap justify-end gap-3 border-t border-border pt-6 sm:flex-row">
               <Button 
                 onClick={() => setShowDownloadModal(true)}
+                className="gap-2"
               >
-                Download DOCX
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Download files
               </Button>
-              <Button onClick={handleGenerateLogSheet}>
+              <Button variant="outline" onClick={handleGenerateLogSheet} className="gap-2">
+                <ClipboardList className="h-4 w-4" aria-hidden="true" />
                 Generate Log Sheet
               </Button>
               <Button 
                 onClick={() => navigate("/my-account")}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                variant="secondary"
+                className="gap-2"
               >
-                Submit WeeLMat
+                <Send className="h-4 w-4" aria-hidden="true" />
+                Open my workspace
               </Button>
             </div>
           </div>
@@ -548,36 +564,39 @@ const WeeLMatGenerator = () => {
   };
 
   return (
-    <main className="min-h-[calc(100vh-160px)] bg-background overflow-x-hidden">
-      <section className="container max-w-3xl py-16 px-4">
+    <main className="min-h-[calc(100dvh-4rem)] bg-background py-10 sm:py-16">
+      <section className="container max-w-4xl">
         {loading ? (
-          <div className="rounded-3xl border bg-card text-card-foreground p-8 shadow-sm flex flex-col items-center gap-6 animate-fade-in">
+          <div className="grid overflow-hidden rounded-2xl border border-primary/15 bg-card text-card-foreground shadow-[0_24px_60px_-46px_rgba(20,32,25,.65)] animate-fade-in md:grid-cols-[.8fr_1.2fr]">
+            <div className="flex flex-col items-center justify-center bg-primary p-8 text-center text-primary-foreground">
             <img
               src={logoUrl}
               alt="WeeLMat school logo"
-              className="h-28 w-auto object-contain rounded-md"
+              className="h-24 w-auto rounded-md bg-white object-contain p-2"
               onError={(e) => {
                 (e.currentTarget as HTMLImageElement).src = "/Screenshot%202025-08-11%20074334.png";
               }}
               loading="eager"
               fetchPriority="high"
             />
-            <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
-              <div className="h-full w-1/3 bg-primary animate-[slide-in-right_1.4s_ease-out_infinite]" />
+            <h1 className="font-display mt-6 text-3xl font-semibold">Creating your WeeLMat</h1>
+            <p className="mt-3 text-sm leading-6 text-primary-foreground/75">The draft is being prepared from your class details and weekly plan.</p>
             </div>
-            <div className="w-full grid gap-2">
+            <div className="p-7 sm:p-9">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+            <div className="mt-6 grid gap-4" role="status" aria-live="polite">
               {steps.map((s, i) => (
-                <div key={s} className={`flex items-center gap-2 ${i <= stepIndex ? "text-primary" : "text-muted-foreground"}`}>
-                  <span className={`h-2 w-2 rounded-full ${i <= stepIndex ? "bg-primary" : "bg-border"}`} />
-                  <span className="text-sm">{s}</span>
+                <div key={s} className={`flex items-center gap-3 ${i <= stepIndex ? "text-primary" : "text-muted-foreground"}`}>
+                  <span className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${i <= stepIndex ? "border-primary bg-primary text-primary-foreground" : "border-border"}`}>{i + 1}</span>
+                  <span className="text-sm font-medium">{s}</span>
                 </div>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">This may take ~15–30 seconds for quality results.</p>
-            <div className="mt-4 p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800">
-              <p className="text-xs text-yellow-800 dark:text-yellow-200 text-center">
-                ⚠️ <strong>Important:</strong> Always review and validate AI-generated WeeLMat before using in class.
-              </p>
+            <p className="mt-6 text-xs leading-5 text-muted-foreground">Generation usually takes 15–30 seconds. Keep this page open.</p>
+            <div className="mt-6 flex gap-3 rounded-lg border border-secondary/35 bg-secondary/10 p-4">
+              <ShieldCheck className="h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+              <p className="text-xs leading-5 text-foreground"><strong>Review required:</strong> Validate every generated activity and reference before classroom use.</p>
+            </div>
             </div>
           </div>
         ) : (
