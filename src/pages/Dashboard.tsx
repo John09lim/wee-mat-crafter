@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -147,7 +147,7 @@ const Dashboard = ({ isPremium = false }: DashboardProps) => {
     setShowPasscodeDialog(false);
   };
 
-const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<FormValues>({
+const { control, register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<FormValues>({
   resolver: zodResolver(schema),
   defaultValues: {
     gradeLevel: "",
@@ -694,28 +694,25 @@ const watchedValues = watch();
 
                       <div className="space-y-2">
                         <Label htmlFor={activeCompetencyField}>Competency</Label>
-                        <Textarea
+                        <Controller
                           key={activeCompetencyField}
-                          id={activeCompetencyField}
                           name={activeCompetencyField}
-                          rows={4}
-                          placeholder={`Enter ${activeDayConfig.day}'s competency exactly as it should appear…`}
-                          aria-invalid={Boolean(errors[activeCompetencyField])}
-                          value={(watchedValues[activeCompetencyField] as string | undefined) ?? ""}
-                          onChange={(event) => {
-                            setValue(activeCompetencyField, event.target.value, {
-                              shouldDirty: true,
-                              shouldTouch: true,
-                              shouldValidate: false,
-                            });
-                          }}
-                          onBlur={() => {
-                            setValue(
-                              activeCompetencyField,
-                              ((watchedValues[activeCompetencyField] as string | undefined) ?? "").trim(),
-                              { shouldTouch: true, shouldValidate: true },
-                            );
-                          }}
+                          control={control}
+                          defaultValue=""
+                          render={({ field }) => (
+                            <Textarea
+                              {...field}
+                              id={activeCompetencyField}
+                              rows={4}
+                              placeholder={`Enter ${activeDayConfig.day}'s competency exactly as it should appear…`}
+                              aria-invalid={Boolean(errors[activeCompetencyField])}
+                              value={field.value ?? ""}
+                              onBlur={() => {
+                                field.onChange((field.value ?? "").trim());
+                                field.onBlur();
+                              }}
+                            />
+                          )}
                         />
                         {errors[activeCompetencyField] && <p role="alert" className="text-sm text-destructive">{errors[activeCompetencyField]?.message}</p>}
                       </div>
