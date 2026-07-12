@@ -707,10 +707,6 @@ const watchedValues = watch();
                               placeholder={`Enter ${activeDayConfig.day}'s competency exactly as it should appear…`}
                               aria-invalid={Boolean(errors[activeCompetencyField])}
                               value={field.value ?? ""}
-                              onBlur={() => {
-                                field.onChange((field.value ?? "").trim());
-                                field.onBlur();
-                              }}
                             />
                           )}
                         />
