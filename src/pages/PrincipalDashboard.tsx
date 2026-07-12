@@ -455,7 +455,7 @@ export default function PrincipalDashboard() {
           <Button asChild variant="outline" className="min-h-12 border-[#236130] text-[#173F2A] hover:bg-[#E8EFE8]">
             <a href="#manage-teachers"><Users className="mr-2 h-4 w-4" />Manage teachers</a>
           </Button>
-          <Button 
+          <Button
             onClick={markWeekComplete}
             className="min-h-12 bg-[#236130] px-5 text-white shadow-[0_10px_24px_rgba(23,63,42,0.16)] hover:bg-[#173F2A]"
           >
