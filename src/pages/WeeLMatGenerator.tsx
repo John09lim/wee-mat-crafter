@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { toast } from "@/components/ui/sonner";
 import { WeeLMatDownloadModal } from "@/components/WeeLMatDownloadModal";
+import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, ClipboardList, Download, FileCheck2, Info, Loader2, Send, ShieldCheck } from "lucide-react";
 
 // Form values passed from Dashboard
@@ -38,6 +39,8 @@ interface GeneratedMatrixContent {
   references?: Record<string, string>;
   activities?: Record<string, string>;
 }
+
+const dayKeys = ["mon", "tue", "wed", "thu", "fri"] as const;
 
 const logoUrl = "/weelmat-logo.png";
 
@@ -295,14 +298,60 @@ const WeeLMatGenerator = () => {
   };
 
   const Success = () => {
+    const updatePreviewCell = (group: "references" | "activities", day: typeof dayKeys[number], value: string) => {
+      setAiJson((current) => current ? {
+        ...current,
+        [group]: { ...(current[group] || {}), [day]: value },
+      } : current);
+    };
+
+    const previewRows = () => {
+      const competencies = [values?.mondayCompetency, values?.tuesdayCompetency, values?.wednesdayCompetency, values?.thursdayCompetency, values?.fridayCompetency];
+      return [
+        [values?.language === "Filipino" ? "Kompetensya" : "Competency", ...competencies.map((item) => item || "")],
+        [values?.language === "Filipino" ? "Mungkahing Materyales/Sanggunian" : "Suggested Learning Material/Reference", ...dayKeys.map((day) => aiJson?.references?.[day] || "")],
+        [values?.language === "Filipino" ? "Mga Gawain/Aktividad sa Pagkatuto" : "Learning Activities/Tasks", ...dayKeys.map((day) => aiJson?.activities?.[day] || "")],
+      ];
+    };
+
+    const downloadEditedPdf = async () => {
+      if (!aiJson || !values) return;
+      const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
+      const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      pdf.setFontSize(16);
+      pdf.text(values.language === "Filipino" ? "Lingguhang Matris ng Pagkatuto (WeeLMat)" : "Weekly Learning Matrix (WeeLMat)", 40, 38);
+      pdf.setFontSize(10);
+      pdf.text(`${values.subject} • ${values.gradeLevel} • ${values.section} • ${values.dateFrom} – ${values.dateTo}`, 40, 56);
+      const autoTable = autoTableModule.default;
+      autoTable(pdf, { startY: 72, head: [["", ...calculateWeekdayDates()]], body: previewRows(), styles: { fontSize: 7, cellPadding: 4, overflow: "linebreak" }, headStyles: { fillColor: [30, 103, 58] }, columnStyles: { 0: { fontStyle: "bold", cellWidth: 95 } } });
+      pdf.save(buildFilename("pdf"));
+      toast("PDF generated from the current preview.");
+    };
+
+    const downloadEditedDocx = async () => {
+      if (!aiJson || !values) return;
+      const { Document, Packer, Paragraph, Table: DocxTable, TableCell: DocxCell, TableRow: DocxRow, TextRun, WidthType } = await import("docx");
+      const rows = [["", ...calculateWeekdayDates()], ...previewRows()].map((row, rowIndex) => new DocxRow({
+        children: row.map((text) => new DocxCell({ children: [new Paragraph({ children: [new TextRun({ text, bold: rowIndex === 0 })] })] })),
+      }));
+      const docxDocument = new Document({ sections: [{ children: [
+        new Paragraph({ children: [new TextRun({ text: values.language === "Filipino" ? "Lingguhang Matris ng Pagkatuto (WeeLMat)" : "Weekly Learning Matrix (WeeLMat)", bold: true, size: 30 })] }),
+        new Paragraph(`${values.subject} • ${values.gradeLevel} • ${values.section} • ${values.dateFrom} – ${values.dateTo}`),
+        new DocxTable({ width: { size: 100, type: WidthType.PERCENTAGE }, rows }),
+      ] }] });
+      const blob = await Packer.toBlob(docxDocument);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = buildFilename("docx");
+      anchor.click();
+      URL.revokeObjectURL(url);
+      toast("Teacher DOCX generated from the current preview.");
+    };
+
     // Handler for downloading teacher version (full DOCX with answer key)
     const handleDownloadTeacher = async () => {
-      if (docxUrl) {
-        await downloadFile(docxUrl, buildFilename("docx"));
-        toast("Teacher version downloaded successfully!");
-      } else {
-        toast("Teacher DOCX file is not available.");
-      }
+      await downloadEditedDocx();
       setShowDownloadModal(false);
     };
 
@@ -503,20 +552,16 @@ const WeeLMatGenerator = () => {
                         <TableCell className="font-semibold text-xs min-w-[120px]">
                           {values?.language === 'Filipino' ? 'Mungkahing Materyales/Sanggunian' : 'Suggested Learning Material/Reference'}
                         </TableCell>
-                        {["mon","tue","wed","thu","fri"].map((d) => (
-                         <TableCell key={d} className="min-w-[140px] break-words text-sm leading-6">{aiJson?.references?.[d] || ""}</TableCell>
+                        {dayKeys.map((d) => (
+                         <TableCell key={d} className="min-w-[180px] p-2"><Textarea aria-label={`Edit ${d} reference`} value={aiJson?.references?.[d] || ""} onChange={(event) => updatePreviewCell("references", d, event.target.value)} className="min-h-28 resize-y bg-white text-sm leading-5" /></TableCell>
                         ))}
                       </TableRow>
                       <TableRow>
                         <TableCell className="font-semibold text-xs min-w-[120px]">
                           {values?.language === 'Filipino' ? 'Mga Gawain/Aktividad sa Pagkatuto' : 'Learning Activities/Tasks'}
                         </TableCell>
-                        {["mon","tue","wed","thu","fri"].map((d) => (
-                          <TableCell key={d} className="min-w-[140px] break-words text-sm leading-6">
-                            <div className="space-y-1">
-                              {formatActivityForPreview(aiJson?.activities?.[d] || "")}
-                            </div>
-                          </TableCell>
+                        {dayKeys.map((d) => (
+                          <TableCell key={d} className="min-w-[240px] p-2"><Textarea aria-label={`Edit ${d} activity`} value={aiJson?.activities?.[d] || ""} onChange={(event) => updatePreviewCell("activities", d, event.target.value)} className="min-h-72 resize-y bg-white text-sm leading-5" /></TableCell>
                         ))}
                       </TableRow>
                     </TableBody>
@@ -528,6 +573,10 @@ const WeeLMatGenerator = () => {
             </div>
 
             <div className="flex flex-col flex-wrap justify-end gap-3 border-t border-border pt-6 sm:flex-row">
+              <Button variant="outline" onClick={downloadEditedPdf} className="gap-2">
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Download current preview as PDF
+              </Button>
               <Button 
                 onClick={() => setShowDownloadModal(true)}
                 className="gap-2"

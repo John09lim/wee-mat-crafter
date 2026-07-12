@@ -140,6 +140,8 @@ export default function AuthSchoolHead() {
               data: {
                 full_name: name,
                 role: "school_head",
+                school,
+                district_name: district,
               },
             },
           });
@@ -158,7 +160,7 @@ export default function AuthSchoolHead() {
             throw error;
           }
 
-          if (data.user) {
+          if (data.user && data.session) {
             const { data: schoolMatch } = await supabase
               .from("schools")
               .select("id, school_name, district_name, supervisor_id")
@@ -197,6 +199,9 @@ export default function AuthSchoolHead() {
             }
 
             navigate("/principal-dashboard");
+          } else if (data.user) {
+            toast.success("Account created. Please verify your email, then sign in to finish linking your school.");
+            setMode("login");
           }
         } catch (profileError) {
           console.error("Error creating profile:", profileError);
