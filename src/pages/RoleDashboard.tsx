@@ -214,7 +214,7 @@ const RoleDashboard = () => {
 
   const handleOpenDashboard = () => {
     if (activeRole === "teacher") {
-      navigate("/my-account");
+      navigate("/auth");
       return;
     }
     if (activeRole === "parent") {

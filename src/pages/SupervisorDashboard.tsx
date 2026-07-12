@@ -270,6 +270,9 @@ export default function SupervisorDashboard() {
         <p className="mt-3 max-w-2xl text-base leading-7 text-[#526159]">
           Monitor weekly learning matrix submissions, review school-level progress, and identify where follow-up is needed.
         </p>
+        <Button asChild className="mt-5 min-h-12 bg-[#236130] px-5 text-white hover:bg-[#173F2A]">
+          <a href="#manage-schools"><School className="mr-2 h-4 w-4" />Manage schools</a>
+        </Button>
       </header>
 
       {/* Overview Stats */}
@@ -645,7 +648,7 @@ export default function SupervisorDashboard() {
 
       {/* School Management Section */}
       {profile && profile.district_name && (
-        <section className="mb-6" aria-label="School management">
+        <section id="manage-schools" className="mb-6 scroll-mt-24" aria-label="School management">
           <SchoolManagement 
             districtName={profile.district_name}
             supervisorId={profile.user_id}

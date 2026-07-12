@@ -451,13 +451,18 @@ export default function PrincipalDashboard() {
           </div>
           <p className="mt-3 max-w-2xl text-base leading-7 text-[#526159]">Review this week’s WeeLMat submissions, follow up on revisions, and keep your school’s reporting current.</p>
         </div>
-        <Button 
-          onClick={markWeekComplete}
-          className="min-h-12 w-full bg-[#236130] px-5 text-white shadow-[0_10px_24px_rgba(23,63,42,0.16)] hover:bg-[#173F2A] sm:w-auto"
-        >
-          <CheckCircle className="mr-2 h-4 w-4" />
-          Mark This Week as Completed
-        </Button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <Button asChild variant="outline" className="min-h-12 border-[#236130] text-[#173F2A] hover:bg-[#E8EFE8]">
+            <a href="#manage-teachers"><Users className="mr-2 h-4 w-4" />Manage teachers</a>
+          </Button>
+          <Button 
+            onClick={markWeekComplete}
+            className="min-h-12 bg-[#236130] px-5 text-white shadow-[0_10px_24px_rgba(23,63,42,0.16)] hover:bg-[#173F2A]"
+          >
+            <CheckCircle className="mr-2 h-4 w-4" />
+            Mark This Week as Completed
+          </Button>
+        </div>
       </header>
 
       {/* Stats Cards */}
@@ -935,7 +940,7 @@ export default function PrincipalDashboard() {
 
       {/* Teacher Management Section */}
       {profile && (
-        <section className="mb-6" aria-label="Teacher management">
+        <section id="manage-teachers" className="mb-6 scroll-mt-24" aria-label="Teacher management">
           <TeacherManagement 
             schoolName={profile.school}
             districtName={profile.district_name || ""}
