@@ -363,10 +363,17 @@ export default function PrincipalDashboard() {
   currentFriday.setDate(currentMonday.getDate() + 4);
   currentFriday.setHours(23, 59, 59, 999);
 
+  const toLocalDateKey = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+  const currentMondayKey = toLocalDateKey(currentMonday);
+
   const currentWeekSubmissions = submissions.filter(s => {
-    const weekStart = new Date(s.week_start);
-    const weekEnd = new Date(s.week_end);
-    return weekStart >= currentMonday && weekEnd <= currentFriday;
+    const weekStartKey = String(s.week_start).substring(0, 10);
+    return weekStartKey === currentMondayKey;
   });
   
   const submittedTeacherIds = new Set(currentWeekSubmissions.map(s => s.user_id).filter(Boolean));
