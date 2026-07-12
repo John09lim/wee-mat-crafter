@@ -347,7 +347,12 @@ export default function PrincipalDashboard() {
   const getMondayOfWeekCalc = (date: Date) => {
     const d = new Date(date);
     const day = d.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
+    // Weekend submissions belong to the upcoming instructional week,
+    // matching the label and calendar shown elsewhere on this dashboard.
+    if (day === 6) d.setDate(d.getDate() + 2);
+    else if (day === 0) d.setDate(d.getDate() + 1);
+    const normalizedDay = d.getDay();
+    const diff = normalizedDay === 0 ? -6 : 1 - normalizedDay;
     d.setDate(d.getDate() + diff);
     d.setHours(0, 0, 0, 0);
     return d;
@@ -364,9 +369,13 @@ export default function PrincipalDashboard() {
     return weekStart >= currentMonday && weekEnd <= currentFriday;
   });
   
-  const submittedTeacherIds = new Set(currentWeekSubmissions.map(s => s.user_id));
-  const submittedTeachers = managedTeachers.filter(t => submittedTeacherIds.has(t.user_id));
-  const notSubmittedTeachers = managedTeachers.filter(t => !submittedTeacherIds.has(t.user_id));
+  const submittedTeacherIds = new Set(currentWeekSubmissions.map(s => s.user_id).filter(Boolean));
+  const submittedTeacherNames = new Set(currentWeekSubmissions.map(s => s.teacher_name.trim().toLowerCase()));
+  const hasSubmitted = (teacher: ManagedTeacher) =>
+    (Boolean(teacher.user_id) && submittedTeacherIds.has(teacher.user_id)) ||
+    submittedTeacherNames.has(teacher.teacher_name.trim().toLowerCase());
+  const submittedTeachers = managedTeachers.filter(hasSubmitted);
+  const notSubmittedTeachers = managedTeachers.filter(t => !hasSubmitted(t));
 
   const getInitials = (name: string) => {
     const parts = name.split(' ').filter(Boolean);
