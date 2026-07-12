@@ -669,12 +669,12 @@ const MyAccount = () => {
                 {schoolOptions.length === 0 ? (
                     <div className="rounded-xl border border-warning/25 bg-warning/10 p-6 text-center">
                     <XCircle className="mx-auto mb-3 h-10 w-10 text-warning" aria-hidden="true" />
-                    <p className="mb-2 text-lg font-semibold text-warning">
-                      Cannot Submit WeeLMat Yet
-                    </p>
-                    <p className="text-sm leading-6 text-warning/85">
-                      Your account is not yet connected to a school. Ask your school head to add your DepEd email before submitting a WeeLMat.
-                    </p>
+      <p className="mb-2 text-lg font-semibold text-warning">
+        Waiting for your school principal
+      </p>
+      <p className="text-sm leading-6 text-warning/85">
+        WeeLMat submission will be enabled after your school principal adds your DepEd email in the School Management section of their Principal Dashboard. Once added, refresh this page.
+      </p>
                   </div>
                 ) : (
                   <form onSubmit={handleSubmitWeelMat} className="space-y-6">
