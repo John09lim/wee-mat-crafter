@@ -25,8 +25,9 @@ interface WeeklyReport {
 }
 
 interface SchoolAssignment {
-  user_id: string;
+  user_id: string | null;
   school_name: string;
+  teacher_name?: string | null;
 }
 
 interface ManagedSchool {
@@ -99,8 +100,7 @@ export default function SupervisorDashboard() {
       const { data: managedSchoolsData } = await supabase
         .from("schools")
         .select("*")
-        .eq("district_name", profileData.district_name)
-        .eq("supervisor_id", user.id);
+        .eq("district_name", profileData.district_name);
       
       setManagedSchools((managedSchoolsData || []) as ManagedSchool[]);
 
@@ -186,28 +186,49 @@ export default function SupervisorDashboard() {
     return acc;
   }, {} as Record<string, WeeklyReport[]>);
 
-  // Calculate overall statistics
-  const totalSchools = Object.keys(schoolReports).length;
-  const completedThisWeek = reports.filter(r => {
-    const reportDate = new Date(r.week_start);
-    const now = new Date();
-    const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - now.getDay());
-    return reportDate >= weekStart && r.status === 'completed';
-  }).length;
+  const getInstructionalMonday = (date: Date) => {
+    const value = new Date(date);
+    const day = value.getDay();
+    if (day === 6) value.setDate(value.getDate() + 2);
+    else if (day === 0) value.setDate(value.getDate() + 1);
+    value.setDate(value.getDate() + (1 - value.getDay()));
+    value.setHours(0, 0, 0, 0);
+    return value;
+  };
+  const toDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const currentMonday = getInstructionalMonday(new Date());
+  const currentMondayKey = toDateKey(currentMonday);
+  const currentFriday = new Date(currentMonday);
+  currentFriday.setDate(currentFriday.getDate() + 4);
+  const currentWeekSubmissions = teacherSubmissions.filter((submission) => String(submission.week_start).substring(0, 10) === currentMondayKey);
 
-  const overallCompliance = reports.length > 0
-    ? Math.round((reports.filter(r => r.status === 'completed').length / reports.length) * 100)
+  // Include schools discovered through any district data source. This keeps legacy
+  // principal-created schools visible even when their supervisor_id was not backfilled.
+  const districtSchoolNames = [...new Set([
+    ...managedSchools.map((school) => school.school_name),
+    ...schools.map((school) => school.school_name),
+    ...teacherSubmissions.map((submission) => submission.school_name),
+  ].filter(Boolean))].sort();
+
+  const schoolWeeklyRows = districtSchoolNames.map((schoolName) => {
+    const schoolTeachers = schools.filter((teacher) => teacher.school_name === schoolName);
+    const teacherKeys = new Set(schoolTeachers.map((teacher) => teacher.user_id || teacher.teacher_name?.trim().toLowerCase()).filter(Boolean));
+    const schoolSubmissions = currentWeekSubmissions.filter((submission) => submission.school_name === schoolName);
+    const submittedKeys = new Set(schoolSubmissions.map((submission) => submission.user_id || submission.teacher_name.trim().toLowerCase()).filter(Boolean));
+    const submitted = [...teacherKeys].filter((key) => submittedKeys.has(key)).length;
+    const total = teacherKeys.size;
+    return { schoolName, submitted, total, rate: total > 0 ? Math.round((submitted / total) * 100) : 0 };
+  });
+
+  const totalSchools = districtSchoolNames.length;
+  const completedThisWeek = schoolWeeklyRows.filter((school) => school.total > 0 && school.rate === 100).length;
+  const overallCompliance = schoolWeeklyRows.length > 0
+    ? Math.round(schoolWeeklyRows.reduce((sum, school) => sum + school.rate, 0) / schoolWeeklyRows.length)
     : 0;
-
-  const totalTeachersTracked = reports.reduce((sum, r) => sum + (r.total_teachers || 0), 0);
-  const totalSubmitted = reports.reduce((sum, r) => sum + (r.submitted_teachers || 0), 0);
-
-  // Get unique schools list
-  const uniqueSchools = [...new Set(schools.map(s => s.school_name))];
-  const schoolsWithReports = new Set(reports.map(r => r.school_name));
-  const schoolsSubmitted = uniqueSchools.filter(s => schoolsWithReports.has(s)).length;
-  const schoolsNotSubmitted = uniqueSchools.length - schoolsSubmitted;
+  const totalTeachersTracked = schoolWeeklyRows.reduce((sum, school) => sum + school.total, 0);
+  const totalSubmitted = schoolWeeklyRows.reduce((sum, school) => sum + school.submitted, 0);
+  const schoolsSubmitted = schoolWeeklyRows.filter((school) => school.submitted > 0).length;
+  const schoolsNotSubmitted = Math.max(totalSchools - schoolsSubmitted, 0);
 
   // Data for charts
   const schoolComplianceData = [
@@ -221,17 +242,12 @@ export default function SupervisorDashboard() {
   ];
 
   // Bar chart data for schools
-  const schoolBarData = Object.entries(schoolReports).map(([schoolName, reports]) => {
-    const latestReport = reports[0];
-    return {
-      school: schoolName.length > 15 ? schoolName.substring(0, 15) + "..." : schoolName,
-      submitted: latestReport.submitted_teachers,
-      total: latestReport.total_teachers,
-      rate: latestReport.total_teachers > 0 
-        ? Math.round((latestReport.submitted_teachers / latestReport.total_teachers) * 100)
-        : 0
-    };
-  }).slice(0, 10);
+  const schoolBarData = schoolWeeklyRows.map((school) => ({
+    school: school.schoolName.length > 15 ? school.schoolName.substring(0, 15) + "..." : school.schoolName,
+    submitted: school.submitted,
+    total: school.total,
+    rate: school.rate,
+  })).slice(0, 10);
 
   if (loading) {
     return (
@@ -341,7 +357,8 @@ export default function SupervisorDashboard() {
             />
           ) : (
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {managedSchools.map((school) => {
+              {districtSchoolNames.map((schoolName) => {
+                const school = managedSchools.find((item) => item.school_name === schoolName) || { id: schoolName, school_name: schoolName, principal_name: null };
                 const schoolReportsForSchool = reports.filter(r => r.school_name === school.school_name);
                 const latestReport = schoolReportsForSchool[0];
                 
@@ -406,7 +423,7 @@ export default function SupervisorDashboard() {
                   </button>
                 );
               })}
-              {managedSchools.length === 0 && (
+              {districtSchoolNames.length === 0 && (
                 <div className="col-span-full flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed border-[#CFC6B9] bg-[#FFFCF7] px-6 py-10 text-center text-[#526159]">
                   <School className="h-10 w-10 text-[#236130]" aria-hidden="true" />
                   <p className="font-display mt-3 text-xl font-semibold text-[#173F2A]">No schools added yet</p>
@@ -513,11 +530,16 @@ export default function SupervisorDashboard() {
             </Card>
           ))}
         </TabsContent>
-      </Tabs>      {/* Charts Section */}
+      </Tabs>
+      <div className="mb-4">
+        <p className="text-sm font-semibold text-[#526159]">Week of {currentMonday.toLocaleDateString("en-US", { month: "long", day: "numeric" })} – {currentFriday.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
+        <h2 className="font-display mt-1 text-2xl font-semibold text-[#173F2A]">Weekly submission dashboard</h2>
+      </div>
+      {/* Charts Section */}
       <section className="mb-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3" aria-label="District charts">
         <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
           <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
-            School Compliance
+            Submission Status Distribution
           </h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -568,7 +590,7 @@ export default function SupervisorDashboard() {
 
         <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
           <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
-            Teacher Submissions
+            Teacher Submission Status
           </h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
@@ -619,7 +641,7 @@ export default function SupervisorDashboard() {
 
         <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6 md:col-span-2 xl:col-span-1">
           <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
-            Submission Rate by School
+            School Completion Rate
           </h2>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={schoolBarData}>
