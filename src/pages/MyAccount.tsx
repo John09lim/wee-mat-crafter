@@ -199,7 +199,7 @@ const MyAccount = () => {
         }
         
         // Fetch assigned principals
-        await fetchAssignedPrincipals();
+        await fetchAssignedPrincipals(profileData);
       }
     } catch (error: unknown) {
       console.error("Error:", error);
@@ -228,6 +228,7 @@ const MyAccount = () => {
       if (error) throw error;
 
       setProfile(editedProfile);
+      await fetchAssignedPrincipals(editedProfile);
       setIsEditing(false);
       toast.success("Profile updated successfully!");
     } catch (error) {
@@ -294,7 +295,7 @@ const MyAccount = () => {
     }
   };
 
-  const fetchAssignedPrincipals = async () => {
+  const fetchAssignedPrincipals = async (currentProfile: UserProfile | null = profile) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -314,11 +315,15 @@ const MyAccount = () => {
       }
 
       // Map assignments directly to school options
+      const profileSchool = currentProfile?.school?.trim();
       const options: SchoolOption[] = assignments.map(assignment => ({
         principal_id: assignment.principal_id!,
         principal_name: assignment.principal_name || "School Head",
         principal_profile_image_url: assignment.principal_profile_image_url,
-        school_name: assignment.school_name,
+        school_name:
+          !assignment.school_name?.trim() || assignment.school_name.trim().toLowerCase() === "unknown school"
+            ? profileSchool || "Unknown School"
+            : assignment.school_name,
       }));
 
       setSchoolOptions(options);
