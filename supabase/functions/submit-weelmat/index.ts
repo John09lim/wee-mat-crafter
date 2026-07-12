@@ -111,79 +111,49 @@ serve(async (req) => {
       .eq("user_id", user.id)
       .single();
 
-    // Enhanced principal_id lookup: try schools table first, then school_assignments
-    const lookupSchool = schoolName || profile?.school || '';
-    const lookupDistrict = districtName || profile?.district_name || '';
-    
-    let finalPrincipalId = principalId || null;
+    // Route the submission through the assignment created by the principal.
+    // School-name text is display metadata and must never decide ownership.
+    const identityFilter = user.email
+      ? `user_id.eq.${user.id},teacher_email.ilike.${user.email}`
+      : `user_id.eq.${user.id}`;
+    let assignmentQuery = supabase
+      .from("school_assignments")
+      .select("id, user_id, principal_id, school_name, district_name")
+      .or(identityFilter)
+      .not("principal_id", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1);
 
-    // Verify teacher is assigned to this principal (if principal_id provided)
     if (principalId) {
-      const { data: assignment } = await supabase
+      assignmentQuery = assignmentQuery.eq("principal_id", principalId);
+    }
+
+    const { data: assignmentRows, error: assignmentError } = await assignmentQuery;
+    if (assignmentError) throw assignmentError;
+
+    const assignment = assignmentRows?.[0];
+    if (!assignment?.principal_id) {
+      await supabase.storage.from("weelmat").remove([fileName]);
+      return new Response(JSON.stringify({
+        error: "You must be added by this School Head before submitting. Please ask your School Head to add your DepEd email first."
+      }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    if (!assignment.user_id) {
+      const { error: linkError } = await supabase
         .from("school_assignments")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("principal_id", principalId)
-        .maybeSingle();
-
-      if (!assignment) {
-        return new Response(JSON.stringify({ 
-          error: "You must be added by this School Head before submitting. Please ask your School Head to add you to their school first." 
-        }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
-      }
+        .update({ user_id: user.id })
+        .eq("id", assignment.id);
+      if (linkError) throw linkError;
     }
 
-    // Verify teacher is assigned to this principal
-    if (finalPrincipalId) {
-      const { data: assignment } = await supabase
-        .from("school_assignments")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("principal_id", finalPrincipalId)
-        .maybeSingle();
+    const finalPrincipalId = assignment.principal_id;
+    const canonicalSchoolName = assignment.school_name || schoolName || profile?.school || "";
+    const canonicalDistrictName = assignment.district_name || districtName || profile?.district_name || "";
 
-      if (!assignment) {
-        return new Response(JSON.stringify({ 
-          error: "You must be added by this School Head before submitting. Please ask your School Head to add you to their school first." 
-        }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" }
-        });
-      }
-    }
-    
-    if (lookupSchool && !finalPrincipalId) {
-      // First try: schools table (supervisor-created schools)
-      const { data: schoolData } = await supabase
-        .from("schools")
-        .select("principal_id, principal_name")
-        .ilike("school_name", lookupSchool)
-        .not("principal_id", "is", null)
-        .maybeSingle();
-
-      if (schoolData?.principal_id) {
-        finalPrincipalId = schoolData.principal_id;
-        console.log("Principal found in schools table:", schoolData.principal_id);
-      } else {
-        // Fallback: school_assignments table
-        const { data: assignment } = await supabase
-          .from("school_assignments")
-          .select("principal_id")
-          .ilike("school_name", lookupSchool)
-          .not("principal_id", "is", null)
-          .limit(1)
-          .maybeSingle();
-        
-        if (assignment?.principal_id) {
-          finalPrincipalId = assignment.principal_id;
-          console.log("Principal found in school_assignments:", assignment.principal_id);
-        }
-      }
-    }
-    
     console.log("Final principal_id for submission:", finalPrincipalId);
 
     // Insert submission record with status 'pending' by default
@@ -199,8 +169,8 @@ serve(async (req) => {
         week_end: weekEnd,
         file_url: urlData.publicUrl,
         file_type: fileExt,
-        school_name: schoolName || profile?.school || '',
-        district_name: districtName || profile?.district_name || '',
+        school_name: canonicalSchoolName,
+        district_name: canonicalDistrictName,
         principal_id: finalPrincipalId,
         status: "pending"
       })

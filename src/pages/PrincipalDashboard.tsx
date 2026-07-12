@@ -46,6 +46,7 @@ interface PrincipalProfile {
 interface ManagedTeacher {
   user_id: string;
   teacher_name: string;
+  teacher_email?: string | null;
   grade_level?: string | null;
   section?: string | null;
   profile_image_url?: string | null;
@@ -75,9 +76,9 @@ export default function PrincipalDashboard() {
     fetchSubmissions();
   }, []);
 
-  // Realtime subscription for new submissions
+  // Realtime subscription for submissions addressed to this principal.
   useEffect(() => {
-    if (!profile?.school) return;
+    if (!profile?.user_id) return;
 
     const channel = supabase
       .channel('teacher-submissions-changes')
@@ -87,7 +88,7 @@ export default function PrincipalDashboard() {
           event: 'INSERT',
           schema: 'public',
           table: 'teacher_submissions',
-          filter: `school_name=eq.${profile.school}`
+          filter: `principal_id=eq.${profile.user_id}`
         },
         (payload) => {
           if (initialLoadComplete.current) {
@@ -108,7 +109,7 @@ export default function PrincipalDashboard() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [profile?.school]);
+  }, [profile?.user_id]);
 
   const fetchSubmissions = async () => {
     try {
@@ -155,13 +156,14 @@ export default function PrincipalDashboard() {
       const { data: managedTeachersData } = await supabase
         .from("school_assignments")
         .select("*")
-        .eq("school_name", profileData.school)
         .eq("principal_id", user.id);
       
       const uniqueManagedTeachers = Array.from(
         new Map(
           ((managedTeachersData || []) as ManagedTeacher[]).map((teacher) => [
-            teacher.user_id || normalizeTeacherName(teacher.teacher_name),
+            teacher.teacher_email?.trim().toLocaleLowerCase() ||
+              teacher.user_id ||
+              normalizeTeacherName(teacher.teacher_name),
             teacher,
           ]),
         ).values(),
@@ -193,11 +195,12 @@ export default function PrincipalDashboard() {
         setAllTeachers([]);
       }
 
-      // Query ONLY submissions from principal's school
+      // principal_id is the authoritative routing key. School names remain
+      // display metadata and must not hide a valid teacher submission.
       const { data, error } = await supabase
         .from("teacher_submissions")
         .select("*")
-        .eq("school_name", profileData.school)
+        .eq("principal_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) {

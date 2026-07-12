@@ -103,6 +103,7 @@ const MyAccount = () => {
         .select("id, school_name, district_name, principal_id")
         .eq("teacher_email", user.email!.toLowerCase())
         .is("user_id", null)
+        .limit(1)
         .maybeSingle();
 
       if (unlinkedAssignment) {
@@ -316,15 +317,23 @@ const MyAccount = () => {
 
       // Map assignments directly to school options
       const profileSchool = currentProfile?.school?.trim();
-      const options: SchoolOption[] = assignments.map(assignment => ({
-        principal_id: assignment.principal_id!,
-        principal_name: assignment.principal_name || "School Head",
-        principal_profile_image_url: assignment.principal_profile_image_url,
-        school_name:
-          !assignment.school_name?.trim() || assignment.school_name.trim().toLowerCase() === "unknown school"
-            ? profileSchool || "Unknown School"
-            : assignment.school_name,
-      }));
+      const options: SchoolOption[] = Array.from(
+        new Map(
+          assignments.map((assignment) => {
+            const schoolName =
+              !assignment.school_name?.trim() || assignment.school_name.trim().toLowerCase() === "unknown school"
+                ? profileSchool || "Unknown School"
+                : assignment.school_name;
+            const option: SchoolOption = {
+              principal_id: assignment.principal_id!,
+              principal_name: assignment.principal_name || "School Head",
+              principal_profile_image_url: assignment.principal_profile_image_url,
+              school_name: schoolName,
+            };
+            return [`${option.principal_id}:${schoolName.trim().toLocaleLowerCase()}`, option] as const;
+          }),
+        ).values(),
+      );
 
       setSchoolOptions(options);
       

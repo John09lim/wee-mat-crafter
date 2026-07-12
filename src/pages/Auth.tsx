@@ -145,6 +145,7 @@ const Auth = () => {
           .select("id, school_name, district_name, principal_id")
           .eq("teacher_email", data.user.email!.toLowerCase())
           .is("user_id", null)
+          .limit(1)
           .maybeSingle();
 
         if (assignmentMatch) {
@@ -253,6 +254,7 @@ const Auth = () => {
             .select("id, school_name, district_name, principal_id, grade_level, section")
             .eq("teacher_email", email.toLowerCase())
             .is("user_id", null)
+            .limit(1)
             .maybeSingle();
 
           if (assignmentMatch) {
