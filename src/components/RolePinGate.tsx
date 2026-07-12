@@ -11,24 +11,37 @@ type RolePinGateProps = {
 
 export const RolePinGate = ({ role, children }: RolePinGateProps) => {
   const location = useLocation();
-  const [sessionState, setSessionState] = useState<"loading" | "signed-in" | "signed-out">("loading");
+  const [sessionState, setSessionState] = useState<"loading" | "authorized" | "unauthorized" | "signed-out">("loading");
   const verified = sessionStorage.getItem(rolePinStorageKey(role)) === "true";
 
   useEffect(() => {
     let active = true;
-    void supabase.auth.getSession().then(({ data }) => {
-      if (active) setSessionState(data.session ? "signed-in" : "signed-out");
+    void supabase.auth.getSession().then(async ({ data }) => {
+      if (!active) return;
+      if (!data.session) {
+        setSessionState("signed-out");
+        return;
+      }
+
+      const expectedRole = role === "principal" ? "school_head" : "supervisor";
+      const { data: roleRow } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", data.session.user.id)
+        .eq("role", expectedRole)
+        .maybeSingle();
+      if (active) setSessionState(roleRow ? "authorized" : "unauthorized");
     });
     return () => {
       active = false;
     };
-  }, []);
+  }, [role]);
 
   if (sessionState === "loading") {
     return <PageLoader />;
   }
 
-  if (sessionState === "signed-out") {
+  if (sessionState === "signed-out" || sessionState === "unauthorized") {
     return <Navigate to={role === "principal" ? "/principal" : "/supervisor"} replace state={{ from: location.pathname }} />;
   }
 

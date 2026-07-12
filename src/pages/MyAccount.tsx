@@ -115,21 +115,58 @@ const MyAccount = () => {
         toast.success(`You've been linked to ${unlinkedAssignment.school_name}!`);
       }
 
-      // Fetch user role
-      const { data: roleData } = await supabase
+      // My Account is the teacher workspace. Repair legacy accounts whose
+      // auth user exists but whose role trigger did not create a teacher row.
+      let { data: roleData } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
-        .single();
+        .eq("role", "teacher")
+        .maybeSingle();
 
-      setUserRole(roleData?.role || null);
+      if (!roleData) {
+        const metadataRole = user.user_metadata?.role;
+        if (metadataRole === "school_head") {
+          navigate("/principal-dashboard", { replace: true });
+          return;
+        }
+        if (metadataRole === "supervisor") {
+          navigate("/supervisor-dashboard", { replace: true });
+          return;
+        }
+
+        const { error: roleRepairError } = await supabase
+          .from("user_roles")
+          .insert({ user_id: user.id, role: "teacher" });
+
+        if (roleRepairError && !roleRepairError.message.includes("duplicate")) {
+          throw new Error(`Unable to activate the teacher workspace: ${roleRepairError.message}`);
+        }
+
+        roleData = { role: "teacher" };
+      }
+
+      setUserRole("teacher");
 
       // Fetch user profile
-      const { data: profileData } = await supabase
+      let { data: profileData } = await supabase
         .from("profiles")
         .select("teacher_name, email, school, district_name, profile_image_url")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
+
+      if (!profileData) {
+        const fallbackProfile = {
+          user_id: user.id,
+          email: user.email || "",
+          teacher_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "Teacher",
+          school: "Please update",
+          district_name: "Please update",
+        };
+        const { error: profileRepairError } = await supabase.from("profiles").upsert(fallbackProfile, { onConflict: "user_id" });
+        if (profileRepairError) throw profileRepairError;
+        profileData = { ...fallbackProfile, profile_image_url: null };
+      }
 
       if (profileData) {
         setProfile(profileData);
