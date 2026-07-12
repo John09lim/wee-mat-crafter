@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, addWeeks, startOfWeek, endOfWeek } from "date-fns";
@@ -11,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CheckCircle2, XCircle } from "lucide-react";
+import { normalizeWeekStart, teacherHasSubmission } from "@/lib/submissionTracking";
 
 interface WeekData {
   weekStart: Date;
@@ -28,6 +28,7 @@ interface WeekDetail {
 interface WeeklySubmissionCalendarProps {
   schoolName: string;
   managedTeachers: Array<{ teacher_name: string; user_id: string | null }>;
+  submissions: Array<{ teacher_name: string; user_id?: string | null; week_start: string }>;
 }
 
 const WEEKS_PER_PAGE = 4;
@@ -57,6 +58,7 @@ function isCurrentWeek(monday: Date) {
 export default function WeeklySubmissionCalendar({
   schoolName,
   managedTeachers,
+  submissions,
 }: WeeklySubmissionCalendarProps) {
   const [weeks, setWeeks] = useState<WeekData[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
@@ -91,18 +93,8 @@ export default function WeeklySubmissionCalendar({
       // Track the index of current week
       const isCurrent = monday.getTime() === currentMonday.getTime();
 
-      // Query submissions for this week
-      const { data: submissions } = await supabase
-        .from("teacher_submissions")
-        .select("user_id")
-        .eq("school_name", schoolName)
-        .gte("week_start", format(monday, "yyyy-MM-dd"))
-        .lte("week_end", format(friday, "yyyy-MM-dd"));
-
-      const submittedUserIds = new Set(submissions?.map((s) => s.user_id) || []);
-      const submittedCount = managedTeachers.filter((t) =>
-        t.user_id ? submittedUserIds.has(t.user_id) : false
-      ).length;
+      const weekSubmissions = submissions.filter((submission) => normalizeWeekStart(submission.week_start) === format(monday, "yyyy-MM-dd"));
+      const submittedCount = managedTeachers.filter((teacher) => teacherHasSubmission(teacher, weekSubmissions)).length;
 
       const totalCount = managedTeachers.length;
       const percentage =
@@ -134,7 +126,7 @@ export default function WeeklySubmissionCalendar({
     if (currentWeekIndex >= 0) {
       setCurrentPage(Math.floor(currentWeekIndex / WEEKS_PER_PAGE));
     }
-  }, [managedTeachers, schoolName]);
+  }, [managedTeachers, submissions]);
 
   useEffect(() => {
     fetchWeeklyData();
@@ -159,21 +151,13 @@ export default function WeeklySubmissionCalendar({
   const handleWeekClick = async (week: WeekData) => {
     setSelectedWeek(week);
 
-    // Fetch detailed submission data for this week
-    const { data: submissions } = await supabase
-      .from("teacher_submissions")
-      .select("user_id")
-      .eq("school_name", schoolName)
-      .gte("week_start", format(week.weekStart, "yyyy-MM-dd"))
-      .lte("week_end", format(week.weekEnd, "yyyy-MM-dd"));
-
-    const submittedUserIds = new Set(submissions?.map((s) => s.user_id) || []);
+    const weekSubmissions = submissions.filter((submission) => normalizeWeekStart(submission.week_start) === format(week.weekStart, "yyyy-MM-dd"));
 
     const submitted: string[] = [];
     const notSubmitted: string[] = [];
 
     managedTeachers.forEach((teacher) => {
-      if (teacher.user_id && submittedUserIds.has(teacher.user_id)) {
+      if (teacherHasSubmission(teacher, weekSubmissions)) {
         submitted.push(teacher.teacher_name);
       } else {
         notSubmitted.push(teacher.teacher_name);

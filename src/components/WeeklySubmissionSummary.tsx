@@ -9,6 +9,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { normalizeTeacherName, normalizeWeekStart } from "@/lib/submissionTracking";
 
 interface WeeklySubmissionSummaryProps {
   managedTeachers: Array<{
@@ -77,21 +78,27 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
   const submissionLookup = useMemo(() => {
     const lookup = new Map<string, Set<string>>();
     for (const sub of submissions) {
-      const key = sub.user_id || sub.teacher_name;
-      if (!lookup.has(key)) lookup.set(key, new Set());
-      const weekStart = typeof sub.week_start === 'string' ? sub.week_start.substring(0, 10) : sub.week_start;
-      lookup.get(key)!.add(weekStart);
+      const weekStart = normalizeWeekStart(sub.week_start);
+      const keys = [sub.user_id, normalizeTeacherName(sub.teacher_name)].filter(Boolean) as string[];
+      keys.forEach((key) => {
+        if (!lookup.has(key)) lookup.set(key, new Set());
+        lookup.get(key)!.add(weekStart);
+      });
     }
     return lookup;
   }, [submissions]);
+
+  const hasTeacherWeek = (teacher: { user_id?: string | null; teacher_name: string }, weekStart: string) =>
+    (Boolean(teacher.user_id) && Boolean(submissionLookup.get(teacher.user_id!)?.has(weekStart))) ||
+    Boolean(submissionLookup.get(normalizeTeacherName(teacher.teacher_name))?.has(weekStart));
 
   const weekTotals = useMemo(() => {
     return weeks.map(week => {
       let count = 0;
       for (const teacher of managedTeachers) {
-        const key = teacher.user_id || teacher.teacher_name;
-        const teacherWeeks = submissionLookup.get(key);
-        if (teacherWeeks?.has(week.weekStart)) count++;
+        const idWeeks = teacher.user_id ? submissionLookup.get(teacher.user_id) : undefined;
+        const nameWeeks = submissionLookup.get(normalizeTeacherName(teacher.teacher_name));
+        if (idWeeks?.has(week.weekStart) || nameWeeks?.has(week.weekStart)) count++;
       }
       return count;
     });
@@ -193,9 +200,7 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
       const headers = ["No.", "Teacher Name", "Grade/Section", ...weekHeaders];
 
       const body = sortedTeachers.map((teacher, idx) => {
-        const key = teacher.user_id || teacher.teacher_name;
-        const teacherWeeks = submissionLookup.get(key);
-        const weekCells = chunkWeeks.map(week => teacherWeeks?.has(week.weekStart) ? "submitted" : "missing");
+        const weekCells = chunkWeeks.map(week => hasTeacherWeek(teacher, week.weekStart) ? "submitted" : "missing");
         return [
           (idx + 1).toString(),
           teacher.teacher_name || "",
@@ -288,15 +293,13 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
 
         <div className="space-y-4 md:hidden" aria-label="Weekly submission summary by teacher">
           {sortedTeachers.map((teacher) => {
-            const key = teacher.user_id || teacher.teacher_name;
-            const teacherWeeks = submissionLookup.get(key);
             return (
               <article key={`mobile-${teacher.id || key}`} className="rounded-xl border border-[#D8D0C4] bg-white p-4">
                 <h4 className="font-semibold text-[#142019]">{teacher.teacher_name}</h4>
                 <p className="mt-1 text-sm text-[#526159]">{teacher.grade_level} · {teacher.section}</p>
                 <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
                   {weeks.map((week, index) => {
-                    const submitted = teacherWeeks?.has(week.weekStart);
+                    const submitted = hasTeacherWeek(teacher, week.weekStart);
                     return (
                       <div key={index} className={`rounded-lg border p-2.5 ${submitted ? "border-[#B9D1BE] bg-[#EAF3EB]" : "border-[#E0B8AE] bg-[#FAECE8]"}`}>
                         <p className="text-xs font-semibold tabular-nums text-[#526159]">{week.label}</p>
@@ -331,8 +334,6 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
               </TableHeader>
               <TableBody>
                 {sortedTeachers.map((teacher) => {
-                  const key = teacher.user_id || teacher.teacher_name;
-                  const teacherWeeks = submissionLookup.get(key);
                   return (
                     <TableRow key={teacher.id || key} className="hover:bg-[#FAF7F1]">
                       <TableCell className="sticky left-0 z-10 border-r border-[#D8D0C4] bg-[#FFFCF7] text-sm font-medium">
@@ -340,7 +341,7 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
                         <div className="text-xs text-muted-foreground">{teacher.grade_level} - {teacher.section}</div>
                       </TableCell>
                       {weeks.map((week, i) => {
-                        const submitted = teacherWeeks?.has(week.weekStart);
+                        const submitted = hasTeacherWeek(teacher, week.weekStart);
                         return (
                           <TableCell key={i} className="text-center px-2">
                             {submitted ? (

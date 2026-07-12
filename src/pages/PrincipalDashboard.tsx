@@ -16,6 +16,7 @@ import DocumentViewer from "@/components/DocumentViewer";
 import { TeacherManagement } from "@/components/TeacherManagement";
 import WeeklySubmissionCalendar from "@/components/WeeklySubmissionCalendar";
 import { WeeklySubmissionSummary } from "@/components/WeeklySubmissionSummary";
+import { normalizeTeacherName, normalizeWeekStart, teacherHasSubmission } from "@/lib/submissionTracking";
 
 interface Submission {
   id: string;
@@ -157,7 +158,15 @@ export default function PrincipalDashboard() {
         .eq("school_name", profileData.school)
         .eq("principal_id", user.id);
       
-      setManagedTeachers((managedTeachersData || []) as ManagedTeacher[]);
+      const uniqueManagedTeachers = Array.from(
+        new Map(
+          ((managedTeachersData || []) as ManagedTeacher[]).map((teacher) => [
+            teacher.user_id || normalizeTeacherName(teacher.teacher_name),
+            teacher,
+          ]),
+        ).values(),
+      );
+      setManagedTeachers(uniqueManagedTeachers);
 
       // Fetch all teachers from this school with their profiles
       const { data: teachersData } = await supabase
@@ -372,17 +381,12 @@ export default function PrincipalDashboard() {
   const currentMondayKey = toLocalDateKey(currentMonday);
 
   const currentWeekSubmissions = submissions.filter(s => {
-    const weekStartKey = String(s.week_start).substring(0, 10);
+    const weekStartKey = normalizeWeekStart(s.week_start);
     return weekStartKey === currentMondayKey;
   });
   
-  const submittedTeacherIds = new Set(currentWeekSubmissions.map(s => s.user_id).filter(Boolean));
-  const submittedTeacherNames = new Set(currentWeekSubmissions.map(s => s.teacher_name.trim().toLowerCase()));
-  const hasSubmitted = (teacher: ManagedTeacher) =>
-    (Boolean(teacher.user_id) && submittedTeacherIds.has(teacher.user_id)) ||
-    submittedTeacherNames.has(teacher.teacher_name.trim().toLowerCase());
-  const submittedTeachers = managedTeachers.filter(hasSubmitted);
-  const notSubmittedTeachers = managedTeachers.filter(t => !hasSubmitted(t));
+  const submittedTeachers = managedTeachers.filter((teacher) => teacherHasSubmission(teacher, currentWeekSubmissions));
+  const notSubmittedTeachers = managedTeachers.filter((teacher) => !teacherHasSubmission(teacher, currentWeekSubmissions));
 
   const getInitials = (name: string) => {
     const parts = name.split(' ').filter(Boolean);
@@ -778,6 +782,7 @@ export default function PrincipalDashboard() {
           <WeeklySubmissionCalendar
             schoolName={profile.school}
             managedTeachers={managedTeachers}
+            submissions={submissions}
           />
         </section>
       )}
