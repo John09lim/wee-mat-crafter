@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -108,6 +108,13 @@ const Dashboard = ({ isPremium = false }: DashboardProps) => {
   const [passcodeVerified, setPasscodeVerified] = useState(false);
   const [matrixMode, setMatrixMode] = useState<"automatic" | "manual">("manual");
   const [activeDay, setActiveDay] = useState<PlanningDayPrefix>("monday");
+  const [dailyCompetencies, setDailyCompetencies] = useState<Record<PlanningDayPrefix, string>>({
+    monday: "",
+    tuesday: "",
+    wednesday: "",
+    thursday: "",
+    friday: "",
+  });
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [extractedData, setExtractedData] = useState<ExtractedMaterialData | null>(null);
@@ -147,7 +154,7 @@ const Dashboard = ({ isPremium = false }: DashboardProps) => {
     setShowPasscodeDialog(false);
   };
 
-const { control, register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<FormValues>({
+const { register, handleSubmit, formState: { errors }, setValue, watch, reset } = useForm<FormValues>({
   resolver: zodResolver(schema),
   defaultValues: {
     gradeLevel: "",
@@ -170,6 +177,13 @@ useEffect(() => {
   const prefillData = location.state?.prefillData;
   if (prefillData) {
     reset(prefillData);
+    setDailyCompetencies({
+      monday: prefillData.mondayCompetency || "",
+      tuesday: prefillData.tuesdayCompetency || "",
+      wednesday: prefillData.wednesdayCompetency || "",
+      thursday: prefillData.thursdayCompetency || "",
+      friday: prefillData.fridayCompetency || "",
+    });
     toast.success("Form pre-filled from saved WeeLMat");
   }
 }, [location.state, reset]);
@@ -363,6 +377,7 @@ const watchedValues = watch();
         const dayData = extractedData.days?.[dayNames[day]];
         if (dayData) {
           setValue(`${day}Competency` as `${PlanningDayPrefix}Competency`, dayData.competency || '', { shouldValidate: true });
+          setDailyCompetencies((current) => ({ ...current, [day]: dayData.competency || "" }));
           setValue(`${day}ExamType` as `${PlanningDayPrefix}ExamType`, dayData.examType || 'Multiple Choice', { shouldValidate: true });
           setValue(`${day}QuestionCount` as `${PlanningDayPrefix}QuestionCount`, dayData.questionCount || 10, { shouldValidate: true });
         }
@@ -694,21 +709,19 @@ const watchedValues = watch();
 
                       <div className="space-y-2">
                         <Label htmlFor={activeCompetencyField}>Competency</Label>
-                        <Controller
+                        <Textarea
                           key={activeCompetencyField}
+                          id={activeCompetencyField}
                           name={activeCompetencyField}
-                          control={control}
-                          defaultValue=""
-                          render={({ field }) => (
-                            <Textarea
-                              {...field}
-                              id={activeCompetencyField}
-                              rows={4}
-                              placeholder={`Enter ${activeDayConfig.day}'s competency exactly as it should appear…`}
-                              aria-invalid={Boolean(errors[activeCompetencyField])}
-                              value={field.value ?? ""}
-                            />
-                          )}
+                          rows={4}
+                          placeholder={`Enter ${activeDayConfig.day}'s competency exactly as it should appear…`}
+                          aria-invalid={Boolean(errors[activeCompetencyField])}
+                          value={dailyCompetencies[activeDay]}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setDailyCompetencies((current) => ({ ...current, [activeDay]: value }));
+                            setValue(activeCompetencyField, value, { shouldDirty: true, shouldValidate: false });
+                          }}
                         />
                         {errors[activeCompetencyField] && <p role="alert" className="text-sm text-destructive">{errors[activeCompetencyField]?.message}</p>}
                       </div>
@@ -725,7 +738,10 @@ const watchedValues = watch();
                               aria-pressed={watchedValues[activeExamTypeField] === type}
                               onClick={() => {
                                 setValue(activeExamTypeField, type, { shouldValidate: true });
-                                if (type === "HOLIDAY") setValue(activeCompetencyField, "HOLIDAY", { shouldValidate: true });
+                                if (type === "HOLIDAY") {
+                                  setDailyCompetencies((current) => ({ ...current, [activeDay]: "HOLIDAY" }));
+                                  setValue(activeCompetencyField, "HOLIDAY", { shouldValidate: true });
+                                }
                               }}
                             >
                               {type}
@@ -795,6 +811,7 @@ const watchedValues = watch();
               <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
                 <Button type="button" variant="ghost" onClick={() => {
                   reset();
+                  setDailyCompetencies({ monday: "", tuesday: "", wednesday: "", thursday: "", friday: "" });
                   setActiveDay("monday");
                   setExtractedData(null);
                   setExtractedTextPreview("");
