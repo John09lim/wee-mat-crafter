@@ -28,9 +28,9 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
   const [showDownloadDialog, setShowDownloadDialog] = useState(false);
   const [selectedWeekIndices, setSelectedWeekIndices] = useState<Set<number>>(new Set());
 
-  // Generate all weeks from Aug 11, 2025 to current week
+  // School Year 2026-2027 begins on Monday, June 8, 2026.
   const weeks = useMemo(() => {
-    const startDate = new Date(2025, 7, 11);
+    const startDate = new Date(2026, 5, 8);
     const today = new Date();
 
     const padZero = (n: number) => n.toString().padStart(2, '0');
@@ -273,7 +273,7 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
               Weekly Submission Summary
             </h3>
             <p className="mt-1 text-sm text-[#526159]">
-              {sortedTeachers.length} teachers • {weeks.length} weeks (starting Aug 11, 2025)
+              School Year 2026–2027 • {sortedTeachers.length} teachers • {weeks.length} weeks (starting June 8, 2026)
             </p>
           </div>
           <Button

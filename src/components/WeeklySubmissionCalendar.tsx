@@ -31,7 +31,8 @@ interface WeeklySubmissionCalendarProps {
 }
 
 const WEEKS_PER_PAGE = 4;
-const CALENDAR_START_DATE = new Date(2025, 7, 11);
+// Official reporting boundary for School Year 2026-2027.
+const CALENDAR_START_DATE = new Date(2026, 5, 8);
 
 function getMondayOfWeek(date: Date) {
   const d = new Date(date);
