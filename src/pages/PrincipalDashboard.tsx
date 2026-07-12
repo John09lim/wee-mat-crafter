@@ -545,7 +545,7 @@ export default function PrincipalDashboard() {
         </div>
       </section>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="order-4 mb-7">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-7" style={{ order: 4 }}>
         <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-display text-2xl font-semibold text-[#173F2A]">Recent submissions</h2>
@@ -616,7 +616,7 @@ export default function PrincipalDashboard() {
           ))}
         </TabsContent>
       </Tabs>      {/* Teacher Tracking for Current Week */}
-      <Card className="order-1 mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+      <Card className="mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6" style={{ order: 1 }}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <h2 className="font-display text-xl font-semibold text-[#173F2A]">
             This Week's Teacher Submissions ({(() => {
@@ -774,7 +774,7 @@ export default function PrincipalDashboard() {
 
       {/* Weekly Submission Calendar */}
       {profile && (
-        <section className="order-2 mb-6" aria-label="Weekly submission calendar">
+        <section className="mb-6" style={{ order: 2 }} aria-label="Weekly submission calendar">
           <WeeklySubmissionCalendar
             schoolName={profile.school}
             managedTeachers={managedTeachers}
@@ -784,7 +784,7 @@ export default function PrincipalDashboard() {
 
       {/* Weekly Submission Summary Grid */}
       {managedTeachers.length > 0 && (
-        <section className="order-3" aria-label="Weekly submission summary">
+        <section style={{ order: 3 }} aria-label="Weekly submission summary">
           <WeeklySubmissionSummary
             managedTeachers={managedTeachers}
             submissions={submissions}
@@ -794,7 +794,7 @@ export default function PrincipalDashboard() {
       )}
 
       {/* Charts Section */}
-      <section className="order-5 mb-6 grid gap-6 md:grid-cols-2" aria-label="Submission charts">
+      <section className="mb-6 grid gap-6 md:grid-cols-2" style={{ order: 5 }} aria-label="Submission charts">
         <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
           <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
             Submission Status Distribution
