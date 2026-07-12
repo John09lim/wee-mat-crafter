@@ -273,7 +273,7 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
               Weekly Submission Summary
             </h3>
             <p className="mt-1 text-sm text-[#526159]">
-              School Year 2026–2027 • {sortedTeachers.length} teachers • {weeks.length} weeks (starting June 8, 2026)
+              School Year 2026–2027 • Reporting begins June 8, 2026 • {sortedTeachers.length} teachers • {weeks.length} weeks
             </p>
           </div>
           <Button
