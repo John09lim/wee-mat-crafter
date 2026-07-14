@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { FileText, Send, Eye, Upload, Plus, User, School, Mail, Edit2, Save, X, CheckCircle, Clock, XCircle, Lock, LogOut } from "lucide-react";
+import { ArrowRight, BookOpenCheck, FileText, Send, Eye, Upload, Plus, User, School, Mail, Edit2, Save, X, CheckCircle, Clock, XCircle, Lock, LogOut } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -23,7 +23,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import PasswordResetDialog from "@/components/PasswordResetDialog";
-import ILAWLessonPlanGenerator from "@/components/ILAWLessonPlanGenerator";
 
 interface UserProfile {
   teacher_name: string;
@@ -943,12 +942,27 @@ const MyAccount = () => {
         )}
 
         {userRole === 'teacher' && (
-          <ILAWLessonPlanGenerator
-            defaultTeacherName={profile?.teacher_name}
-            defaultSchool={profile?.school}
-            defaultDistrict={profile?.district_name || ""}
-            defaultPrincipalName={selectedSchool?.principal_name}
-          />
+          <Card className="mt-8 overflow-hidden border-primary/20 bg-card shadow-[0_22px_65px_-48px_rgba(20,68,39,.72)]">
+            <div className="grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+              <div className="flex gap-4 p-6 sm:p-8">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <BookOpenCheck className="h-6 w-6" aria-hidden="true" />
+                </span>
+                <div>
+                  <h2 className="font-display text-2xl font-semibold text-foreground sm:text-3xl">Generate an ILAW Lesson Plan Template</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                    Open the dedicated lesson-plan workspace to enter class details, choose English or Filipino, and set a separate competency for each of four sessions.
+                  </p>
+                </div>
+              </div>
+              <div className="border-t border-border p-6 lg:border-l lg:border-t-0 lg:p-8">
+                <Button type="button" onClick={() => navigate("/ilaw-lesson-plan")} className="h-12 w-full gap-2 lg:w-auto">
+                  Open ILAW generator
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
+          </Card>
         )}
         </div>
       </main>

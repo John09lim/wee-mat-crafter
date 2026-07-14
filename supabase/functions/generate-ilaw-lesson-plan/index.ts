@@ -17,6 +17,7 @@ const requiredFields = [
   "week",
   "inclusiveDates",
   "principal",
+  "language",
 ] as const;
 
 type RequestField = (typeof requiredFields)[number];
@@ -35,7 +36,6 @@ type SessionPlan = {
 
 type GeneratedPlan = {
   references: string;
-  learningCompetency: string;
   learnerContext: string;
   sessions: SessionPlan[];
 };
@@ -74,7 +74,6 @@ const validatePlan = (value: unknown): GeneratedPlan => {
 
   return {
     references: expectText(candidate.references, "references"),
-    learningCompetency: expectText(candidate.learningCompetency, "learning competency"),
     learnerContext: expectText(candidate.learnerContext, "learner context"),
     sessions,
   };
@@ -110,6 +109,23 @@ serve(async (request) => {
       );
     }
 
+    if (form.language !== "English" && form.language !== "Filipino") {
+      return new Response(
+        JSON.stringify({ error: "Choose either English or Filipino as the lesson-plan language." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const sessionCompetencies = Array.isArray(rawBody?.sessionCompetencies)
+      ? rawBody.sessionCompetencies.map((value: unknown) => cleanText(value, 1500))
+      : [];
+    if (sessionCompetencies.length !== 4 || sessionCompetencies.some((competency: string) => !competency)) {
+      return new Response(
+        JSON.stringify({ error: "Enter one competency for each of the four sessions." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
     if (!apiKey) throw new Error("The AI lesson-plan service is not configured.");
 
@@ -117,10 +133,10 @@ serve(async (request) => {
 
 Important safeguards:
 - Produce exactly four connected sessions that progress from activation/modeling to guided practice, independent application, and synthesis.
+- Write every generated entry in ${form.language}. Use natural, professional classroom language appropriate for Filipino teachers and learners.
+- Follow the separate teacher-provided competency assigned to each session. Do not merge, replace, or silently rewrite those competencies.
 - Do not invent official competency codes, DepEd order numbers, book page numbers, or claims that a specific source was consulted.
-- State the competency in clear curriculum-aligned language based only on the supplied lesson information.
 - Keep every activity feasible for an ordinary Philippine classroom and include low-tech alternatives.
-- Use the most appropriate language for the learning area and the wording supplied by the teacher. Filipino and Araling Panlipunan plans should normally be written in Filipino.
 - Each session must be meaningfully different and must remain focused on the same lesson.
 - Assessment must measure the stated objective and include feedback, accommodation, or support.
 - Reflection fields must be fill-in prompts teachers can complete after the session.
@@ -137,11 +153,17 @@ Term: ${form.term}
 Week: ${form.week}
 Inclusive Dates: ${form.inclusiveDates}
 School Head / Principal: ${form.principal}
+Language: ${form.language}
+
+Teacher-provided session competencies (preserve each target exactly and align the matching session to it):
+Session 1: ${sessionCompetencies[0]}
+Session 2: ${sessionCompetencies[1]}
+Session 3: ${sessionCompetencies[2]}
+Session 4: ${sessionCompetencies[3]}
 
 Return this exact JSON shape:
 {
   "references": "credible source categories and teacher materials, without fabricated page numbers",
-  "learningCompetency": "clear curriculum-aligned target and applicable content/performance expectation",
   "learnerContext": "strengths, interests, prior learning, barriers, and suitable supports",
   "sessions": [
     {
@@ -192,7 +214,7 @@ Return this exact JSON shape:
 
     return new Response(
       JSON.stringify({
-        form,
+        form: { ...form, sessionCompetencies },
         generated,
         generatedAt: new Date().toISOString(),
       }),

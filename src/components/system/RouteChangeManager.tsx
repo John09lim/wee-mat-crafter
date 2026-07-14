@@ -19,6 +19,7 @@ const routeLabels: Record<string, string> = {
   "/premium/lesson-plan": "Lesson plan generator",
   "/premium/periodical-test": "Periodical test generator",
   "/my-account": "My account",
+  "/ilaw-lesson-plan": "ILAW lesson plan generator",
   "/teacher-submission": "Teacher submission",
   "/principal-dashboard": "Principal dashboard",
   "/supervisor-dashboard": "Supervisor dashboard",

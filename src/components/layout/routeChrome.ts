@@ -24,6 +24,7 @@ const workspaceRoutes = new Set([
   "/premium/lesson-plan",
   "/premium/periodical-test",
   "/my-account",
+  "/ilaw-lesson-plan",
   "/teacher-submission",
   "/principal-dashboard",
   "/supervisor-dashboard",

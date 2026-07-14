@@ -32,6 +32,7 @@ const WeeLMatGeneratorPremium = lazy(() => import("./pages/WeeLMatGeneratorPremi
 const LessonPlanGenerator = lazy(() => import("./pages/LessonPlanGenerator"));
 const PeriodicalTestGenerator = lazy(() => import("./pages/PeriodicalTestGenerator"));
 const MyAccount = lazy(() => import("./pages/MyAccount"));
+const ILAWLessonPlan = lazy(() => import("./pages/ILAWLessonPlan"));
 const TeacherSubmission = lazy(() => import("./pages/TeacherSubmission"));
 const PrincipalDashboard = lazy(() => import("./pages/PrincipalDashboard"));
 const SupervisorDashboard = lazy(() => import("./pages/SupervisorDashboard"));
@@ -62,6 +63,7 @@ const AppRoutes = () => (
     <Route path="/premium/lesson-plan" element={<LessonPlanGenerator />} />
     <Route path="/premium/periodical-test" element={<PeriodicalTestGenerator />} />
     <Route path="/my-account" element={<MyAccount />} />
+    <Route path="/ilaw-lesson-plan" element={<ILAWLessonPlan />} />
     <Route path="/teacher-submission" element={<TeacherSubmission />} />
     <Route
       path="/principal-dashboard"

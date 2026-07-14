@@ -5,8 +5,8 @@ import {
   CheckCircle2,
   Download,
   FileText,
+  Languages,
   RotateCcw,
-  Sparkles,
   WandSparkles,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -16,6 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+
+type ILAWLanguage = "English" | "Filipino";
 
 type ILAWForm = {
   schoolDistrict: string;
@@ -28,6 +32,8 @@ type ILAWForm = {
   week: string;
   inclusiveDates: string;
   principal: string;
+  language: ILAWLanguage;
+  sessionCompetencies: string[];
 };
 
 type ILAWSession = {
@@ -46,7 +52,6 @@ type ILAWResult = {
   form: ILAWForm;
   generated: {
     references: string;
-    learningCompetency: string;
     learnerContext: string;
     sessions: ILAWSession[];
   };
@@ -58,6 +63,7 @@ type ILAWLessonPlanGeneratorProps = {
   defaultSchool?: string;
   defaultDistrict?: string;
   defaultPrincipalName?: string;
+  onCancel?: () => void;
 };
 
 const blankForm: ILAWForm = {
@@ -71,6 +77,8 @@ const blankForm: ILAWForm = {
   week: "",
   inclusiveDates: "",
   principal: "",
+  language: "English",
+  sessionCompetencies: ["", "", "", ""],
 };
 
 const previewSections: Array<{ key: keyof Omit<ILAWSession, "sessionNumber">; label: string }> = [
@@ -101,8 +109,8 @@ const ILAWLessonPlanGenerator = ({
   defaultSchool = "",
   defaultDistrict = "",
   defaultPrincipalName = "",
+  onCancel,
 }: ILAWLessonPlanGeneratorProps) => {
-  const [expanded, setExpanded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [activeSession, setActiveSession] = useState(0);
@@ -130,14 +138,40 @@ const ILAWLessonPlanGenerator = ({
     ].join("_");
   }, [form, result]);
 
-  const setField = (field: keyof ILAWForm, value: string) => {
+  const setField = (field: Exclude<keyof ILAWForm, "sessionCompetencies">, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
   };
 
+  const setSessionCompetency = (index: number, value: string) => {
+    setForm((current) => ({
+      ...current,
+      sessionCompetencies: current.sessionCompetencies.map((competency, itemIndex) =>
+        itemIndex === index ? value : competency,
+      ),
+    }));
+  };
+
   const handleGenerate = async () => {
-    const missing = Object.entries(form).filter(([, value]) => !value.trim());
-    if (missing.length > 0) {
-      toast.error("Complete every ILAW lesson-plan field before generating.");
+    const requiredTextFields: Array<Exclude<keyof ILAWForm, "language" | "sessionCompetencies">> = [
+      "schoolDistrict",
+      "lessonName",
+      "learningAreas",
+      "teachers",
+      "designedFor",
+      "gradeLevelSection",
+      "term",
+      "week",
+      "inclusiveDates",
+      "principal",
+    ];
+    const hasMissingDetails = requiredTextFields.some((field) => !form[field].trim());
+    const firstMissingSession = form.sessionCompetencies.findIndex((competency) => !competency.trim());
+    if (hasMissingDetails || firstMissingSession >= 0) {
+      toast.error(
+        firstMissingSession >= 0
+          ? `Enter the competency for Session ${firstMissingSession + 1}.`
+          : "Complete every ILAW lesson-plan field before generating.",
+      );
       return;
     }
 
@@ -151,7 +185,7 @@ const ILAWLessonPlanGenerator = ({
       if (!data?.generated?.sessions || data.generated.sessions.length !== 4) {
         throw new Error("The generator did not return a complete four-session lesson plan.");
       }
-      setResult(data as ILAWResult);
+      setResult({ ...(data as ILAWResult), form });
       setActiveSession(0);
       toast.success("Your ILAW lesson-plan preview is ready.");
     } catch (error) {
@@ -290,6 +324,7 @@ const ILAWLessonPlanGenerator = ({
           "Term / Week / Inclusive Dates",
           `${result.form.term} | ${result.form.week} | ${result.form.inclusiveDates}`,
         ),
+        metadataRow("Language", result.form.language),
         new TableRow({
           children: [
             makeCell(labelParagraphs("No. of Sessions"), { fill: "DDEBF7" }),
@@ -314,11 +349,27 @@ const ILAWLessonPlanGenerator = ({
             makeCell(
               labelParagraphs(
                 "Learning Competency",
-                "State the curriculum target and applicable content or performance expectation.",
+                "Teacher-provided curriculum target for each session.",
               ),
               { fill: "DDEBF7" },
             ),
-            makeCell(textParagraphs(result.generated.learningCompetency), { span: 4, width: cellWidth * 4 }),
+            ...result.form.sessionCompetencies.map((competency, index) =>
+              makeCell([
+                new Paragraph({
+                  spacing: { after: 35, line: 190 },
+                  children: [
+                    new TextRun({
+                      text: `Session ${index + 1}`,
+                      bold: true,
+                      font: "Arial",
+                      size: 16,
+                      color: "174E2A",
+                    }),
+                  ],
+                }),
+                ...textParagraphs(competency),
+              ]),
+            ),
           ],
         }),
         sessionRow(
@@ -432,7 +483,7 @@ const ILAWLessonPlanGenerator = ({
                 spacing: { after: 20 },
                 children: [
                   new TextRun({
-                    text: `${result.form.learningAreas} | ${result.form.gradeLevelSection} | ${result.form.term} | ${result.form.week}`,
+                    text: `${result.form.learningAreas} | ${result.form.gradeLevelSection} | ${result.form.term} | ${result.form.week} | ${result.form.language}`,
                     bold: true,
                     font: "Arial",
                     size: 20,
@@ -512,19 +563,7 @@ const ILAWLessonPlanGenerator = ({
         </div>
 
         <div className="p-6 sm:p-8">
-          {!expanded ? (
-            <div className="flex min-h-72 flex-col justify-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">ILAW lesson-plan template</p>
-              <h3 className="font-display mt-3 text-3xl font-semibold text-foreground">Plan four purposeful sessions at once.</h3>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground">
-                Enter the school, class, lesson, schedule, teacher, and principal details. AI will draft the competency, learning experience, assessments, and ways forward for your review.
-              </p>
-              <Button type="button" onClick={() => setExpanded(true)} className="mt-7 w-full gap-2 sm:w-fit">
-                <Sparkles className="h-4 w-4" aria-hidden="true" />
-                Generate ILAW Lesson Plan Template
-              </Button>
-            </div>
-          ) : loading ? (
+          {loading ? (
             <div className="flex min-h-[34rem] flex-col items-center justify-center text-center" role="status" aria-live="polite">
               <div className="relative flex h-36 w-36 items-center justify-center">
                 <motion.div
@@ -581,15 +620,16 @@ const ILAWLessonPlanGenerator = ({
                 <div><span className="text-muted-foreground">Designed by</span><p className="mt-1 font-medium text-foreground">{result.form.teachers}</p></div>
                 <div><span className="text-muted-foreground">Designed for</span><p className="mt-1 font-medium text-foreground">{result.form.designedFor}</p></div>
                 <div><span className="text-muted-foreground">Inclusive dates</span><p className="mt-1 font-medium text-foreground">{result.form.inclusiveDates}</p></div>
+                <div><span className="text-muted-foreground">Language</span><p className="mt-1 font-medium text-foreground">{result.form.language}</p></div>
                 <div className="sm:col-span-2"><span className="text-muted-foreground">School Head / Principal</span><p className="mt-1 font-medium text-foreground">{result.form.principal}</p></div>
               </div>
 
               <div className="mt-6 space-y-4">
                 <div>
-                <p className="text-sm font-semibold text-foreground">Learning competency</p>
-                <p className="mt-2 rounded-xl border border-[#bfd2e3] bg-[#eef5fb] p-4 text-sm leading-6 text-foreground">
-                  {result.generated.learningCompetency}
-                </p>
+                  <p className="text-sm font-semibold text-foreground">Session {session.sessionNumber} competency</p>
+                  <p className="mt-2 rounded-xl border border-[#bfd2e3] bg-[#eef5fb] p-4 text-sm leading-6 text-foreground">
+                    {result.form.sessionCompetencies[activeSession]}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-foreground">Learner context</p>
@@ -663,7 +703,7 @@ const ILAWLessonPlanGenerator = ({
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Lesson details</p>
                 <h3 className="font-display mt-2 text-3xl font-semibold text-foreground">Create your ILAW lesson plan</h3>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">Every field is required and will appear in the preview and DOCX.</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">Enter the lesson details, choose the output language, and provide a competency for every session.</p>
               </div>
 
               <div className="grid gap-5 sm:grid-cols-2">
@@ -709,8 +749,53 @@ const ILAWLessonPlanGenerator = ({
                 </div>
               </div>
 
+              <div className="space-y-3 border-t border-border pt-6">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Languages className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <Label htmlFor="ilaw-language" className="text-base font-semibold text-foreground">Lesson-plan language</Label>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">All AI-generated activities, assessments, and reflection prompts will use this language.</p>
+                  </div>
+                </div>
+                <Select value={form.language} onValueChange={(value) => setField("language", value as ILAWLanguage)}>
+                  <SelectTrigger id="ilaw-language" className="h-12 sm:max-w-sm" aria-label="Lesson-plan language">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="English">English</SelectItem>
+                    <SelectItem value="Filipino">Filipino</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <fieldset className="space-y-4 border-t border-border pt-6">
+                <legend className="font-display text-2xl font-semibold text-foreground">Session competencies</legend>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Enter the approved competency for each session. Competencies stay independent, so one session will never overwrite another.
+                </p>
+                <div className="grid gap-4 xl:grid-cols-2">
+                  {form.sessionCompetencies.map((competency, index) => (
+                    <div key={index} className="space-y-2 rounded-xl border border-border bg-muted/20 p-4">
+                      <Label htmlFor={`ilaw-session-${index + 1}`} className="font-semibold text-foreground">
+                        Session {index + 1} competency <span aria-hidden="true">*</span>
+                      </Label>
+                      <Textarea
+                        id={`ilaw-session-${index + 1}`}
+                        value={competency}
+                        onChange={(event) => setSessionCompetency(index, event.target.value)}
+                        placeholder={`Enter the exact competency for Session ${index + 1}`}
+                        rows={4}
+                        required
+                      />
+                    </div>
+                  ))}
+                </div>
+              </fieldset>
+
               <div className="flex flex-col-reverse gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
-                <Button type="button" variant="ghost" onClick={() => setExpanded(false)}>Cancel</Button>
+                <Button type="button" variant="ghost" onClick={onCancel}>Back to my account</Button>
                 <Button type="submit" className="gap-2 sm:min-w-64">
                   <WandSparkles className="h-4 w-4" aria-hidden="true" />
                   Generate four-session plan
