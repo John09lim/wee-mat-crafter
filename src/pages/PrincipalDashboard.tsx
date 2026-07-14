@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Download, CheckCircle, Users, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload, Share2, Copy, Printer, FileText, IdCard, Save } from "lucide-react";
+import { Download, CheckCircle, Users, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload, Share2, Copy, Printer, FileText, IdCard, Save, Pencil, X } from "lucide-react";
 import { SubmissionsReportModal } from "@/components/SubmissionsReportModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
@@ -46,6 +46,20 @@ interface PrincipalProfile {
   school_id?: string | null;
 }
 
+interface PrincipalAccountDraft {
+  teacher_name: string;
+  school: string;
+  district_name: string;
+  school_id: string;
+}
+
+const emptyPrincipalAccountDraft: PrincipalAccountDraft = {
+  teacher_name: "",
+  school: "",
+  district_name: "",
+  school_id: "",
+};
+
 interface ManagedTeacher {
   user_id: string;
   teacher_name: string;
@@ -74,8 +88,9 @@ export default function PrincipalDashboard() {
   const [supervisorInfo, setSupervisorInfo] = useState<SupervisorInfo | null>(null);
   const [displayMode, setDisplayMode] = useState<'text' | 'image'>('text');
   const [showReportModal, setShowReportModal] = useState(false);
-  const [schoolIdDraft, setSchoolIdDraft] = useState("");
-  const [savingSchoolId, setSavingSchoolId] = useState(false);
+  const [accountDraft, setAccountDraft] = useState<PrincipalAccountDraft>(emptyPrincipalAccountDraft);
+  const [isEditingAccount, setIsEditingAccount] = useState(false);
+  const [savingAccount, setSavingAccount] = useState(false);
 
   useEffect(() => {
     fetchSubmissions();
@@ -138,8 +153,14 @@ export default function PrincipalDashboard() {
         return;
       }
 
-      setProfile(profileData as PrincipalProfile);
-      setSchoolIdDraft(String(profileData.school_id || ""));
+      const principalProfile = profileData as PrincipalProfile;
+      setProfile(principalProfile);
+      setAccountDraft({
+        teacher_name: String(principalProfile.teacher_name || principalProfile.full_name || ""),
+        school: String(principalProfile.school || ""),
+        district_name: String(principalProfile.district_name || ""),
+        school_id: String(principalProfile.school_id || ""),
+      });
 
       // Fetch supervisor information
       const { data: schoolData } = await supabase
@@ -388,11 +409,35 @@ export default function PrincipalDashboard() {
     return `${year}-${month}-${day}`;
   };
 
-  const handleSaveSchoolId = async () => {
-    const normalizedSchoolId = schoolIdDraft
+  const resetAccountDraft = () => {
+    if (!profile) return;
+
+    setAccountDraft({
+      teacher_name: String(profile.teacher_name || profile.full_name || ""),
+      school: String(profile.school || ""),
+      district_name: String(profile.district_name || ""),
+      school_id: String(profile.school_id || ""),
+    });
+  };
+
+  const handleCancelAccountEdit = () => {
+    resetAccountDraft();
+    setIsEditingAccount(false);
+  };
+
+  const handleSaveAccount = async () => {
+    const principalName = accountDraft.teacher_name.trim();
+    const school = accountDraft.school.trim();
+    const districtName = accountDraft.district_name.trim();
+    const normalizedSchoolId = accountDraft.school_id
       .trim()
       .toLocaleUpperCase()
       .replace(/\s+/g, "");
+
+    if (!principalName || !school) {
+      toast.error("Principal name and school are required.");
+      return;
+    }
 
     if (!/^[A-Z0-9-]{4,20}$/.test(normalizedSchoolId)) {
       toast.error("Use 4–20 letters, numbers, or hyphens for the School ID.");
@@ -400,30 +445,47 @@ export default function PrincipalDashboard() {
     }
 
     try {
-      setSavingSchoolId(true);
+      setSavingAccount(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { error } = await supabase
+      const { data: updatedProfile, error } = await supabase
         .from("profiles")
-        .update({ school_id: normalizedSchoolId })
-        .eq("user_id", user.id);
+        .update({
+          teacher_name: principalName,
+          school,
+          district_name: districtName || null,
+          school_id: normalizedSchoolId,
+        })
+        .eq("user_id", user.id)
+        .select("*")
+        .single();
 
       if (error) {
         if (error.code === "23505") {
           throw new Error("That School ID is already assigned to another school.");
         }
+        if (error.code === "PGRST204" || error.message?.includes("school_id")) {
+          throw new Error("The School ID database update has not been installed yet. Apply the latest Supabase migration, then try again.");
+        }
         throw error;
       }
 
-      setSchoolIdDraft(normalizedSchoolId);
-      setProfile((current) => current ? { ...current, school_id: normalizedSchoolId } : current);
-      toast.success("School ID saved. Parents can now use it on their dashboard.");
+      const savedProfile = updatedProfile as PrincipalProfile;
+      setProfile(savedProfile);
+      setAccountDraft({
+        teacher_name: String(savedProfile.teacher_name || savedProfile.full_name || principalName),
+        school: String(savedProfile.school || school),
+        district_name: String(savedProfile.district_name || ""),
+        school_id: String(savedProfile.school_id || normalizedSchoolId),
+      });
+      setIsEditingAccount(false);
+      toast.success("Account information saved. Parents can use your School ID on their dashboard.");
     } catch (error: unknown) {
-      console.error("School ID update error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to save the School ID.");
+      console.error("Principal account update error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to save the account information.");
     } finally {
-      setSavingSchoolId(false);
+      setSavingAccount(false);
     }
   };
   const currentMondayKey = toLocalDateKey(currentMonday);
@@ -925,7 +987,7 @@ export default function PrincipalDashboard() {
       {/* Account Info Card */}
       {profile && (
         <Card className="order-6 mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-[0_10px_30px_rgba(20,32,25,0.06)] sm:p-6">
-          <div className="flex items-start gap-4">
+          <div className="flex flex-col items-start gap-5 sm:flex-row">
             <div className="relative">
               <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
                 {profile.profile_image_url ? (
@@ -957,63 +1019,150 @@ export default function PrincipalDashboard() {
                 disabled={uploadingProfile}
               />
             </div>
-            <div className="flex-1">
-              <h2 className="font-display mb-2 text-xl font-semibold text-[#173F2A]">
-                Account Information
-              </h2>
-              <div className="grid md:grid-cols-2 gap-3 text-sm">
+            <div className="w-full min-w-0 flex-1">
+              <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <span className="font-semibold">Name:</span> {profile.teacher_name}
+                  <h2 className="font-display text-xl font-semibold text-[#173F2A]">
+                    Account Information
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Keep your school details accurate for teachers, supervisors, and parents.
+                  </p>
                 </div>
-                <div>
-                  <span className="font-semibold">Email:</span> {profile.email}
-                </div>
-                <div>
-                  <span className="font-semibold">School:</span> {profile.school}
-                </div>
-                <div>
-                  <span className="font-semibold">District:</span> {profile.district_name || "N/A"}
-                </div>
+                {!isEditingAccount && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsEditingAccount(true)}
+                    className="h-11 gap-2 border-[#236130] text-[#173F2A] hover:bg-[#EAF1E6] sm:shrink-0"
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                    Edit information
+                  </Button>
+                )}
               </div>
-              <div className="mt-5 rounded-xl border border-[#D8D0C4] bg-[#F7F1E8] p-4">
-                <div className="flex items-start gap-3">
-                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#E3EBDD] text-[#236130]">
-                    <IdCard className="h-4 w-4" aria-hidden="true" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <Label htmlFor="principalSchoolId" className="font-semibold text-[#173F2A]">
-                      School ID
-                    </Label>
-                    <p id="principalSchoolIdHelp" className="mt-1 text-xs leading-5 text-muted-foreground">
-                      Share this ID with parents. It opens your school’s read-only submission dashboard.
-                    </p>
-                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+
+              {isEditingAccount ? (
+                <div className="rounded-xl border border-[#D8D0C4] bg-[#F7F1E8] p-4 sm:p-5">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="principalName">Principal name</Label>
+                      <Input
+                        id="principalName"
+                        value={accountDraft.teacher_name}
+                        onChange={(event) => setAccountDraft((current) => ({ ...current, teacher_name: event.target.value }))}
+                        placeholder="Enter the principal's full name"
+                        className="h-11 bg-[#FFFCF7]"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="principalEmail">Email</Label>
+                      <Input
+                        id="principalEmail"
+                        value={profile.email || ""}
+                        disabled
+                        className="h-11 bg-[#EEE9E1]"
+                      />
+                      <p className="text-xs text-muted-foreground">Your sign-in email cannot be changed here.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="principalSchool">School</Label>
+                      <Input
+                        id="principalSchool"
+                        value={accountDraft.school}
+                        onChange={(event) => setAccountDraft((current) => ({ ...current, school: event.target.value }))}
+                        placeholder="Enter the school name"
+                        className="h-11 bg-[#FFFCF7]"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="principalDistrict">District</Label>
+                      <Input
+                        id="principalDistrict"
+                        value={accountDraft.district_name}
+                        onChange={(event) => setAccountDraft((current) => ({ ...current, district_name: event.target.value }))}
+                        placeholder="Enter the district"
+                        className="h-11 bg-[#FFFCF7]"
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="principalSchoolId">School ID</Label>
                       <Input
                         id="principalSchoolId"
-                        value={schoolIdDraft}
-                        onChange={(event) => setSchoolIdDraft(event.target.value.toLocaleUpperCase())}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") void handleSaveSchoolId();
-                        }}
+                        value={accountDraft.school_id}
+                        onChange={(event) => setAccountDraft((current) => ({
+                          ...current,
+                          school_id: event.target.value.toLocaleUpperCase(),
+                        }))}
                         aria-describedby="principalSchoolIdHelp"
                         placeholder="e.g. 123456"
                         maxLength={20}
                         autoComplete="off"
-                        className="h-11 bg-[#FFFCF7] font-semibold tracking-[0.12em] sm:max-w-xs"
+                        className="h-11 bg-[#FFFCF7] font-semibold tracking-[0.12em] md:max-w-sm"
                       />
-                      <Button
-                        type="button"
-                        onClick={handleSaveSchoolId}
-                        disabled={savingSchoolId || !schoolIdDraft.trim()}
-                        className="h-11 gap-2 bg-[#236130] text-white hover:bg-[#173F2A]"
-                      >
-                        <Save className="h-4 w-4" aria-hidden="true" />
-                        {savingSchoolId ? "Saving…" : "Save School ID"}
-                      </Button>
+                      <p id="principalSchoolIdHelp" className="text-xs leading-5 text-muted-foreground">
+                        Use 4–20 letters, numbers, or hyphens. Parents enter this ID to open your school’s read-only dashboard.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCancelAccountEdit}
+                      disabled={savingAccount}
+                      className="h-11 gap-2"
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" />
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleSaveAccount}
+                      disabled={savingAccount}
+                      className="h-11 gap-2 bg-[#236130] text-white hover:bg-[#173F2A]"
+                    >
+                      <Save className="h-4 w-4" aria-hidden="true" />
+                      {savingAccount ? "Saving…" : "Save changes"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-x-8 gap-y-4 text-sm md:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Name</p>
+                    <p className="mt-1 font-medium text-[#173F2A]">{profile.teacher_name || profile.full_name || "Not provided"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">Email</p>
+                    <p className="mt-1 break-all font-medium text-[#173F2A]">{profile.email || "Not provided"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">School</p>
+                    <p className="mt-1 font-medium text-[#173F2A]">{profile.school || "Not provided"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">District</p>
+                    <p className="mt-1 font-medium text-[#173F2A]">{profile.district_name || "Not provided"}</p>
+                  </div>
+                  <div className="rounded-xl border border-[#C8D7C2] bg-[#EAF1E6] p-4 md:col-span-2">
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#236130]">
+                        <IdCard className="h-4 w-4" aria-hidden="true" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#41634A]">School ID</p>
+                        <p className="mt-1 break-all text-base font-semibold tracking-[0.08em] text-[#173F2A]">
+                          {profile.school_id || "Not set yet"}
+                        </p>
+                        {!profile.school_id && (
+                          <p className="mt-1 text-xs leading-5 text-[#41634A]">Select Edit information to create the ID parents will use.</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </Card>
