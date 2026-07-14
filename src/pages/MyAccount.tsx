@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import PasswordResetDialog from "@/components/PasswordResetDialog";
+import ILAWLessonPlanGenerator from "@/components/ILAWLessonPlanGenerator";
 
 interface UserProfile {
   teacher_name: string;
@@ -939,6 +940,15 @@ const MyAccount = () => {
               </div>
             )}
           </Card>
+        )}
+
+        {userRole === 'teacher' && (
+          <ILAWLessonPlanGenerator
+            defaultTeacherName={profile?.teacher_name}
+            defaultSchool={profile?.school}
+            defaultDistrict={profile?.district_name || ""}
+            defaultPrincipalName={selectedSchool?.principal_name}
+          />
         )}
         </div>
       </main>
