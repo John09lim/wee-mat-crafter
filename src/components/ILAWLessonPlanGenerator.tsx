@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
-  BookOpenCheck,
-  CheckCircle2,
   Download,
   FileText,
   Languages,
@@ -535,34 +533,8 @@ const ILAWLessonPlanGenerator = ({
   const session = result?.generated.sessions[activeSession];
 
   return (
-    <Card className="mt-8 overflow-hidden border-primary/20 bg-card shadow-[0_22px_65px_-48px_rgba(20,68,39,.72)]">
-      <div className="grid gap-0 lg:grid-cols-[0.78fr_1.22fr]">
-        <div className="relative overflow-hidden bg-primary p-7 text-primary-foreground sm:p-9">
-          <div className="absolute -right-14 -top-20 h-52 w-52 rounded-full border border-white/10" aria-hidden="true" />
-          <div className="absolute -bottom-24 -left-12 h-56 w-56 rounded-full bg-secondary/15 blur-2xl" aria-hidden="true" />
-          <div className="relative">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-secondary/50 bg-white/10 text-secondary">
-              <BookOpenCheck className="h-6 w-6" aria-hidden="true" />
-            </span>
-            <p className="mt-7 text-xs font-semibold uppercase tracking-[0.2em] text-secondary">New teacher tool</p>
-            <h2 className="font-display mt-3 text-3xl font-semibold leading-tight sm:text-4xl">
-              Generate an ILAW Lesson Plan Template.
-            </h2>
-            <p className="mt-4 max-w-md text-sm leading-7 text-primary-foreground/78">
-              Turn your class details into a four-session, classroom-ready lesson-plan draft modeled after the official ILAW matrix structure.
-            </p>
-            <div className="mt-8 space-y-3 text-sm text-primary-foreground/85">
-              {["Four connected learning sessions", "Reviewable preview before download", "Editable A4 landscape DOCX"].map((item) => (
-                <div key={item} className="flex items-center gap-3">
-                  <CheckCircle2 className="h-4 w-4 shrink-0 text-secondary" aria-hidden="true" />
-                  <span>{item}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="p-6 sm:p-8">
+    <Card className="overflow-hidden border-primary/20 bg-card shadow-[0_22px_65px_-48px_rgba(20,68,39,.72)]">
+      <div className="p-6 sm:p-8">
           {loading ? (
             <div className="flex min-h-[34rem] flex-col items-center justify-center text-center" role="status" aria-live="polite">
               <div className="relative flex h-36 w-36 items-center justify-center">
@@ -803,7 +775,6 @@ const ILAWLessonPlanGenerator = ({
               </div>
             </form>
           )}
-        </div>
       </div>
     </Card>
   );
