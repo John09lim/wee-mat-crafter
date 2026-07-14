@@ -7,6 +7,7 @@ import {
   ClipboardList,
   FileText,
   GraduationCap,
+  ListChecks,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -36,11 +37,21 @@ const generators = [
     id: "periodical-test",
     number: "03",
     icon: ClipboardList,
-    title: "Periodical Test & TOS",
-    description: "Configure an assessment draft with its accompanying Table of Specifications.",
+    title: "Summative Test & Term Examination",
+    description: "Generate the Table of Specifications, grade-appropriate test questions, and answer key in one editable package.",
     features: ["Question distribution", "Answer key", "Competency alignment"],
     route: "/premium/periodical-test",
-    action: "Create a test and TOS",
+    action: "Create an assessment package",
+  },
+  {
+    id: "quiz",
+    number: "04",
+    icon: ListChecks,
+    title: "Quiz",
+    description: "Create a focused, competency-aligned classroom quiz and teacher answer key.",
+    features: ["Up to 20 items", "Flexible question formats", "Answer key"],
+    route: "/premium/quiz",
+    action: "Create a quiz",
   },
 ];
 

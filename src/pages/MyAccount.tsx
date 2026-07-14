@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ArrowRight, BookOpenCheck, FileText, Send, Eye, Upload, Plus, User, School, Mail, Edit2, Save, X, CheckCircle, Clock, XCircle, Lock, LogOut } from "lucide-react";
+import { ArrowRight, BookOpenCheck, ClipboardCheck, FileText, ListChecks, Send, Eye, Upload, Plus, User, School, Mail, Edit2, Save, X, CheckCircle, Clock, XCircle, Lock, LogOut } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import PasswordResetDialog from "@/components/PasswordResetDialog";
+import AssessmentGeneratorDialog from "@/features/assessment-generator/AssessmentGeneratorDialog";
 
 interface UserProfile {
   teacher_name: string;
@@ -61,6 +62,7 @@ const MyAccount = () => {
   const [editedProfile, setEditedProfile] = useState<UserProfile | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
+  const [showAssessmentGenerator, setShowAssessmentGenerator] = useState(false);
   
   // Submission form state
   const [submitting, setSubmitting] = useState(false);
@@ -452,6 +454,10 @@ const MyAccount = () => {
       <PasswordResetDialog 
         open={showPasswordDialog} 
         onClose={() => setShowPasswordDialog(false)} 
+      />
+      <AssessmentGeneratorDialog
+        open={showAssessmentGenerator}
+        onOpenChange={setShowAssessmentGenerator}
       />
       
       <main className="min-h-[calc(100dvh-4rem)] bg-background py-8 sm:py-12">
@@ -958,6 +964,54 @@ const MyAccount = () => {
               <div className="border-t border-border p-6 lg:border-l lg:border-t-0 lg:p-8">
                 <Button type="button" onClick={() => navigate("/ilaw-lesson-plan")} className="h-12 w-full gap-2 lg:w-auto">
                   Open ILAW generator
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {userRole === 'teacher' && (
+          <Card className="mt-4 overflow-hidden border-primary/20 bg-card shadow-[0_22px_65px_-48px_rgba(20,68,39,.72)]">
+            <div className="grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+              <div className="flex gap-4 p-6 sm:p-8">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <ClipboardCheck className="h-6 w-6" aria-hidden="true" />
+                </span>
+                <div>
+                  <h2 className="font-display text-2xl font-semibold text-foreground sm:text-3xl">Generate a Summative Test or Term Examination</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                    Build grade-appropriate test parts, then generate the Table of Specifications, test questions, and answer key as one editable package.
+                  </p>
+                </div>
+              </div>
+              <div className="border-t border-border p-6 lg:border-l lg:border-t-0 lg:p-8">
+                <Button type="button" onClick={() => setShowAssessmentGenerator(true)} className="h-12 w-full gap-2 lg:w-auto">
+                  Open assessment generator
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {userRole === 'teacher' && (
+          <Card className="mt-4 overflow-hidden border-primary/20 bg-card shadow-[0_22px_65px_-48px_rgba(20,68,39,.72)]">
+            <div className="grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+              <div className="flex gap-4 p-6 sm:p-8">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <ListChecks className="h-6 w-6" aria-hidden="true" />
+                </span>
+                <div>
+                  <h2 className="font-display text-2xl font-semibold text-foreground sm:text-3xl">Generate a Quiz</h2>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                    Create a focused, competency-aligned quiz with your chosen question formats, item count, and a teacher-ready answer key.
+                  </p>
+                </div>
+              </div>
+              <div className="border-t border-border p-6 lg:border-l lg:border-t-0 lg:p-8">
+                <Button type="button" onClick={() => navigate("/premium/quiz")} className="h-12 w-full gap-2 lg:w-auto">
+                  Open quiz generator
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>

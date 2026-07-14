@@ -31,6 +31,7 @@ const WeeLMatGeneratorWeeLMat = lazy(() => import("./pages/WeeLMatGeneratorWeeLM
 const WeeLMatGeneratorPremium = lazy(() => import("./pages/WeeLMatGeneratorPremium"));
 const LessonPlanGenerator = lazy(() => import("./pages/LessonPlanGenerator"));
 const PeriodicalTestGenerator = lazy(() => import("./pages/PeriodicalTestGenerator"));
+const QuizGenerator = lazy(() => import("./pages/QuizGenerator"));
 const MyAccount = lazy(() => import("./pages/MyAccount"));
 const ILAWLessonPlan = lazy(() => import("./pages/ILAWLessonPlan"));
 const TeacherSubmission = lazy(() => import("./pages/TeacherSubmission"));
@@ -62,6 +63,7 @@ const AppRoutes = () => (
     <Route path="/premium/weelmat/result" element={<WeeLMatGeneratorWeeLMat />} />
     <Route path="/premium/lesson-plan" element={<LessonPlanGenerator />} />
     <Route path="/premium/periodical-test" element={<PeriodicalTestGenerator />} />
+    <Route path="/premium/quiz" element={<QuizGenerator />} />
     <Route path="/my-account" element={<MyAccount />} />
     <Route path="/ilaw-lesson-plan" element={<ILAWLessonPlan />} />
     <Route path="/teacher-submission" element={<TeacherSubmission />} />
