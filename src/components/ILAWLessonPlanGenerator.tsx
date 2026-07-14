@@ -402,7 +402,8 @@ const ILAWLessonPlanGenerator = ({
           {
             properties: {
               page: {
-                size: { width: 16838, height: 11906, orientation: PageOrientation.LANDSCAPE },
+                // docx swaps the supplied portrait dimensions when landscape is set.
+                size: { width: 11906, height: 16838, orientation: PageOrientation.LANDSCAPE },
                 margin: { top: 461, right: 461, bottom: 461, left: 461, header: 0, footer: 0, gutter: 0 },
               },
             },
