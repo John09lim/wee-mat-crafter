@@ -17,7 +17,7 @@ const routeLabels: Record<string, string> = {
   "/premium/weelmat": "Premium WeeLMat generator",
   "/premium/weelmat/result": "Premium WeeLMat result",
   "/premium/lesson-plan": "Lesson plan generator",
-  "/premium/periodical-test": "Periodical test generator",
+  "/premium/periodical-test": "Summative test and term examination generator",
   "/my-account": "My account",
   "/ilaw-lesson-plan": "ILAW lesson plan generator",
   "/teacher-submission": "Teacher submission",

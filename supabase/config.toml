@@ -1,1 +1,4 @@
 project_id = "jwpjdpdquywuyhbrgzku"
+
+[functions.get-parent-school-dashboard]
+verify_jwt = false

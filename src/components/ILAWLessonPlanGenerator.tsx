@@ -57,10 +57,8 @@ type ILAWResult = {
 };
 
 type ILAWLessonPlanGeneratorProps = {
-  defaultTeacherName?: string;
   defaultSchool?: string;
   defaultDistrict?: string;
-  defaultPrincipalName?: string;
   onCancel?: () => void;
 };
 
@@ -103,10 +101,8 @@ const formatParagraphText = (value: string) =>
     .filter(Boolean);
 
 const ILAWLessonPlanGenerator = ({
-  defaultTeacherName = "",
   defaultSchool = "",
   defaultDistrict = "",
-  defaultPrincipalName = "",
   onCancel,
 }: ILAWLessonPlanGeneratorProps) => {
   const [loading, setLoading] = useState(false);
@@ -120,10 +116,8 @@ const ILAWLessonPlanGenerator = ({
       ...current,
       schoolDistrict:
         current.schoolDistrict || [defaultSchool, defaultDistrict].filter(Boolean).join(", "),
-      teachers: current.teachers || defaultTeacherName,
-      principal: current.principal || defaultPrincipalName,
     }));
-  }, [defaultDistrict, defaultPrincipalName, defaultSchool, defaultTeacherName]);
+  }, [defaultDistrict, defaultSchool]);
 
   const filename = useMemo(() => {
     const source = result?.form ?? form;

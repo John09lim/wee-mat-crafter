@@ -5,9 +5,11 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Download, CheckCircle, Users, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload, Share2, Copy, Printer, FileText } from "lucide-react";
+import { Download, CheckCircle, Users, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload, Share2, Copy, Printer, FileText, IdCard, Save } from "lucide-react";
 import { SubmissionsReportModal } from "@/components/SubmissionsReportModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
@@ -41,6 +43,7 @@ interface PrincipalProfile {
   full_name?: string | null;
   email?: string | null;
   profile_image_url?: string | null;
+  school_id?: string | null;
 }
 
 interface ManagedTeacher {
@@ -71,6 +74,8 @@ export default function PrincipalDashboard() {
   const [supervisorInfo, setSupervisorInfo] = useState<SupervisorInfo | null>(null);
   const [displayMode, setDisplayMode] = useState<'text' | 'image'>('text');
   const [showReportModal, setShowReportModal] = useState(false);
+  const [schoolIdDraft, setSchoolIdDraft] = useState("");
+  const [savingSchoolId, setSavingSchoolId] = useState(false);
 
   useEffect(() => {
     fetchSubmissions();
@@ -134,6 +139,7 @@ export default function PrincipalDashboard() {
       }
 
       setProfile(profileData as PrincipalProfile);
+      setSchoolIdDraft(String(profileData.school_id || ""));
 
       // Fetch supervisor information
       const { data: schoolData } = await supabase
@@ -317,7 +323,7 @@ export default function PrincipalDashboard() {
 
       if (updateError) throw updateError;
 
-      setProfile({ ...profile, profile_image_url: publicUrl });
+      setProfile((current) => current ? { ...current, profile_image_url: publicUrl } : current);
       toast.success("Profile image updated successfully!");
     } catch (error: unknown) {
       console.error("Error:", error);
@@ -380,6 +386,45 @@ export default function PrincipalDashboard() {
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
+  };
+
+  const handleSaveSchoolId = async () => {
+    const normalizedSchoolId = schoolIdDraft
+      .trim()
+      .toLocaleUpperCase()
+      .replace(/\s+/g, "");
+
+    if (!/^[A-Z0-9-]{4,20}$/.test(normalizedSchoolId)) {
+      toast.error("Use 4–20 letters, numbers, or hyphens for the School ID.");
+      return;
+    }
+
+    try {
+      setSavingSchoolId(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ school_id: normalizedSchoolId })
+        .eq("user_id", user.id);
+
+      if (error) {
+        if (error.code === "23505") {
+          throw new Error("That School ID is already assigned to another school.");
+        }
+        throw error;
+      }
+
+      setSchoolIdDraft(normalizedSchoolId);
+      setProfile((current) => current ? { ...current, school_id: normalizedSchoolId } : current);
+      toast.success("School ID saved. Parents can now use it on their dashboard.");
+    } catch (error: unknown) {
+      console.error("School ID update error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to save the School ID.");
+    } finally {
+      setSavingSchoolId(false);
+    }
   };
   const currentMondayKey = toLocalDateKey(currentMonday);
 
@@ -928,6 +973,45 @@ export default function PrincipalDashboard() {
                 </div>
                 <div>
                   <span className="font-semibold">District:</span> {profile.district_name || "N/A"}
+                </div>
+              </div>
+              <div className="mt-5 rounded-xl border border-[#D8D0C4] bg-[#F7F1E8] p-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#E3EBDD] text-[#236130]">
+                    <IdCard className="h-4 w-4" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <Label htmlFor="principalSchoolId" className="font-semibold text-[#173F2A]">
+                      School ID
+                    </Label>
+                    <p id="principalSchoolIdHelp" className="mt-1 text-xs leading-5 text-muted-foreground">
+                      Share this ID with parents. It opens your school’s read-only submission dashboard.
+                    </p>
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                      <Input
+                        id="principalSchoolId"
+                        value={schoolIdDraft}
+                        onChange={(event) => setSchoolIdDraft(event.target.value.toLocaleUpperCase())}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") void handleSaveSchoolId();
+                        }}
+                        aria-describedby="principalSchoolIdHelp"
+                        placeholder="e.g. 123456"
+                        maxLength={20}
+                        autoComplete="off"
+                        className="h-11 bg-[#FFFCF7] font-semibold tracking-[0.12em] sm:max-w-xs"
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleSaveSchoolId}
+                        disabled={savingSchoolId || !schoolIdDraft.trim()}
+                        className="h-11 gap-2 bg-[#236130] text-white hover:bg-[#173F2A]"
+                      >
+                        <Save className="h-4 w-4" aria-hidden="true" />
+                        {savingSchoolId ? "Saving…" : "Save School ID"}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

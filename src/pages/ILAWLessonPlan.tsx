@@ -8,17 +8,13 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
 type GeneratorDefaults = {
-  teacherName: string;
   school: string;
   district: string;
-  principalName: string;
 };
 
 const emptyDefaults: GeneratorDefaults = {
-  teacherName: "",
   school: "",
   district: "",
-  principalName: "",
 };
 
 const ILAWLessonPlan = () => {
@@ -48,12 +44,12 @@ const ILAWLessonPlan = () => {
         const [profileResponse, assignmentResponse] = await Promise.all([
           supabase
             .from("profiles")
-            .select("teacher_name, school, district_name")
+            .select("school, district_name")
             .eq("user_id", user.id)
             .maybeSingle(),
           supabase
             .from("school_assignments")
-            .select("principal_name, school_name, district_name")
+            .select("school_name, district_name")
             .or(`user_id.eq.${user.id},teacher_email.ilike.${user.email || ""}`)
             .not("principal_id", "is", null)
             .limit(1)
@@ -66,10 +62,8 @@ const ILAWLessonPlan = () => {
         const profile = profileResponse.data;
         const assignment = assignmentResponse.data;
         setDefaults({
-          teacherName: profile?.teacher_name || user.user_metadata?.full_name || "",
           school: assignment?.school_name || profile?.school || "",
           district: assignment?.district_name || profile?.district_name || "",
-          principalName: assignment?.principal_name || "",
         });
       } catch (error) {
         console.error("Unable to load ILAW generator defaults", error);
@@ -118,10 +112,8 @@ const ILAWLessonPlan = () => {
           </div>
         ) : (
           <ILAWLessonPlanGenerator
-            defaultTeacherName={defaults.teacherName}
             defaultSchool={defaults.school}
             defaultDistrict={defaults.district}
-            defaultPrincipalName={defaults.principalName}
             onCancel={() => navigate("/my-account")}
           />
         )}
