@@ -1,9 +1,12 @@
-import { ArrowUpRight, Globe2, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Globe2 } from "lucide-react";
 
 const LEGACY_HOSTS = new Set([
   "weelmatgenerator.online",
   "www.weelmatgenerator.online",
 ]);
+
+export const isLegacyDomain = () =>
+  typeof window !== "undefined" && LEGACY_HOSTS.has(window.location.hostname.toLowerCase());
 
 const getNewDomainUrl = () => {
   const nextUrl = new URL(window.location.href);
@@ -13,58 +16,112 @@ const getNewDomainUrl = () => {
   return nextUrl.toString();
 };
 
+const AVAILABLE_TOOLS = [
+  "WeeLMat Generator",
+  "ILAW Lesson Plan Generator",
+  "Summative Test and Term Examination",
+  "Quiz Generator",
+];
+
 export const DomainMigrationNotice = () => {
-  if (typeof window === "undefined" || !LEGACY_HOSTS.has(window.location.hostname.toLowerCase())) {
+  if (!isLegacyDomain()) {
     return null;
   }
 
   return (
-    <aside
-      aria-label="WeeLMat Generator domain migration notice"
-      className="relative z-50 overflow-hidden border-b border-secondary/50 bg-forest text-primary-foreground shadow-header"
-    >
+    <main className="relative flex min-h-dvh items-center overflow-hidden bg-forest px-4 py-8 text-primary-foreground sm:px-6 sm:py-12">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,hsl(var(--secondary)/0.22),transparent_30%),radial-gradient(circle_at_88%_80%,hsl(var(--primary)/0.34),transparent_34%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_10%,hsl(var(--secondary)/0.22),transparent_32%),radial-gradient(circle_at_90%_90%,hsl(var(--primary)/0.38),transparent_38%)]"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-24 top-1/2 size-64 -translate-y-1/2 rounded-full border border-secondary/15 sm:size-96"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-20 top-12 size-48 rounded-full border border-paper/10 sm:size-72"
       />
 
-      <div className="container relative flex flex-col gap-4 py-4 sm:py-5 lg:flex-row lg:items-center lg:gap-6">
-        <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center sm:gap-4">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-full border border-secondary/50 bg-paper/10 text-secondary shadow-sm sm:size-12">
-            <Globe2 className="size-5 sm:size-6" aria-hidden="true" />
-          </span>
+      <section
+        aria-labelledby="migration-title"
+        className="relative mx-auto w-full max-w-5xl overflow-hidden rounded-2xl border border-paper/20 bg-paper text-foreground shadow-2xl sm:rounded-3xl"
+      >
+        <div className="grid lg:grid-cols-[1.35fr_0.65fr]">
+          <div className="px-6 py-8 sm:px-10 sm:py-12 lg:px-14 lg:py-16">
+            <div className="mb-10 flex items-center gap-3 sm:mb-14">
+              <img
+                src="/weelmat-logo.png"
+                alt="WeeLMat Generator"
+                className="h-12 w-auto rounded-lg object-contain sm:h-14"
+              />
+              <div className="border-l border-border pl-3">
+                <p className="font-display text-lg font-semibold leading-none text-forest">Generator</p>
+                <p className="mt-1 text-[0.65rem] font-bold uppercase tracking-[0.16em] text-secondary-foreground">
+                  Plan with clarity
+                </p>
+              </div>
+            </div>
 
-          <div className="min-w-0">
-            <p className="mb-1 flex items-center gap-2 text-[0.68rem] font-bold uppercase tracking-[0.18em] text-secondary">
-              <Sparkles className="size-3.5" aria-hidden="true" />
-              Important website update
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-secondary/30 bg-secondary/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-forest">
+              <Globe2 className="size-4 text-secondary-foreground" aria-hidden="true" />
+              Official website update
+            </div>
+
+            <h1
+              id="migration-title"
+              className="max-w-3xl font-display text-4xl font-semibold leading-[1.04] text-forest sm:text-5xl lg:text-6xl"
+            >
+              WeeLMat Generator has moved.
+            </h1>
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+              <strong className="font-semibold text-foreground">weelmatgenerator.online</strong> is
+              now a notice-only page. Sign-in, generation, dashboards, and submissions are available
+              exclusively at our new official website.
             </p>
-            <h2 className="font-display text-lg font-semibold leading-tight text-primary-foreground sm:text-xl">
-              WeeLMat Generator has moved to{" "}
-              <span className="whitespace-nowrap text-secondary">weelmatgenerator.com</span>
-            </h2>
-            <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-primary-foreground/75">
-              Visit our new official home for the latest WeeLMat, ILAW Lesson Plan, Summative Test,
-              Term Examination, and Quiz generators.
+
+            <div className="my-7 flex flex-col gap-2 rounded-xl border border-border bg-background/70 p-4 text-sm sm:my-8 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+              <span className="text-muted-foreground line-through">weelmatgenerator.online</span>
+              <ArrowRight className="size-4 rotate-90 text-secondary sm:rotate-0" aria-hidden="true" />
+              <span className="font-bold text-forest">weelmatgenerator.com</span>
+            </div>
+
+            <a
+              href={getNewDomainUrl()}
+              className="inline-flex min-h-14 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-forest px-6 py-3.5 text-base font-bold text-primary-foreground shadow-lg transition-colors duration-200 hover:bg-forest/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-4 sm:w-auto"
+            >
+              Continue to weelmatgenerator.com
+              <ArrowRight className="size-5" aria-hidden="true" />
+            </a>
+
+            <p className="mt-4 text-sm leading-relaxed text-muted-foreground">
+              Please update your bookmark to the new <strong>.com</strong> address.
             </p>
           </div>
-        </div>
 
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center lg:flex-col lg:items-end xl:flex-row">
-          <p className="text-xs text-primary-foreground/60">
-            <span className="line-through">weelmatgenerator.online</span>
-            <span className="mx-2 text-secondary" aria-hidden="true">to</span>
-            <span className="font-semibold text-primary-foreground">weelmatgenerator.com</span>
-          </p>
-          <a
-            href={getNewDomainUrl()}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-secondary bg-secondary px-4 py-2.5 text-sm font-bold text-secondary-foreground shadow-sm transition-colors hover:bg-secondary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper focus-visible:ring-offset-2 focus-visible:ring-offset-forest"
-          >
-            Go to the new website
-            <ArrowUpRight className="size-4" aria-hidden="true" />
-          </a>
+          <aside className="border-t border-forest/20 bg-forest px-6 py-8 text-primary-foreground sm:px-10 sm:py-10 lg:border-l lg:border-t-0 lg:px-9 lg:py-16">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-secondary">
+              Available on the new website
+            </p>
+            <h2 className="mt-3 font-display text-2xl font-semibold leading-tight sm:text-3xl">
+              All your teaching tools, in one official home.
+            </h2>
+            <ul className="mt-8 space-y-5" aria-label="Tools available on weelmatgenerator.com">
+              {AVAILABLE_TOOLS.map((tool) => (
+                <li key={tool} className="flex items-start gap-3 text-sm leading-relaxed text-primary-foreground/85">
+                  <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-secondary" aria-hidden="true" />
+                  <span>{tool}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-10 border-t border-paper/15 pt-6">
+              <p className="text-xs leading-relaxed text-primary-foreground/60">
+                The former website no longer accepts account access or document submissions.
+              </p>
+            </div>
+          </aside>
         </div>
-      </div>
-    </aside>
+      </section>
+    </main>
   );
 };

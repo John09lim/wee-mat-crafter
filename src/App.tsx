@@ -10,7 +10,10 @@ import {
 } from "@/components/layout/routeChrome";
 import { RolePinGate } from "@/components/RolePinGate";
 import { PageLoader } from "@/components/system/PageLoader";
-import { DomainMigrationNotice } from "@/components/system/DomainMigrationNotice";
+import {
+  DomainMigrationNotice,
+  isLegacyDomain,
+} from "@/components/system/DomainMigrationNotice";
 import { RouteChangeManager } from "@/components/system/RouteChangeManager";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -95,6 +98,14 @@ const App = () => {
   const showHeader = shouldRenderHeader(location.pathname);
   const showFooter = shouldRenderAppFooter(location.pathname);
 
+  if (isLegacyDomain()) {
+    return (
+      <MotionConfig reducedMotion="user">
+        <DomainMigrationNotice />
+      </MotionConfig>
+    );
+  }
+
   return (
     <MotionConfig reducedMotion="user">
       <QueryClientProvider client={queryClient}>
@@ -105,7 +116,6 @@ const App = () => {
             Skip to main content
           </a>
           <div className="flex min-h-dvh min-w-0 flex-col">
-            <DomainMigrationNotice />
             {showHeader ? <Header /> : null}
             <RouteChangeManager />
             <div id="main-content" className="min-w-0 flex-1" tabIndex={-1}>
