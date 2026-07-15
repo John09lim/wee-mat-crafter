@@ -5,9 +5,9 @@ const config: CapacitorConfig = {
   appName: "WeeLMat Generator",
   webDir: "dist",
   server: {
-    url: "https://weelmatgenerator.online",
+    url: "https://weelmatgenerator.com",
     cleartext: false,
-    allowNavigation: ["weelmatgenerator.online", "*.supabase.co"],
+    allowNavigation: ["weelmatgenerator.com", "*.supabase.co"],
   },
   android: {
     backgroundColor: "#f6f0e7",

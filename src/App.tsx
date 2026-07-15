@@ -10,6 +10,7 @@ import {
 } from "@/components/layout/routeChrome";
 import { RolePinGate } from "@/components/RolePinGate";
 import { PageLoader } from "@/components/system/PageLoader";
+import { DomainMigrationNotice } from "@/components/system/DomainMigrationNotice";
 import { RouteChangeManager } from "@/components/system/RouteChangeManager";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -104,6 +105,7 @@ const App = () => {
             Skip to main content
           </a>
           <div className="flex min-h-dvh min-w-0 flex-col">
+            <DomainMigrationNotice />
             {showHeader ? <Header /> : null}
             <RouteChangeManager />
             <div id="main-content" className="min-w-0 flex-1" tabIndex={-1}>
