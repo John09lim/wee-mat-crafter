@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { CheckCircle2, XCircle, Download } from "lucide-react";
+import { Download } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
@@ -13,9 +13,11 @@ import { normalizeTeacherName, normalizeWeekStart } from "@/lib/submissionTracki
 
 interface WeeklySubmissionSummaryProps {
   managedTeachers: Array<{
+    id?: string | null;
     user_id?: string | null;
     teacher_name: string;
     grade_level?: string | null;
+    section?: string | null;
   }>;
   submissions: Array<{
     user_id?: string | null;
@@ -25,13 +27,16 @@ interface WeeklySubmissionSummaryProps {
   schoolName?: string;
 }
 
+const SUMMARY_REPORTING_START = new Date(2026, 6, 13);
+const SUMMARY_REPORTING_START_LABEL = "July 13, 2026";
+
 export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolName }: WeeklySubmissionSummaryProps) {
   const [showDownloadDialog, setShowDownloadDialog] = useState(false);
   const [selectedWeekIndices, setSelectedWeekIndices] = useState<Set<number>>(new Set());
 
-  // School Year 2026-2027 begins on Monday, June 8, 2026.
+  // Weekly reporting for School Year 2026-2027 starts on Monday, July 13, 2026.
   const weeks = useMemo(() => {
-    const startDate = new Date(2026, 5, 8);
+    const startDate = new Date(SUMMARY_REPORTING_START);
     const today = new Date();
 
     const padZero = (n: number) => n.toString().padStart(2, '0');
@@ -278,7 +283,7 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
               Weekly Submission Summary
             </h3>
             <p className="mt-1 text-sm text-[#526159]">
-              School Year 2026–2027 • Reporting begins June 8, 2026 • {sortedTeachers.length} teachers • {weeks.length} weeks
+              School Year 2026–2027 • Reporting begins {SUMMARY_REPORTING_START_LABEL} • {sortedTeachers.length} teachers • {weeks.length} week{weeks.length === 1 ? "" : "s"}
             </p>
           </div>
           <Button
@@ -294,7 +299,10 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
         <div className="space-y-4 md:hidden" aria-label="Weekly submission summary by teacher">
           {sortedTeachers.map((teacher) => {
             return (
-              <article key={`mobile-${teacher.id || key}`} className="rounded-xl border border-[#D8D0C4] bg-white p-4">
+              <article
+                key={`mobile-${teacher.user_id || teacher.id || normalizeTeacherName(teacher.teacher_name)}`}
+                className="rounded-xl border border-[#D8D0C4] bg-white p-4"
+              >
                 <h4 className="font-semibold text-[#142019]">{teacher.teacher_name}</h4>
                 <p className="mt-1 text-sm text-[#526159]">{teacher.grade_level} · {teacher.section}</p>
                 <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -304,7 +312,10 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
                       <div key={index} className={`rounded-lg border p-2.5 ${submitted ? "border-[#B9D1BE] bg-[#EAF3EB]" : "border-[#E0B8AE] bg-[#FAECE8]"}`}>
                         <p className="text-xs font-semibold tabular-nums text-[#526159]">{week.label}</p>
                         <p className={`mt-1 flex items-center gap-1.5 text-xs font-bold ${submitted ? "text-[#17613A]" : "text-[#A83224]"}`}>
-                          {submitted ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : <XCircle className="h-4 w-4" aria-hidden="true" />}
+                          <span
+                            className={`h-4 w-4 shrink-0 rounded-[3px] ${submitted ? "bg-[#17613A]" : "bg-[#A83224]"}`}
+                            aria-hidden="true"
+                          />
                           {submitted ? "Submitted" : "Missing"}
                         </p>
                       </div>
@@ -335,7 +346,10 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
               <TableBody>
                 {sortedTeachers.map((teacher) => {
                   return (
-                    <TableRow key={teacher.id || key} className="hover:bg-[#FAF7F1]">
+                    <TableRow
+                      key={teacher.user_id || teacher.id || normalizeTeacherName(teacher.teacher_name)}
+                      className="hover:bg-[#FAF7F1]"
+                    >
                       <TableCell className="sticky left-0 z-10 border-r border-[#D8D0C4] bg-[#FFFCF7] text-sm font-medium">
                         <div>{teacher.teacher_name}</div>
                         <div className="text-xs text-muted-foreground">{teacher.grade_level} - {teacher.section}</div>
@@ -344,11 +358,12 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
                         const submitted = hasTeacherWeek(teacher, week.weekStart);
                         return (
                           <TableCell key={i} className="text-center px-2">
-                            {submitted ? (
-                              <CheckCircle2 className="mx-auto h-5 w-5 text-[#17613A]" aria-label="Submitted" />
-                            ) : (
-                              <XCircle className="mx-auto h-5 w-5 text-[#A83224]" aria-label="Missing" />
-                            )}
+                            <span
+                              className={`mx-auto block h-5 w-5 rounded-[3px] ${submitted ? "bg-[#17613A]" : "bg-[#A83224]"}`}
+                              role="img"
+                              aria-label={submitted ? "Submitted" : "Missing"}
+                              title={submitted ? "Submitted" : "Missing"}
+                            />
                           </TableCell>
                         );
                       })}
@@ -389,7 +404,7 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
               onCheckedChange={selectAllWeeks}
             />
             <label htmlFor="select-all" className="text-sm font-semibold cursor-pointer">
-              Select All ({weeks.length} weeks)
+              Select All ({weeks.length} week{weeks.length === 1 ? "" : "s"})
             </label>
           </div>
 
