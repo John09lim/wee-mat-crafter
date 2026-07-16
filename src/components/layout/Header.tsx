@@ -147,6 +147,7 @@ const Header = () => {
     if (userRole === "school_head") {
       return [
         { label: "My account", to: "/my-account" },
+        { label: "Teacher workspace", to: "/dashboard" },
         { label: "Principal workspace", to: "/principal-dashboard", primary: true },
       ];
     }

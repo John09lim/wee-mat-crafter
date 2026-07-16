@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Download, CheckCircle, Users, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload, Share2, Copy, Printer, FileText, IdCard, Save, Pencil, X } from "lucide-react";
+import { Download, CheckCircle, Users, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload, Share2, Copy, Printer, FileText, IdCard, Save, Pencil, X, BookOpenCheck } from "lucide-react";
+import { Link } from "react-router-dom";
 import { SubmissionsReportModal } from "@/components/SubmissionsReportModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
@@ -582,6 +583,9 @@ export default function PrincipalDashboard() {
           <p className="mt-3 max-w-2xl text-base leading-7 text-[#526159]">Review this week’s WeeLMat submissions, follow up on revisions, and keep your school’s reporting current.</p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <Button asChild variant="outline" className="min-h-12 border-[#236130] text-[#173F2A] hover:bg-[#E8EFE8]">
+            <Link to="/dashboard"><BookOpenCheck className="mr-2 h-4 w-4" />Teacher workspace</Link>
+          </Button>
           <Button asChild variant="outline" className="min-h-12 border-[#236130] text-[#173F2A] hover:bg-[#E8EFE8]">
             <a href="#manage-teachers"><Users className="mr-2 h-4 w-4" />Manage teachers</a>
           </Button>
