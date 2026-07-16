@@ -510,13 +510,13 @@ const WeeLMatGenerator = () => {
             <div className="flex items-start gap-4">
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground"><FileCheck2 className="h-6 w-6" aria-hidden="true" /></span>
               <div>
-              <h1 className="font-display text-3xl font-semibold text-foreground">Your WeeLMat draft is ready.</h1>
+              <h1 className="font-display text-2xl font-semibold leading-tight text-foreground sm:text-3xl">Your WeeLMat draft is ready.</h1>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
                 Preview below, then download or save to your files.
               </p>
               </div>
             </div>
-            <Button variant="outline" onClick={() => navigate("/dashboard")} className="gap-2">
+            <Button variant="outline" onClick={() => navigate("/dashboard")} className="w-full gap-2 sm:w-auto">
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               Back to creator
             </Button>
@@ -537,7 +537,7 @@ const WeeLMatGenerator = () => {
               </details>
             </div>
             
-            <div className="rounded-xl border border-border bg-[#fffdf9] p-4 sm:p-6">
+            <div className="rounded-xl border border-border bg-[#fffdf9] p-3 sm:p-6">
               <div className="text-center space-y-1 mb-4">
                 {values?.language === 'Filipino' ? (
                   <>
@@ -554,18 +554,22 @@ const WeeLMatGenerator = () => {
                 )}
               </div>
               {aiJson ? (
-                <div className="overflow-x-auto rounded-lg border border-border">
-                  <Table>
+                <div className="rounded-lg border border-border">
+                  <div className="flex items-start gap-2 border-b border-border bg-primary/5 px-3 py-2 text-xs leading-5 text-muted-foreground md:hidden" id="matrix-scroll-help">
+                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                    <span>Swipe horizontally to review Monday through Friday. The planning category stays visible.</span>
+                  </div>
+                  <Table aria-describedby="matrix-scroll-help" className="min-w-[920px]">
                     <caption className="sr-only">Generated Weekly Learning Matrix preview</caption>
                     <TableBody>
                       <TableRow>
-                        <TableCell className="text-xs min-w-[120px] font-semibold"></TableCell>
+                        <TableCell className="sticky left-0 z-20 min-w-[140px] bg-[#fffdf9] text-xs font-semibold"></TableCell>
                         {calculateWeekdayDates().map((date, i) => (
                          <TableCell key={i} className="min-w-[140px] whitespace-pre-line bg-primary text-center text-xs font-semibold text-primary-foreground">{date}</TableCell>
                         ))}
                       </TableRow>
                       <TableRow>
-                        <TableCell className="font-semibold text-xs min-w-[120px]">
+                        <TableCell className="sticky left-0 z-10 min-w-[140px] bg-[#fffdf9] text-xs font-semibold shadow-[1px_0_0_hsl(var(--border))]">
                           {values?.language === 'Filipino' ? 'Kompetensya' : 'Competency'}
                         </TableCell>
                         <TableCell className="min-w-[140px] break-words text-sm leading-6">{values?.mondayCompetency || ""}</TableCell>
@@ -575,7 +579,7 @@ const WeeLMatGenerator = () => {
                         <TableCell className="min-w-[140px] break-words text-sm leading-6">{values?.fridayCompetency || ""}</TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell className="font-semibold text-xs min-w-[120px]">
+                        <TableCell className="sticky left-0 z-10 min-w-[140px] bg-[#fffdf9] text-xs font-semibold shadow-[1px_0_0_hsl(var(--border))]">
                           {values?.language === 'Filipino' ? 'Mungkahing Materyales/Sanggunian' : 'Suggested Learning Material/Reference'}
                         </TableCell>
                         {dayKeys.map((d) => (
@@ -583,7 +587,7 @@ const WeeLMatGenerator = () => {
                         ))}
                       </TableRow>
                       <TableRow>
-                        <TableCell className="font-semibold text-xs min-w-[120px]">
+                        <TableCell className="sticky left-0 z-10 min-w-[140px] bg-[#fffdf9] text-xs font-semibold shadow-[1px_0_0_hsl(var(--border))]">
                           {values?.language === 'Filipino' ? 'Mga Gawain/Aktividad sa Pagkatuto' : 'Learning Activities/Tasks'}
                         </TableCell>
                         {dayKeys.map((d) => (
@@ -599,18 +603,18 @@ const WeeLMatGenerator = () => {
             </div>
 
             <div className="flex flex-col flex-wrap justify-end gap-3 border-t border-border pt-6 sm:flex-row">
-              <Button variant="outline" onClick={downloadEditedPdf} className="gap-2">
+              <Button variant="outline" onClick={downloadEditedPdf} className="w-full gap-2 sm:w-auto">
                 <Download className="h-4 w-4" aria-hidden="true" />
                 Download current preview as PDF
               </Button>
               <Button 
                 onClick={() => setShowDownloadModal(true)}
-                className="gap-2"
+                className="w-full gap-2 sm:w-auto"
               >
                 <Download className="h-4 w-4" aria-hidden="true" />
                 Download files
               </Button>
-              <Button variant="outline" onClick={handleGenerateLogSheet} className="gap-2">
+              <Button variant="outline" onClick={handleGenerateLogSheet} className="w-full gap-2 sm:w-auto">
                 <ClipboardList className="h-4 w-4" aria-hidden="true" />
                 Generate Log Sheet
               </Button>
@@ -627,7 +631,7 @@ const WeeLMatGenerator = () => {
                   },
                 })}
                 variant="secondary"
-                className="gap-2"
+                className="w-full gap-2 sm:w-auto"
               >
                 <Send className="h-4 w-4" aria-hidden="true" />
                 Submit a WeeLMat

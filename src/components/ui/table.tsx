@@ -7,7 +7,7 @@ const Table = React.forwardRef<
   React.HTMLAttributes<HTMLTableElement>
 >(({ className, ...props }, ref) => (
   <div
-    className="relative w-full max-w-full overflow-x-auto overscroll-x-contain rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    className="relative w-full max-w-full touch-pan-x overflow-x-auto overscroll-x-contain rounded-lg [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     role="region"
     aria-label="Scrollable table"
     tabIndex={0}

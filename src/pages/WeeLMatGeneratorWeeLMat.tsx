@@ -12,6 +12,7 @@ import {
   FileSpreadsheet,
   FileText,
   Image as ImageIcon,
+  Info,
   LoaderCircle,
   Palette,
   Send,
@@ -555,7 +556,7 @@ const WeeLMatGeneratorWeeLMat = () => {
                 {isPremium ? <Sparkles aria-hidden="true" className="h-4 w-4" /> : <CheckCircle2 aria-hidden="true" className="h-4 w-4" />}
                 {isPremium ? "Premium generation complete" : "Generation complete"}
               </p>
-              <h1 className="mt-3 font-serif text-3xl font-semibold sm:text-4xl">Your WeeLMat is ready</h1>
+              <h1 className="mt-3 font-serif text-2xl font-semibold leading-tight sm:text-4xl">Your WeeLMat is ready</h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-paper/75 sm:text-base">
                 Review the weekly matrix below, then download the right copy for teachers or
                 learners.
@@ -589,13 +590,13 @@ const WeeLMatGeneratorWeeLMat = () => {
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                  <Button className="gap-2 bg-forest text-paper hover:bg-primary" onClick={() => setShowDownloadModal(true)}>
+                  <Button className="w-full gap-2 bg-forest text-paper hover:bg-primary sm:w-auto" onClick={() => setShowDownloadModal(true)}>
                     <Download aria-hidden="true" className="h-4 w-4" />
                     Download DOCX
                   </Button>
                   {pdfUrl && (
                     <Button
-                      className="gap-2 border-warm-border bg-paper text-forest hover:bg-primary/5 hover:text-forest"
+                      className="w-full gap-2 border-warm-border bg-paper text-forest hover:bg-primary/5 hover:text-forest sm:w-auto"
                       onClick={() => void downloadFile(pdfUrl, buildFilename("pdf"))}
                       variant="outline"
                     >
@@ -604,7 +605,7 @@ const WeeLMatGeneratorWeeLMat = () => {
                     </Button>
                   )}
                   <Button
-                    className="gap-2 border border-secondary/45 bg-secondary/20 text-forest hover:bg-secondary/30"
+                    className="w-full gap-2 border border-secondary/45 bg-secondary/20 text-forest hover:bg-secondary/30 sm:w-auto"
                     onClick={() => navigate("/premium/lesson-plan")}
                     variant="secondary"
                   >
@@ -612,7 +613,7 @@ const WeeLMatGeneratorWeeLMat = () => {
                     Generate log sheet
                   </Button>
                   <Button
-                    className="gap-2 border border-secondary bg-secondary text-forest hover:bg-secondary/85"
+                    className="w-full gap-2 border border-secondary bg-secondary text-forest hover:bg-secondary/85 sm:w-auto"
                     onClick={() => navigate("/my-account#submit-weelmat", {
                       state: {
                         submissionDraft: {
@@ -660,13 +661,18 @@ const WeeLMatGeneratorWeeLMat = () => {
                   )}
                 </header>
 
-                <Table className="min-w-[860px]">
+                <div className="flex items-start gap-2 border-b border-warm-border bg-primary/5 px-4 py-3 text-xs leading-5 text-muted-foreground md:hidden" id="premium-matrix-scroll-help">
+                  <Info aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>Swipe horizontally to review Monday through Friday. The planning category stays visible.</span>
+                </div>
+
+                <Table aria-describedby="premium-matrix-scroll-help" className="min-w-[920px]">
                   <TableCaption className="sr-only">
                     Weekly competencies, learning references, activities, and answer keys from Monday through Friday.
                   </TableCaption>
                   <TableHeader>
                     <TableRow className="bg-forest hover:bg-forest">
-                      <TableHead className="min-w-40 border-r border-paper/15 text-xs font-semibold text-paper">
+                      <TableHead className="sticky left-0 z-20 min-w-40 border-r border-paper/15 bg-forest text-xs font-semibold text-paper">
                         Planning category
                       </TableHead>
                       {dayColumns.map((day) => (
@@ -678,7 +684,7 @@ const WeeLMatGeneratorWeeLMat = () => {
                   </TableHeader>
                   <TableBody>
                     <TableRow className="align-top">
-                      <TableCell className="border-r border-warm-border bg-cream/45 text-xs font-semibold text-forest">
+                      <TableCell className="sticky left-0 z-10 border-r border-warm-border bg-cream text-xs font-semibold text-forest">
                         {isFilipino ? "Kompetensya" : "Competency"}
                       </TableCell>
                       {dayColumns.map((day) => (
@@ -689,7 +695,7 @@ const WeeLMatGeneratorWeeLMat = () => {
                     </TableRow>
 
                     <TableRow className="align-top">
-                      <TableCell className="border-r border-warm-border bg-cream/45 text-xs font-semibold leading-5 text-forest">
+                      <TableCell className="sticky left-0 z-10 border-r border-warm-border bg-cream text-xs font-semibold leading-5 text-forest">
                         {isFilipino ? "Mungkahing materyales o sanggunian" : "Suggested learning material or reference"}
                       </TableCell>
                       {dayColumns.map((day) => (
@@ -700,7 +706,7 @@ const WeeLMatGeneratorWeeLMat = () => {
                     </TableRow>
 
                     <TableRow className="align-top">
-                      <TableCell className="border-r border-warm-border bg-cream/45 text-xs font-semibold leading-5 text-forest">
+                      <TableCell className="sticky left-0 z-10 border-r border-warm-border bg-cream text-xs font-semibold leading-5 text-forest">
                         <span className="flex items-center gap-2">
                           {Object.keys(pictureQuizImages).length > 0 && <ImageIcon aria-hidden="true" className="h-4 w-4 shrink-0 text-primary" />}
                           {isFilipino ? "Mga gawain at picture quiz" : "Learning activities and picture quiz"}
@@ -735,7 +741,7 @@ const WeeLMatGeneratorWeeLMat = () => {
 
                     {aiJson.answerKeys && Object.keys(aiJson.answerKeys).length > 0 && (
                       <TableRow className="bg-success/5 hover:bg-success/5">
-                        <TableCell className="border-r border-success/15 text-xs font-semibold text-success">
+                        <TableCell className="sticky left-0 z-10 border-r border-success/15 bg-[#f4faf4] text-xs font-semibold text-success">
                           {isFilipino ? "Sagot" : "Answer key"}
                         </TableCell>
                         {dayColumns.map((day) => (
