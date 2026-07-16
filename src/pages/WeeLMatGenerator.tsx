@@ -330,15 +330,41 @@ const WeeLMatGenerator = () => {
 
     const downloadEditedDocx = async () => {
       if (!aiJson || !values) return;
-      const { Document, Packer, Paragraph, Table: DocxTable, TableCell: DocxCell, TableRow: DocxRow, TextRun, WidthType } = await import("docx");
+      const {
+        Document,
+        Packer,
+        PageOrientation,
+        Paragraph,
+        Table: DocxTable,
+        TableCell: DocxCell,
+        TableRow: DocxRow,
+        TextRun,
+        WidthType,
+      } = await import("docx");
       const rows = [["", ...calculateWeekdayDates()], ...previewRows()].map((row, rowIndex) => new DocxRow({
         children: row.map((text) => new DocxCell({ children: [new Paragraph({ children: [new TextRun({ text, bold: rowIndex === 0 })] })] })),
       }));
-      const docxDocument = new Document({ sections: [{ children: [
-        new Paragraph({ children: [new TextRun({ text: values.language === "Filipino" ? "Lingguhang Matris ng Pagkatuto (WeeLMat)" : "Weekly Learning Matrix (WeeLMat)", bold: true, size: 30 })] }),
-        new Paragraph(`${values.subject} • ${values.gradeLevel} • ${values.section} • ${values.dateFrom} – ${values.dateTo}`),
-        new DocxTable({ width: { size: 100, type: WidthType.PERCENTAGE }, rows }),
-      ] }] });
+      const docxDocument = new Document({
+        sections: [{
+          properties: {
+            page: {
+              // A4 dimensions in twips. docx applies the landscape orientation
+              // while retaining the reference document's one-inch margins.
+              size: {
+                width: 11906,
+                height: 16838,
+                orientation: PageOrientation.LANDSCAPE,
+              },
+              margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
+            },
+          },
+          children: [
+            new Paragraph({ children: [new TextRun({ text: values.language === "Filipino" ? "Lingguhang Matris ng Pagkatuto (WeeLMat)" : "Weekly Learning Matrix (WeeLMat)", bold: true, size: 30 })] }),
+            new Paragraph(`${values.subject} • ${values.gradeLevel} • ${values.section} • ${values.dateFrom} – ${values.dateTo}`),
+            new DocxTable({ width: { size: 100, type: WidthType.PERCENTAGE }, rows }),
+          ],
+        }],
+      });
       const blob = await Packer.toBlob(docxDocument);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
