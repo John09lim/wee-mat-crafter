@@ -14,6 +14,16 @@ import { supabase } from "@/integrations/supabase/client";
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;
 
+const resolveTeacherPortalDestination = async (userId: string) => {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId);
+
+  if (error) return "/my-account";
+  return data?.some(({ role }) => role === "school_head") ? "/dashboard" : "/my-account";
+};
+
 const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,7 +50,11 @@ const Auth = () => {
       }
 
       if (session?.user && !showPasswordResetDialog) {
-        navigate("/my-account");
+        window.setTimeout(() => {
+          void resolveTeacherPortalDestination(session.user.id).then((destination) => {
+            navigate(destination);
+          });
+        }, 0);
       }
     });
 
@@ -59,7 +73,11 @@ const Auth = () => {
         });
     } else {
       supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user && !showPasswordResetDialog) navigate("/my-account");
+        if (session?.user && !showPasswordResetDialog) {
+          void resolveTeacherPortalDestination(session.user.id).then((destination) => {
+            navigate(destination);
+          });
+        }
       });
     }
 
@@ -120,6 +138,20 @@ const Auth = () => {
           return;
         }
 
+        const { data: accountRoles, error: rolesError } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id);
+
+        if (rolesError) throw rolesError;
+
+        const isPrincipal = accountRoles?.some(({ role }) => role === "school_head");
+        if (isPrincipal) {
+          toast.success("Welcome! Opening the teacher workspace with your principal account.");
+          navigate("/dashboard");
+          return;
+        }
+
         const { data: profile } = await supabase
           .from("profiles")
           .select("*")
@@ -172,14 +204,9 @@ const Auth = () => {
           toast.success(`Welcome! You've been linked to ${assignmentMatch.school_name}!`);
         }
 
-        const { data: roleData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", data.user.id)
-          .eq("role", "teacher")
-          .maybeSingle();
+        const hasTeacherRole = accountRoles?.some(({ role }) => role === "teacher");
 
-        if (!roleData) {
+        if (!hasTeacherRole) {
           const { error: roleError } = await supabase
             .from("user_roles")
             .insert({ user_id: data.user.id, role: "teacher" });

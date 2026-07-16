@@ -21,6 +21,7 @@ import {
   History,
   Loader2,
   LogOut,
+  ShieldCheck,
   Sparkles,
   Upload,
   UserRound,
@@ -120,6 +121,8 @@ const Dashboard = ({ isPremium = false }: DashboardProps) => {
   const [stepIndex, setStepIndex] = useState(0);
   const [showPasscodeDialog, setShowPasscodeDialog] = useState(false);
   const [passcodeVerified, setPasscodeVerified] = useState(false);
+  const [checkingWorkspaceAccess, setCheckingWorkspaceAccess] = useState(true);
+  const [usingPrincipalAccount, setUsingPrincipalAccount] = useState(false);
   const [matrixMode, setMatrixMode] = useState<"automatic" | "manual">("manual");
   const [activeDay, setActiveDay] = useState<PlanningDayPrefix>("monday");
   const [dailyCompetencies, setDailyCompetencies] = useState<Record<PlanningDayPrefix, string>>({
@@ -154,13 +157,40 @@ const Dashboard = ({ isPremium = false }: DashboardProps) => {
   }, [navigate]);
 
   useEffect(() => {
-    // Check if passcode is already verified
-    const isVerified = localStorage.getItem("dashboard_passcode_verified") === "true";
-    if (isVerified) {
-      setPasscodeVerified(true);
-    } else {
-      setShowPasscodeDialog(true);
-    }
+    let active = true;
+
+    const verifyWorkspaceAccess = async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!active) return;
+
+      if (authData.user) {
+        const { data: principalRole } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", authData.user.id)
+          .eq("role", "school_head")
+          .maybeSingle();
+
+        if (!active) return;
+        if (principalRole) {
+          setUsingPrincipalAccount(true);
+          setPasscodeVerified(true);
+          setShowPasscodeDialog(false);
+          setCheckingWorkspaceAccess(false);
+          return;
+        }
+      }
+
+      const isVerified = localStorage.getItem("dashboard_passcode_verified") === "true";
+      setPasscodeVerified(isVerified);
+      setShowPasscodeDialog(!isVerified);
+      setCheckingWorkspaceAccess(false);
+    };
+
+    void verifyWorkspaceAccess();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handlePasscodeVerified = () => {
@@ -414,6 +444,17 @@ const watchedValues = watch();
     toast.info("Upload cancelled. You can try uploading a different file.");
   };
 
+  if (checkingWorkspaceAccess) {
+    return (
+      <main className="flex min-h-[calc(100dvh-4rem)] items-center justify-center bg-background" aria-busy="true">
+        <div className="flex items-center gap-3 text-sm font-medium text-muted-foreground" role="status">
+          <Loader2 className="h-5 w-5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+          Checking workspace access…
+        </div>
+      </main>
+    );
+  }
+
   return (
     <>
       <PasscodeDialog 
@@ -472,6 +513,20 @@ const watchedValues = watch();
       {passcodeVerified && (
         <main className="min-h-[calc(100dvh-4rem)] bg-background py-8 sm:py-12">
           <div className="container max-w-7xl">
+            {usingPrincipalAccount ? (
+              <section className="mb-6 flex flex-col gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between" aria-label="Principal teacher workspace access">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+                  <div>
+                    <p className="font-semibold text-foreground">Teacher workspace opened with your principal account</p>
+                    <p className="mt-1 text-sm leading-6 text-muted-foreground">You can create and review your own WeeLMat here without changing your principal role.</p>
+                  </div>
+                </div>
+                <Button className="w-full shrink-0 sm:w-auto" variant="outline" onClick={() => navigate("/principal-dashboard")}>
+                  Principal workspace
+                </Button>
+              </section>
+            ) : null}
             <header className="mb-8 grid gap-6 border-b border-border pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
               <div className="flex items-start gap-4">
                 <span className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
