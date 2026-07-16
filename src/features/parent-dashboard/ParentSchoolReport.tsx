@@ -3,19 +3,14 @@ import {
   Download,
   Eye,
   FileText,
-  LockKeyhole,
   School,
   Users,
-  XCircle,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import type {
-  ParentSchoolDashboardData,
-  ParentTeacherStatus,
-} from "@/features/parent-dashboard/types";
+import type { ParentSchoolDashboardData } from "@/features/parent-dashboard/types";
 
 interface ParentSchoolReportProps {
   data: ParentSchoolDashboardData;
@@ -46,42 +41,7 @@ const formatStatus = (status: string) => {
   return status;
 };
 
-const TeacherRow = ({ teacher, submitted }: { teacher: ParentTeacherStatus; submitted: boolean }) => {
-  const Icon = submitted ? CheckCircle2 : XCircle;
-  const initials = teacher.teacher_name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toLocaleUpperCase();
-
-  return (
-    <li className="flex items-center gap-3 rounded-xl border border-[#DED5C8] bg-[#FFFCF7] p-3">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#E8EDE3] text-sm font-semibold text-[#1F5B34]">
-        {teacher.profile_image_url ? (
-          <img src={teacher.profile_image_url} alt="" className="h-full w-full object-cover" />
-        ) : (
-          initials || "T"
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold text-[#173F2A]">{teacher.teacher_name}</p>
-        <p className="truncate text-xs text-muted-foreground">
-          {[teacher.grade_level, teacher.section].filter(Boolean).join(" · ") || "Teacher"}
-        </p>
-      </div>
-      <Icon
-        className={`h-5 w-5 shrink-0 ${submitted ? "text-[#1F6A3A]" : "text-[#B43B2C]"}`}
-        aria-hidden="true"
-      />
-    </li>
-  );
-};
-
 export const ParentSchoolReport = ({ data, onChangeSchool }: ParentSchoolReportProps) => {
-  const submitted = data.teachers.filter((teacher) => teacher.submitted);
-  const pending = data.teachers.filter((teacher) => !teacher.submitted);
   const percentage = Math.min(100, Math.max(0, data.week.percentage));
 
   return (
@@ -141,64 +101,6 @@ export const ParentSchoolReport = ({ data, onChangeSchool }: ParentSchoolReportP
           </div>
         </div>
       </section>
-
-      <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-7">
-        <div className="flex flex-col justify-between gap-3 border-b border-[#DED5C8] pb-5 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#B48619]">Current week</p>
-            <h2 className="font-display mt-2 text-2xl font-semibold text-[#173F2A]">
-              This Week’s Teacher Submissions
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {formatWeek(data.week.week_start, data.week.week_end)}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <LockKeyhole className="h-4 w-4 text-[#236130]" aria-hidden="true" />
-            Read-only school report
-          </div>
-        </div>
-
-        {data.teachers.length === 0 ? (
-          <div className="py-10 text-center">
-            <Users className="mx-auto h-8 w-8 text-[#7D887F]" aria-hidden="true" />
-            <p className="mt-3 font-semibold text-[#173F2A]">No teachers are listed yet.</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              The school head can add teachers from the Principal Dashboard.
-            </p>
-          </div>
-        ) : (
-          <div className="mt-6 grid gap-6 lg:grid-cols-2">
-            <section aria-labelledby="parent-submitted-heading">
-              <div className="flex items-center gap-2 text-[#1F6A3A]">
-                <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-                <h3 id="parent-submitted-heading" className="font-semibold">Submitted ({submitted.length})</h3>
-              </div>
-              <ul className="mt-3 grid gap-2">
-                {submitted.length > 0 ? submitted.map((teacher) => (
-                  <TeacherRow key={`${teacher.teacher_name}-${teacher.grade_level}-${teacher.section}`} teacher={teacher} submitted />
-                )) : (
-                  <li className="rounded-xl border border-dashed border-[#DED5C8] p-5 text-sm text-muted-foreground">No submissions yet.</li>
-                )}
-              </ul>
-            </section>
-
-            <section aria-labelledby="parent-pending-heading">
-              <div className="flex items-center gap-2 text-[#A83224]">
-                <XCircle className="h-5 w-5" aria-hidden="true" />
-                <h3 id="parent-pending-heading" className="font-semibold">Not Yet Submitted ({pending.length})</h3>
-              </div>
-              <ul className="mt-3 grid gap-2">
-                {pending.length > 0 ? pending.map((teacher) => (
-                  <TeacherRow key={`${teacher.teacher_name}-${teacher.grade_level}-${teacher.section}`} teacher={teacher} submitted={false} />
-                )) : (
-                  <li className="rounded-xl border border-dashed border-[#9BC3A7] bg-[#F1F7F2] p-5 text-sm text-[#1F6A3A]">Everyone has submitted for this week.</li>
-                )}
-              </ul>
-            </section>
-          </div>
-        )}
-      </Card>
 
       <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-7">
         <div className="border-b border-[#DED5C8] pb-5">
