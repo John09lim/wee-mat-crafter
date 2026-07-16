@@ -750,19 +750,35 @@ export default function PrincipalDashboard() {
             })()})
           </h2>
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1 border rounded-md p-1">
+            <div
+              className="flex items-center gap-1 rounded-md border p-1"
+              role="group"
+              aria-label="Teacher submission display"
+            >
               <Button
+                type="button"
                 variant={displayMode === 'text' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setDisplayMode('text')}
+                aria-pressed={displayMode === 'text'}
+                data-testid="teacher-submissions-text-view"
+                onClick={(event) => {
+                  event.preventDefault();
+                  setDisplayMode('text');
+                }}
                 className="min-h-11 px-4 text-sm"
               >
                 Text
               </Button>
               <Button
+                type="button"
                 variant={displayMode === 'image' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setDisplayMode('image')}
+                aria-pressed={displayMode === 'image'}
+                data-testid="teacher-submissions-image-view"
+                onClick={(event) => {
+                  event.preventDefault();
+                  setDisplayMode('image');
+                }}
                 className="min-h-11 px-4 text-sm"
               >
                 Image
@@ -793,7 +809,14 @@ export default function PrincipalDashboard() {
             </Popover>
           </div>
         </div>
-        <div className="grid md:grid-cols-2 gap-6">
+        <span className="sr-only" aria-live="polite">
+          Showing teacher submissions in {displayMode} view.
+        </span>
+        <div
+          className="grid gap-6 md:grid-cols-2"
+          data-testid="teacher-submissions-view"
+          data-display-mode={displayMode}
+        >
           <div>
             <div className="flex items-center gap-2 mb-3">
               <CheckCircle2 className="h-5 w-5 text-green-600" />
