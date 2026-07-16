@@ -14,6 +14,7 @@ import {
   Image as ImageIcon,
   LoaderCircle,
   Palette,
+  Send,
   ShieldCheck,
   Sparkles,
   WandSparkles,
@@ -609,6 +610,24 @@ const WeeLMatGeneratorWeeLMat = () => {
                   >
                     <FileSpreadsheet aria-hidden="true" className="h-4 w-4" />
                     Generate log sheet
+                  </Button>
+                  <Button
+                    className="gap-2 border border-secondary bg-secondary text-forest hover:bg-secondary/85"
+                    onClick={() => navigate("/my-account#submit-weelmat", {
+                      state: {
+                        submissionDraft: {
+                          gradeLevel,
+                          section,
+                          subject,
+                          weekStart: dateFrom,
+                          weekEnd: dateTo,
+                        },
+                      },
+                    })}
+                    variant="secondary"
+                  >
+                    <Send aria-hidden="true" className="h-4 w-4" />
+                    Submit a WeeLMat
                   </Button>
                 </div>
               </div>

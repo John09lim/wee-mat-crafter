@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,6 +55,16 @@ interface SchoolOption {
 
 const MyAccount = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const submissionDraft = (location.state as {
+    submissionDraft?: Partial<{
+      gradeLevel: string;
+      section: string;
+      subject: string;
+      weekStart: string;
+      weekEnd: string;
+    }>;
+  } | null)?.submissionDraft;
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -72,11 +82,11 @@ const MyAccount = () => {
   const [selectedSchool, setSelectedSchool] = useState<SchoolOption | null>(null);
   const [formData, setFormData] = useState({
     teacherName: "",
-    gradeLevel: "",
-    section: "",
-    subject: "",
-    weekStart: "",
-    weekEnd: "",
+    gradeLevel: submissionDraft?.gradeLevel || "",
+    section: submissionDraft?.section || "",
+    subject: submissionDraft?.subject || "",
+    weekStart: submissionDraft?.weekStart || "",
+    weekEnd: submissionDraft?.weekEnd || "",
   });
 
   const handleLogout = async () => {
@@ -90,6 +100,14 @@ const MyAccount = () => {
     // Account bootstrap should run once; subsequent refreshes are triggered by successful mutations.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (!loading && location.hash === "#submit-weelmat") {
+      window.requestAnimationFrame(() => {
+        document.getElementById("submit-weelmat")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }, [loading, location.hash]);
 
   const checkAuthAndFetchData = async () => {
     try {
@@ -659,7 +677,7 @@ const MyAccount = () => {
             </button>
 
             {/* Submit WeeLMat Card */}
-            <Card className="border-border bg-card shadow-[0_18px_50px_-42px_rgba(20,32,25,.55)] lg:col-span-2">
+            <Card id="submit-weelmat" className="scroll-mt-28 border-border bg-card shadow-[0_18px_50px_-42px_rgba(20,32,25,.55)] lg:col-span-2">
               <CardHeader className="border-b border-border">
                 <CardTitle className="flex items-center gap-3">
                   <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">

@@ -589,12 +589,22 @@ const WeeLMatGenerator = () => {
                 Generate Log Sheet
               </Button>
               <Button 
-                onClick={() => navigate("/my-account")}
+                onClick={() => navigate("/my-account#submit-weelmat", {
+                  state: {
+                    submissionDraft: {
+                      gradeLevel: values?.gradeLevel || "",
+                      section: values?.section || "",
+                      subject: values?.subject || "",
+                      weekStart: values?.dateFrom || "",
+                      weekEnd: values?.dateTo || "",
+                    },
+                  },
+                })}
                 variant="secondary"
                 className="gap-2"
               >
                 <Send className="h-4 w-4" aria-hidden="true" />
-                Open my workspace
+                Submit a WeeLMat
               </Button>
             </div>
           </div>
