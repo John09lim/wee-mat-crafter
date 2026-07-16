@@ -7,50 +7,24 @@ import { toast } from "@/components/ui/sonner";
 import { WeeLMatDownloadModal } from "@/components/WeeLMatDownloadModal";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, ClipboardList, Download, FileCheck2, Info, Loader2, Send, ShieldCheck } from "lucide-react";
-
-// Form values passed from Dashboard
-type FormValues = {
-  subject: string;
-  gradeLevel: string;
-  section: string;
-  dateFrom: string;
-  dateTo: string;
-  mondayCompetency: string;
-  tuesdayCompetency: string;
-  wednesdayCompetency: string;
-  thursdayCompetency: string;
-  fridayCompetency: string;
-  mondayExamType: string;
-  tuesdayExamType: string;
-  wednesdayExamType: string;
-  thursdayExamType: string;
-  fridayExamType: string;
-  mondayQuestionCount: number;
-  tuesdayQuestionCount: number;
-  wednesdayQuestionCount: number;
-  thursdayQuestionCount: number;
-  fridayQuestionCount: number;
-  code?: string;
-  customInstructions?: string;
-  language?: string;
-};
+import { buildWeeLMatDocxBlob } from "@/lib/weelmatDocx";
+import { getActivePlanningDays, specialCompetencyForTask, type PlanningDayKey, type WeeLMatFormValues } from "@/lib/weelmatPlanning";
 
 interface GeneratedMatrixContent {
   references?: Record<string, string>;
   activities?: Record<string, string>;
+  pictureQuizImages?: Record<string, string>;
 }
-
-const dayKeys = ["mon", "tue", "wed", "thu", "fri"] as const;
 
 const logoUrl = "/weelmat-logo.png";
 
 const WeeLMatGenerator = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const initialValues = (location.state || null) as FormValues | null;
+  const initialValues = (location.state || null) as WeeLMatFormValues | null;
 
   // Store form values in state to preserve them after location.state clears
-  const [formValues, setFormValues] = useState<FormValues | null>(initialValues);
+  const [formValues, setFormValues] = useState<WeeLMatFormValues | null>(initialValues);
 
   const steps = useMemo(
     () => [
@@ -72,6 +46,8 @@ const WeeLMatGenerator = () => {
 
   // Use formValues throughout the component (preserved in state)
   const values = formValues;
+  const activeDayColumns = useMemo(() => getActivePlanningDays(values?.activeDays), [values?.activeDays]);
+  const activeDayKeys = useMemo(() => activeDayColumns.map(({ key }) => key), [activeDayColumns]);
 
   useEffect(() => {
     document.title = "WeeLMat Generator | WeeLMat";
@@ -187,52 +163,32 @@ const WeeLMatGenerator = () => {
     return `weelmat-${safe(values?.subject)}-${safe(values?.gradeLevel)}-${safe(values?.section)}-${values?.dateFrom || ""}-${values?.dateTo || ""}.${ext}`;
   };
 
-  // Calculate Monday-Friday dates in MM-DD-YYYY format
+  // Calculate labels only for the days the teacher kept in this WeeLMat.
   const calculateWeekdayDates = () => {
-    if (!values?.dateFrom || !values?.dateTo) {
-      const defaultDays = values?.language === 'Filipino' ? 
-        ["Lunes", "Martes", "Miyerkules", "Huwebes", "Biyernes"] :
-        ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-      return defaultDays;
-    }
-    
+    const fallback = activeDayColumns.map((day) => values?.language === "Filipino" ? day.filipino : day.day);
+    if (!values?.dateFrom || !values?.dateTo) return fallback;
     try {
       const startDate = new Date(values.dateFrom);
       const endDate = new Date(values.dateTo);
-      
-      // Find the Monday of the week containing startDate
       const monday = new Date(startDate);
       const dayOfWeek = monday.getDay();
-      const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Sunday = 0, Monday = 1
+      const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
       monday.setDate(monday.getDate() + daysToMonday);
-      
-      const weekdays = [];
-      const dayNames = values?.language === 'Filipino' ? 
-        ["Lunes", "Martes", "Miyerkules", "Huwebes", "Biyernes"] :
-        ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-      
-      for (let i = 0; i < 5; i++) {
+
+      return activeDayColumns.map((day) => {
         const currentDay = new Date(monday);
-        currentDay.setDate(monday.getDate() + i);
-        
-        // Check if the current day is within the date range
+        currentDay.setDate(monday.getDate() + day.offset);
+        const dayName = values?.language === "Filipino" ? day.filipino : day.day;
         if (currentDay >= startDate && currentDay <= endDate) {
           const month = String(currentDay.getMonth() + 1).padStart(2, '0');
-          const day = String(currentDay.getDate()).padStart(2, '0');
+          const date = String(currentDay.getDate()).padStart(2, '0');
           const year = currentDay.getFullYear();
-          // Format as "Day\nMM-DD-YYYY"
-          weekdays.push(`${dayNames[i]}\n${month}-${day}-${year}`);
-        } else {
-          weekdays.push(dayNames[i]);
+          return `${dayName}\n${month}-${date}-${year}`;
         }
-      }
-      
-      return weekdays;
+        return dayName;
+      });
     } catch (error) {
-      const defaultDays = values?.language === 'Filipino' ? 
-        ["Lunes", "Martes", "Miyerkules", "Huwebes", "Biyernes"] :
-        ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-      return defaultDays;
+      return fallback;
     }
   };
 
@@ -242,21 +198,18 @@ const WeeLMatGenerator = () => {
       return;
     }
 
-    // Validate required fields
-    const requiredFields = [
+    const requiredFields: Array<{ field: keyof WeeLMatFormValues; label: string }> = [
       { field: 'subject', label: 'Subject' },
       { field: 'gradeLevel', label: 'Grade Level' },
       { field: 'section', label: 'Section' },
-      { field: 'mondayCompetency', label: 'Monday competency' },
-      { field: 'tuesdayCompetency', label: 'Tuesday competency' },
-      { field: 'wednesdayCompetency', label: 'Wednesday competency' },
-      { field: 'thursdayCompetency', label: 'Thursday competency' },
-      { field: 'fridayCompetency', label: 'Friday competency' }
+      ...activeDayColumns
+        .filter(({ prefix }) => !specialCompetencyForTask(values[`${prefix}ExamType`]))
+        .map(({ day, prefix }) => ({ field: `${prefix}Competency` as keyof WeeLMatFormValues, label: `${day} competency` })),
     ];
 
     for (const { field, label } of requiredFields) {
-      if (!values[field as keyof FormValues]) {
-        toast("Please complete Subject, Grade, Section, and all five daily competencies before generating the Log Sheet.");
+      if (!values[field]) {
+        toast(`Please complete ${label} before generating the Log Sheet.`);
         return;
       }
     }
@@ -298,7 +251,7 @@ const WeeLMatGenerator = () => {
   };
 
   const Success = () => {
-    const updatePreviewCell = (group: "references" | "activities", day: typeof dayKeys[number], value: string) => {
+    const updatePreviewCell = (group: "references" | "activities", day: PlanningDayKey, value: string) => {
       setAiJson((current) => current ? {
         ...current,
         [group]: { ...(current[group] || {}), [day]: value },
@@ -306,11 +259,11 @@ const WeeLMatGenerator = () => {
     };
 
     const previewRows = () => {
-      const competencies = [values?.mondayCompetency, values?.tuesdayCompetency, values?.wednesdayCompetency, values?.thursdayCompetency, values?.fridayCompetency];
+      const competencies = activeDayColumns.map(({ prefix }) => values?.[`${prefix}Competency`] || "");
       return [
         [values?.language === "Filipino" ? "Kompetensya" : "Competency", ...competencies.map((item) => item || "")],
-        [values?.language === "Filipino" ? "Mungkahing Materyales/Sanggunian" : "Suggested Learning Material/Reference", ...dayKeys.map((day) => aiJson?.references?.[day] || "")],
-        [values?.language === "Filipino" ? "Mga Gawain/Aktividad sa Pagkatuto" : "Learning Activities/Tasks", ...dayKeys.map((day) => aiJson?.activities?.[day] || "")],
+        [values?.language === "Filipino" ? "Mungkahing Materyales/Sanggunian" : "Suggested Learning Material/Reference", ...activeDayKeys.map((day) => aiJson?.references?.[day] || "")],
+        [values?.language === "Filipino" ? "Mga Gawain/Aktividad sa Pagkatuto" : "Learning Activities/Tasks", ...activeDayKeys.map((day) => aiJson?.activities?.[day] || "")],
       ];
     };
 
@@ -330,42 +283,26 @@ const WeeLMatGenerator = () => {
 
     const downloadEditedDocx = async () => {
       if (!aiJson || !values) return;
-      const {
-        Document,
-        Packer,
-        PageOrientation,
-        Paragraph,
-        Table: DocxTable,
-        TableCell: DocxCell,
-        TableRow: DocxRow,
-        TextRun,
-        WidthType,
-      } = await import("docx");
-      const rows = [["", ...calculateWeekdayDates()], ...previewRows()].map((row, rowIndex) => new DocxRow({
-        children: row.map((text) => new DocxCell({ children: [new Paragraph({ children: [new TextRun({ text, bold: rowIndex === 0 })] })] })),
+      const logoResponse = await fetch(logoUrl);
+      const logoBytes = logoResponse.ok ? new Uint8Array(await logoResponse.arrayBuffer()) : undefined;
+      const imageEntries = await Promise.all(activeDayColumns.map(async ({ key }) => {
+        const imageUrl = aiJson.pictureQuizImages?.[key];
+        if (!imageUrl) return [key, undefined] as const;
+        try {
+          const response = await fetch(imageUrl);
+          return [key, response.ok ? new Uint8Array(await response.arrayBuffer()) : undefined] as const;
+        } catch {
+          return [key, undefined] as const;
+        }
       }));
-      const docxDocument = new Document({
-        sections: [{
-          properties: {
-            page: {
-              // A4 dimensions in twips. docx applies the landscape orientation
-              // while retaining the reference document's one-inch margins.
-              size: {
-                width: 11906,
-                height: 16838,
-                orientation: PageOrientation.LANDSCAPE,
-              },
-              margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
-            },
-          },
-          children: [
-            new Paragraph({ children: [new TextRun({ text: values.language === "Filipino" ? "Lingguhang Matris ng Pagkatuto (WeeLMat)" : "Weekly Learning Matrix (WeeLMat)", bold: true, size: 30 })] }),
-            new Paragraph(`${values.subject} • ${values.gradeLevel} • ${values.section} • ${values.dateFrom} – ${values.dateTo}`),
-            new DocxTable({ width: { size: 100, type: WidthType.PERCENTAGE }, rows }),
-          ],
-        }],
+      const blob = await buildWeeLMatDocxBlob({
+        values,
+        content: aiJson,
+        days: activeDayColumns,
+        dayLabels: calculateWeekdayDates(),
+        logoBytes,
+        imageBytes: Object.fromEntries(imageEntries),
       });
-      const blob = await Packer.toBlob(docxDocument);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -557,9 +494,9 @@ const WeeLMatGenerator = () => {
                 <div className="rounded-lg border border-border">
                   <div className="flex items-start gap-2 border-b border-border bg-primary/5 px-3 py-2 text-xs leading-5 text-muted-foreground md:hidden" id="matrix-scroll-help">
                     <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-                    <span>Swipe horizontally to review Monday through Friday. The planning category stays visible.</span>
+                    <span>Swipe horizontally to review the included school days. The planning category stays visible.</span>
                   </div>
-                  <Table aria-describedby="matrix-scroll-help" className="min-w-[920px]">
+                  <Table aria-describedby="matrix-scroll-help" className="min-w-[720px]">
                     <caption className="sr-only">Generated Weekly Learning Matrix preview</caption>
                     <TableBody>
                       <TableRow>
@@ -572,27 +509,36 @@ const WeeLMatGenerator = () => {
                         <TableCell className="sticky left-0 z-10 min-w-[140px] bg-[#fffdf9] text-xs font-semibold shadow-[1px_0_0_hsl(var(--border))]">
                           {values?.language === 'Filipino' ? 'Kompetensya' : 'Competency'}
                         </TableCell>
-                        <TableCell className="min-w-[140px] break-words text-sm leading-6">{values?.mondayCompetency || ""}</TableCell>
-                        <TableCell className="min-w-[140px] break-words text-sm leading-6">{values?.tuesdayCompetency || ""}</TableCell>
-                        <TableCell className="min-w-[140px] break-words text-sm leading-6">{values?.wednesdayCompetency || ""}</TableCell>
-                        <TableCell className="min-w-[140px] break-words text-sm leading-6">{values?.thursdayCompetency || ""}</TableCell>
-                        <TableCell className="min-w-[140px] break-words text-sm leading-6">{values?.fridayCompetency || ""}</TableCell>
+                        {activeDayColumns.map(({ key, prefix }) => (
+                          <TableCell key={key} className="min-w-[140px] break-words text-sm leading-6">{values?.[`${prefix}Competency`] || ""}</TableCell>
+                        ))}
                       </TableRow>
                       <TableRow>
                         <TableCell className="sticky left-0 z-10 min-w-[140px] bg-[#fffdf9] text-xs font-semibold shadow-[1px_0_0_hsl(var(--border))]">
                           {values?.language === 'Filipino' ? 'Mungkahing Materyales/Sanggunian' : 'Suggested Learning Material/Reference'}
                         </TableCell>
-                        {dayKeys.map((d) => (
-                         <TableCell key={d} className="min-w-[180px] p-2"><Textarea aria-label={`Edit ${d} reference`} value={aiJson?.references?.[d] || ""} onChange={(event) => updatePreviewCell("references", d, event.target.value)} className="min-h-28 resize-y bg-white text-sm leading-5" /></TableCell>
-                        ))}
+                        {activeDayColumns.map(({ key, prefix, day }) => {
+                          const special = specialCompetencyForTask(values?.[`${prefix}ExamType`]);
+                          return <TableCell key={key} className="min-w-[180px] p-2">{special ? <span className="text-sm font-semibold text-muted-foreground">{special}</span> : <Textarea aria-label={`Edit ${day} reference`} value={aiJson?.references?.[key] || ""} onChange={(event) => updatePreviewCell("references", key, event.target.value)} className="min-h-28 resize-y bg-white text-sm leading-5" />}</TableCell>;
+                        })}
                       </TableRow>
                       <TableRow>
                         <TableCell className="sticky left-0 z-10 min-w-[140px] bg-[#fffdf9] text-xs font-semibold shadow-[1px_0_0_hsl(var(--border))]">
                           {values?.language === 'Filipino' ? 'Mga Gawain/Aktividad sa Pagkatuto' : 'Learning Activities/Tasks'}
                         </TableCell>
-                        {dayKeys.map((d) => (
-                          <TableCell key={d} className="min-w-[240px] p-2"><Textarea aria-label={`Edit ${d} activity`} value={aiJson?.activities?.[d] || ""} onChange={(event) => updatePreviewCell("activities", d, event.target.value)} className="min-h-72 resize-y bg-white text-sm leading-5" /></TableCell>
-                        ))}
+                        {activeDayColumns.map(({ key, prefix, day }) => {
+                          const special = specialCompetencyForTask(values?.[`${prefix}ExamType`]);
+                          return (
+                            <TableCell key={key} className="min-w-[240px] p-2">
+                              {special ? <span className="text-sm font-semibold text-muted-foreground">{special}</span> : (
+                                <div className="space-y-2">
+                                  {aiJson.pictureQuizImages?.[key] && <img src={aiJson.pictureQuizImages[key]} alt={`${day} lesson visual`} className="mx-auto max-h-44 rounded-lg border border-border object-contain" />}
+                                  <Textarea aria-label={`Edit ${day} activity`} value={aiJson?.activities?.[key] || ""} onChange={(event) => updatePreviewCell("activities", key, event.target.value)} className="min-h-72 resize-y bg-white text-sm leading-5" />
+                                </div>
+                              )}
+                            </TableCell>
+                          );
+                        })}
                       </TableRow>
                     </TableBody>
                   </Table>

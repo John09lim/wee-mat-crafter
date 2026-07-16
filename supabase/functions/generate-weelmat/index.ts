@@ -15,6 +15,10 @@ import {
   Header,
   ImageRun,
   PageOrientation,
+  ShadingType,
+  TableLayoutType,
+  VerticalAlign,
+  Footer,
 } from "https://esm.sh/docx@8.5.0";
 import { PDFDocument, StandardFonts, rgb } from "https://esm.sh/pdf-lib@1.17.1";
 
@@ -29,6 +33,7 @@ const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const TAVILY_API_KEY = Deno.env.get("TAVILY_API_KEY");
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing Supabase environment variables");
@@ -76,28 +81,45 @@ serve(async (req) => {
       wednesdayQuestionCount,
       thursdayQuestionCount,
       fridayQuestionCount,
+      activeDays,
+      keyStage,
+      mondayInstructions,
+      tuesdayInstructions,
+      wednesdayInstructions,
+      thursdayInstructions,
+      fridayInstructions,
       code,
-      customInstructions,
       language,
       aiJsonOverride,
       existingMatrixId,
     } = requestBody;
 
-    // Enhanced validation with detailed logging
+    const allDayPlans = [
+      { day: "Monday", filipino: "Lunes", prefix: "monday", key: "mon", competency: mondayCompetency || "", examType: mondayExamType || "", questionCount: mondayQuestionCount, instructions: mondayInstructions || "" },
+      { day: "Tuesday", filipino: "Martes", prefix: "tuesday", key: "tue", competency: tuesdayCompetency || "", examType: tuesdayExamType || "", questionCount: tuesdayQuestionCount, instructions: tuesdayInstructions || "" },
+      { day: "Wednesday", filipino: "Miyerkules", prefix: "wednesday", key: "wed", competency: wednesdayCompetency || "", examType: wednesdayExamType || "", questionCount: wednesdayQuestionCount, instructions: wednesdayInstructions || "" },
+      { day: "Thursday", filipino: "Huwebes", prefix: "thursday", key: "thu", competency: thursdayCompetency || "", examType: thursdayExamType || "", questionCount: thursdayQuestionCount, instructions: thursdayInstructions || "" },
+      { day: "Friday", filipino: "Biyernes", prefix: "friday", key: "fri", competency: fridayCompetency || "", examType: fridayExamType || "", questionCount: fridayQuestionCount, instructions: fridayInstructions || "" },
+    ];
+    const normalizedActiveDays = Array.isArray(activeDays) && activeDays.length
+      ? allDayPlans.filter((plan) => activeDays.includes(plan.prefix)).map((plan) => plan.prefix)
+      : allDayPlans.map((plan) => plan.prefix);
+    const mondayToThursdayCompetencies = allDayPlans
+      .filter((plan) => plan.prefix !== "friday" && normalizedActiveDays.includes(plan.prefix))
+      .map((plan) => plan.competency.trim())
+      .filter((competency) => competency && competency !== "HOLIDAY" && competency !== "N/A (Not Applicable)");
+    const dailyFields = allDayPlans
+      .filter((plan) => normalizedActiveDays.includes(plan.prefix))
+      .map((plan) => plan.prefix === "friday" && plan.examType === "Summative Test"
+        ? { ...plan, competency: mondayToThursdayCompetencies.join(" | ") }
+        : plan);
+
     const requiredFields = [
       { name: 'subject', value: subject },
       { name: 'gradeLevel', value: gradeLevel },
       { name: 'section', value: section },
       { name: 'dateFrom', value: dateFrom },
       { name: 'dateTo', value: dateTo },
-    ];
-
-    const dailyFields = [
-      { day: 'Monday', competency: mondayCompetency, examType: mondayExamType, questionCount: mondayQuestionCount },
-      { day: 'Tuesday', competency: tuesdayCompetency, examType: tuesdayExamType, questionCount: tuesdayQuestionCount },
-      { day: 'Wednesday', competency: wednesdayCompetency, examType: wednesdayExamType, questionCount: wednesdayQuestionCount },
-      { day: 'Thursday', competency: thursdayCompetency, examType: thursdayExamType, questionCount: thursdayQuestionCount },
-      { day: 'Friday', competency: fridayCompetency, examType: fridayExamType, questionCount: fridayQuestionCount },
     ];
 
     console.log("Validating required fields:", requiredFields);
@@ -116,23 +138,18 @@ serve(async (req) => {
       );
     }
 
-    // Validate daily fields (allow HOLIDAY as special case)
+    const noGenerationTypes = ["HOLIDAY", "N/A (Not Applicable)"];
+    const itemBasedTypes = ["Identification", "Matching Type", "True/False", "Multiple Choice", "Essay", "Short-Answer Check", "Summative Test"];
+
+    // Validate only the days included by the teacher.
     const incompleteDays = dailyFields.filter(day => {
-      // For HOLIDAY exam type, only require examType and that competency is "HOLIDAY"
-      if (day.examType === "HOLIDAY") {
-        return !day.competency?.toString().trim() || 
-               day.competency?.toString().trim() !== "HOLIDAY" ||
-               !day.questionCount ||
-               typeof day.questionCount !== 'number';
+      if (!day.examType?.toString().trim()) return true;
+      if (noGenerationTypes.includes(day.examType)) return false;
+      if (!day.competency?.toString().trim()) return true;
+      if (itemBasedTypes.includes(day.examType)) {
+        return typeof day.questionCount !== "number" || day.questionCount < 3 || day.questionCount > 20;
       }
-      
-      // For other exam types, use normal validation
-      return !day.competency?.toString().trim() || 
-             !day.examType?.toString().trim() || 
-             !day.questionCount ||
-             typeof day.questionCount !== 'number' ||
-             day.questionCount < 3 || 
-             day.questionCount > 20;
+      return false;
     });
 
     if (incompleteDays.length > 0) {
@@ -145,8 +162,8 @@ serve(async (req) => {
             issues: [
               !day.competency?.toString().trim() ? 'missing competency' : null,
               !day.examType?.toString().trim() ? 'missing exam type' : null,
-              !day.questionCount ? 'missing question count' : null,
-              (typeof day.questionCount !== 'number' || day.questionCount < 3 || day.questionCount > 20) ? 'invalid question count (must be 3-20)' : null
+               itemBasedTypes.includes(day.examType) && !day.questionCount ? 'missing item count' : null,
+               itemBasedTypes.includes(day.examType) && (typeof day.questionCount !== 'number' || day.questionCount < 3 || day.questionCount > 20) ? 'invalid item count (must be 3-20)' : null
             ].filter(Boolean)
           }))
         }),
@@ -159,57 +176,6 @@ serve(async (req) => {
     if (!jwt) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Validate all daily inputs are provided
-    const days = ["monday", "tuesday", "wednesday", "thursday", "friday"];
-    const competencies = [mondayCompetency, tuesdayCompetency, wednesdayCompetency, thursdayCompetency, fridayCompetency];
-    const examTypes = [mondayExamType, tuesdayExamType, wednesdayExamType, thursdayExamType, fridayExamType];
-    const questionCounts = [mondayQuestionCount, tuesdayQuestionCount, wednesdayQuestionCount, thursdayQuestionCount, fridayQuestionCount];
-
-    // Enhanced validation with detailed error messages (allow HOLIDAY)
-    const missingCompetencies = competencies.map((c, i) => {
-      const examType = examTypes[i];
-      if (examType === "HOLIDAY") {
-        return (c?.trim() === "HOLIDAY") ? null : days[i];
-      }
-      return c?.trim() ? null : days[i];
-    }).filter(Boolean);
-    if (missingCompetencies.length > 0) {
-      return new Response(JSON.stringify({ 
-        error: `Missing competencies for: ${missingCompetencies.join(', ')}. Please complete all daily competencies.`
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const missingExamTypes = examTypes.map((e, i) => e ? null : days[i]).filter(Boolean);
-    if (missingExamTypes.length > 0) {
-      return new Response(JSON.stringify({ 
-        error: `Missing exam types for: ${missingExamTypes.join(', ')}. Please select exam types for all days.`
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const invalidQuestionCounts = questionCounts.map((q, i) => {
-      const examType = examTypes[i];
-      // For HOLIDAY, just check if questionCount exists
-      if (examType === "HOLIDAY") {
-        return (!q) ? `${days[i]} (${q || 'missing'})` : null;
-      }
-      // For other types, check normal range
-      return (!q || q < 3 || q > 20) ? `${days[i]} (${q || 'missing'})` : null;
-    }).filter(Boolean);
-    if (invalidQuestionCounts.length > 0) {
-      return new Response(JSON.stringify({ 
-        error: `Invalid question counts for: ${invalidQuestionCounts.join(', ')}. Each day must have 3-20 questions.`
-      }), {
-        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -228,34 +194,16 @@ serve(async (req) => {
       });
     }
 
-    // Store exact user inputs (read-only for AI)
-    const dailyPlan = {
-      Monday: {
-        competency: mondayCompetency.trim(),
-        examType: mondayExamType,
-        questionCount: mondayQuestionCount,
-      },
-      Tuesday: {
-        competency: tuesdayCompetency.trim(),
-        examType: tuesdayExamType,
-        questionCount: tuesdayQuestionCount,
-      },
-      Wednesday: {
-        competency: wednesdayCompetency.trim(),
-        examType: wednesdayExamType,
-        questionCount: wednesdayQuestionCount,
-      },
-      Thursday: {
-        competency: thursdayCompetency.trim(),
-        examType: thursdayExamType,
-        questionCount: thursdayQuestionCount,
-      },
-      Friday: {
-        competency: fridayCompetency.trim(),
-        examType: fridayExamType,
-        questionCount: fridayQuestionCount,
-      },
-    };
+    // Keep the teacher's included day sequence as the single source of truth.
+    const dailyPlanList = dailyFields.map((plan) => ({ ...plan, competency: plan.competency.trim() }));
+    const fallbackPlan = (day: string) => ({ day, filipino: day, prefix: day.toLowerCase(), key: day.slice(0, 3).toLowerCase(), competency: "", examType: "N/A (Not Applicable)", questionCount: 0, instructions: "" });
+    const dailyPlan = Object.assign(dailyPlanList, {
+      Monday: dailyPlanList.find((plan) => plan.day === "Monday") || fallbackPlan("Monday"),
+      Tuesday: dailyPlanList.find((plan) => plan.day === "Tuesday") || fallbackPlan("Tuesday"),
+      Wednesday: dailyPlanList.find((plan) => plan.day === "Wednesday") || fallbackPlan("Wednesday"),
+      Thursday: dailyPlanList.find((plan) => plan.day === "Thursday") || fallbackPlan("Thursday"),
+      Friday: dailyPlanList.find((plan) => plan.day === "Friday") || fallbackPlan("Friday"),
+    });
 
     // Step 1: Search (Tavily if available)
     let curatedSources: Array<{ title: string; url: string; note: string }> = [];
@@ -302,7 +250,18 @@ serve(async (req) => {
       ? curatedSources.map((source, index) => `${index + 1}. ${source.title}: ${source.note} (${source.url})`).join("\n")
       : "No verified web sources were returned. Stay strictly within the teacher-provided competencies and do not invent curriculum facts.";
 
-    // Create comprehensive system prompt for AI focused on Row 4 generation
+    const dailyPlanText = dailyPlan.map((plan) =>
+      `- ${plan.day}: "${plan.competency}" | Learning task: ${plan.examType}${itemBasedTypes.includes(plan.examType) ? ` | Items: ${plan.questionCount}` : ""}${plan.instructions ? ` | Teacher guidance: ${plan.instructions}` : ""}`
+    ).join("\n");
+    const responseTemplate = {
+      competency: Object.fromEntries(dailyPlan.map((plan) => [plan.key, plan.competency])),
+      references: Object.fromEntries(dailyPlan.map((plan) => [plan.key, noGenerationTypes.includes(plan.examType) ? plan.examType : `${subject} textbook, DepEd learning materials, curriculum guides`])),
+      activities: Object.fromEntries(dailyPlan.map((plan) => [plan.key, noGenerationTypes.includes(plan.examType)
+        ? plan.examType
+        : `Instructions/Directions: [Follow the exact teacher guidance and create a ${plan.examType} aligned with the competency.]\n\nExpected Output: [Concrete learner evidence]\nContingency: [Accessible alternative]`])),
+    };
+
+    // Create comprehensive system prompt for AI focused on aligned, manageable learning evidence.
     const systemPrompt = `You are an expert DepEd Philippines curriculum specialist creating Weekly Learning Matrix content.
 
 CRITICAL JSON FORMAT REQUIREMENTS:
@@ -311,12 +270,16 @@ CRITICAL JSON FORMAT REQUIREMENTS:
 3. Escape special characters properly (use \\n for newlines, \\" for quotes)
 4. NEVER modify the competency text provided
 5. Generate REAL questions - NO placeholders like "Option A, B, C, D"
-6. CREATE UNIQUE CONTENT FOR EACH DAY - Monday activities must differ from Tuesday, Wednesday, Thursday, and Friday
+6. CREATE UNIQUE CONTENT FOR EACH INCLUDED DAY
 7. Every question, direction, expected output, and reference MUST directly assess or teach that day's exact competency
 8. NEVER generate generic questions about the wording of a competency (for example, "Why is this competency important?")
 9. Use concrete lesson facts, examples, vocabulary, processes, people, places, texts, or problems appropriate to the stated subject and grade
 10. Before returning JSON, silently verify every activity against: subject, grade level, daily competency, assessment type, and question count
 11. If the competency is ambiguous, use the narrowest defensible interpretation and avoid unsupported factual claims
+12. Follow each day's Teacher guidance exactly; guidance for one day must never affect another day
+13. For N/A (Not Applicable) or HOLIDAY, return that exact phrase for competency, reference, and activity and generate nothing else
+14. Meaningful activity types must use authentic learner action and evidence, not convert the task into a paper-and-pencil quiz
+15. For Picture-Based Activity, include a concise, curriculum-aligned visual prompt inside the activity text
 
 LANGUAGE REQUIREMENTS:
 - Generate ALL content in ${effectiveLanguage}
@@ -324,18 +287,8 @@ LANGUAGE REQUIREMENTS:
 - Use appropriate educational language for ${gradeLevel} students
 - Follow DepEd curriculum standards for ${effectiveLanguage} instruction
 
-UNIQUENESS REQUIREMENTS:
-- Each day MUST have completely different questions and activities
-- Base questions specifically on each day's unique competency
-- Avoid repetitive patterns across days
-- Ensure Monday content is distinctly different from other days
-
 Daily Learning Plan (DO NOT MODIFY COMPETENCIES):
-- Monday: "${dailyPlan.Monday.competency}" | Exam: ${dailyPlan.Monday.examType} | Questions: ${dailyPlan.Monday.questionCount}
-- Tuesday: "${dailyPlan.Tuesday.competency}" | Exam: ${dailyPlan.Tuesday.examType} | Questions: ${dailyPlan.Tuesday.questionCount}
-- Wednesday: "${dailyPlan.Wednesday.competency}" | Exam: ${dailyPlan.Wednesday.examType} | Questions: ${dailyPlan.Wednesday.questionCount}
-- Thursday: "${dailyPlan.Thursday.competency}" | Exam: ${dailyPlan.Thursday.examType} | Questions: ${dailyPlan.Thursday.questionCount}
-- Friday: "${dailyPlan.Friday.competency}" | Exam: ${dailyPlan.Friday.examType} | Questions: ${dailyPlan.Friday.questionCount}
+${dailyPlanText}
 
 Context:
 - Subject: ${subject}
@@ -344,18 +297,25 @@ Context:
 - Section: ${section}
 - Date Range: ${dateFrom} to ${dateTo}
 ${code ? `- Curriculum Code: ${code}` : ""}
-${customInstructions ? `- Additional Instructions: ${customInstructions}` : ""}
+- Key Stage: ${keyStage || "Derived from grade level"}
 
 CURRICULUM RESEARCH CONTEXT:
 ${researchContext}
 
-EXAM TYPE REQUIREMENTS - CREATE REAL QUESTIONS IN ${effectiveLanguage}:
+ASSESSMENT REQUIREMENTS - CREATE REAL QUESTIONS IN ${effectiveLanguage} WHEN AN ITEM-BASED TASK IS SELECTED:
 - Multiple Choice: Real questions with factual options (A, B, C, D) - mark correct answer with *
 - Identification: Specific terms students should identify
 - Essay: Thought-provoking questions requiring analysis
 - True/False: Factual statements to evaluate
 - Matching Type: Two columns with real content to match
 - Performance Task: Authentic scenarios requiring demonstration
+- Short-Answer Check: Focused constructed responses with concise expected answers
+- Summative Test: Cumulative coverage of all supplied competencies; do not narrow it to only the final day
+
+MEANINGFUL ACTIVITY REQUIREMENTS:
+- Use hands-on, collaborative, inquiry, project, oral, visual, reflective, community, game-based, simulation, or multimedia learning as selected
+- Give concise directions, accessible materials, a clear learner product or performance, and observable evidence of learning
+- Keep tasks feasible for the grade level and available classroom context
 
 EXAMPLE Multiple Choice Format:
 1. What is the primary function of adjectives in Filipino grammar?
@@ -364,44 +324,18 @@ EXAMPLE Multiple Choice Format:
    C. To connect sentences together  
    D. To express emotions only
 
-Return EXACTLY this JSON structure:
-{
-  "competency": {
-    "mon": "${dailyPlan.Monday.competency}",
-    "tue": "${dailyPlan.Tuesday.competency}",
-    "wed": "${dailyPlan.Wednesday.competency}", 
-    "thu": "${dailyPlan.Thursday.competency}",
-    "fri": "${dailyPlan.Friday.competency}"
-  },
-  "references": {
-    "mon": "${subject} textbook, DepEd learning materials, K-12 curriculum guides",
-    "tue": "${subject} textbook, DepEd learning materials, K-12 curriculum guides",
-    "wed": "${subject} textbook, DepEd learning materials, K-12 curriculum guides",
-    "thu": "${subject} textbook, DepEd learning materials, K-12 curriculum guides",
-    "fri": "${subject} textbook, DepEd learning materials, K-12 curriculum guides"
-  },
-  "activities": {
-    "mon": "Instructions/Directions: [Real instructions]\\n\\nQuiz:\\n[${dailyPlan.Monday.questionCount} real ${dailyPlan.Monday.examType} questions]\\n\\nExpected Output: [Description]\\nContingency: [Backup plan]",
-    "tue": "Instructions/Directions: [Real instructions]\\n\\nQuiz:\\n[${dailyPlan.Tuesday.questionCount} real ${dailyPlan.Tuesday.examType} questions]\\n\\nExpected Output: [Description]\\nContingency: [Backup plan]",
-    "wed": "Instructions/Directions: [Real instructions]\\n\\nQuiz:\\n[${dailyPlan.Wednesday.questionCount} real ${dailyPlan.Wednesday.examType} questions]\\n\\nExpected Output: [Description]\\nContingency: [Backup plan]",
-    "thu": "Instructions/Directions: [Real instructions]\\n\\nQuiz:\\n[${dailyPlan.Thursday.questionCount} real ${dailyPlan.Thursday.examType} questions]\\n\\nExpected Output: [Description]\\nContingency: [Backup plan]",
-    "fri": "Instructions/Directions: [Real instructions]\\n\\nQuiz:\\n[${dailyPlan.Friday.questionCount} real ${dailyPlan.Friday.examType} questions]\\n\\nExpected Output: [Description]\\nContingency: [Backup plan]"
-  }
-}`;
+Return EXACTLY this JSON structure, using only the included day keys:
+${JSON.stringify(responseTemplate, null, 2)}`;
 
     // Step 2: AI Generation with prioritized API calls
     let aiJson: any = aiJsonOverride && typeof aiJsonOverride === "object" ? aiJsonOverride : null;
     let aiError: string | null = null;
 
-    // Check if any day is HOLIDAY - if so, skip AI and use HOLIDAY template
-    const hasHoliday = [mondayExamType, tuesdayExamType, wednesdayExamType, thursdayExamType, fridayExamType].includes("HOLIDAY");
-    console.log("Has HOLIDAY days:", hasHoliday);
-
-    // Try DeepSeek with retry logic (unless HOLIDAY)
+    // Try DeepSeek with retry logic. Special days are normalized after generation.
     const maxRetries = 3;
     let retryCount = 0;
     
-    if (DEEPSEEK_API_KEY && !aiJson && !hasHoliday) {
+    if (DEEPSEEK_API_KEY && !aiJson) {
       while (!aiJson && retryCount < maxRetries) {
         try {
           console.log(`Trying DeepSeek API (attempt ${retryCount + 1}/${maxRetries})...`);
@@ -479,18 +413,33 @@ Return EXACTLY this JSON structure:
 
     // Create subject-specific content even if DeepSeek fails
     if (!aiJson) {
-      console.log(hasHoliday ? "HOLIDAY detected, using HOLIDAY template" : "DeepSeek API failed, generating real content with fallback");
+      console.log("DeepSeek API failed, generating competency-aligned fallback content");
       
       const generateRealActivities = (day: string, plan: any) => {
-        // Handle HOLIDAY case
-        if (plan.examType === "HOLIDAY") {
-          return effectiveLanguage === 'Filipino' ? "Walang klase - Holiday" : "No class - Holiday";
+        if (noGenerationTypes.includes(plan.examType)) {
+          return plan.examType;
         }
         
         const count = plan.questionCount;
         const type = plan.examType;
         const competency = plan.competency;
         const subjectLower = subject.toLowerCase();
+        const teacherGuidance = plan.instructions?.trim()
+          ? `${effectiveLanguage === "Filipino" ? "Gabay ng Guro" : "Teacher Guidance"}: ${plan.instructions.trim()}\n\n`
+          : "";
+
+        if (!itemBasedTypes.includes(type)) {
+          const visualPrompt = type === "Picture-Based Activity"
+            ? `\n\n${effectiveLanguage === "Filipino" ? "Visual Prompt" : "Visual Prompt"}: Create one clear, age-appropriate educational illustration that directly represents “${competency}” without including the answer.`
+            : "";
+          return `${teacherGuidance}${effectiveLanguage === "Filipino" ? "Panuto/Mga Tagubilin" : "Instructions/Directions"}: Complete a ${type.toLowerCase()} that directly demonstrates “${competency}”. Use accessible classroom or home materials and follow the teacher guidance above.
+
+${effectiveLanguage === "Filipino" ? "Proseso ng Pagkatuto" : "Learning Process"}: Observe or review the lesson idea, complete the selected activity, explain the decisions made, and present or record evidence of learning.
+
+${effectiveLanguage === "Filipino" ? "Inaasahang Output" : "Expected Output"}: A concrete product, performance, explanation, record, or reflection that shows the competency.
+
+${effectiveLanguage === "Filipino" ? "Pamantayan" : "Success Criteria"}: Accurate content, clear connection to the competency, complete learner evidence, and appropriate effort.${visualPrompt}`;
+        }
         
         // Create competency-specific questions based on the actual competency text
         const createCompetencyBasedQuestions = () => {
@@ -710,7 +659,7 @@ Return EXACTLY this JSON structure:
           return questions;
         };
         
-        return `${effectiveLanguage === 'Filipino' ? 'Panuto/Mga Tagubilin:' : 'Instructions/Directions:'} ${effectiveLanguage === 'Filipino' ? 'Kumpletuhin ang sumusunod na' : 'Complete the following'} ${type.toLowerCase()} ${effectiveLanguage === 'Filipino' ? 'pagsusulit batay sa kompetensya ng' : 'assessment based on'} ${day}${effectiveLanguage === 'Filipino' ? '.' : "'s competency."}
+        return `${teacherGuidance}${effectiveLanguage === 'Filipino' ? 'Panuto/Mga Tagubilin:' : 'Instructions/Directions:'} ${effectiveLanguage === 'Filipino' ? 'Kumpletuhin ang sumusunod na' : 'Complete the following'} ${type.toLowerCase()} ${effectiveLanguage === 'Filipino' ? 'pagsusulit batay sa kompetensya ng' : 'assessment based on'} ${day}${effectiveLanguage === 'Filipino' ? '.' : "'s competency."}
 
 ${effectiveLanguage === 'Filipino' ? 'Pagsusulit:' : 'Quiz:'}
 ${createCompetencyBasedQuestions()}
@@ -719,43 +668,31 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
       };
 
       const generateReference = (plan: any) => {
-        return plan.examType === "HOLIDAY" ? 
-          (effectiveLanguage === 'Filipino' ? "Walang sanggunian na kailangan - Holiday" : "No references needed - Holiday") : 
+        return noGenerationTypes.includes(plan.examType) ? plan.examType :
           (effectiveLanguage === 'Filipino' ? `${subject} textbook, DepEd na materyales sa pagkatuto, K-12 curriculum guides` : `${subject} textbook, DepEd learning materials, K-12 curriculum guides`);
       };
 
       aiJson = {
-        competency: {
-          mon: dailyPlan.Monday.competency,
-          tue: dailyPlan.Tuesday.competency,
-          wed: dailyPlan.Wednesday.competency,
-          thu: dailyPlan.Thursday.competency,
-          fri: dailyPlan.Friday.competency,
-        },
-        references: {
-          mon: generateReference(dailyPlan.Monday),
-          tue: generateReference(dailyPlan.Tuesday),
-          wed: generateReference(dailyPlan.Wednesday),
-          thu: generateReference(dailyPlan.Thursday),
-          fri: generateReference(dailyPlan.Friday),
-        },
-        activities: {
-          mon: generateRealActivities("Monday", dailyPlan.Monday),
-          tue: generateRealActivities("Tuesday", dailyPlan.Tuesday),
-          wed: generateRealActivities("Wednesday", dailyPlan.Wednesday),
-          thu: generateRealActivities("Thursday", dailyPlan.Thursday),
-          fri: generateRealActivities("Friday", dailyPlan.Friday),
-        },
+        competency: Object.fromEntries(dailyPlan.map((plan) => [plan.key, plan.competency])),
+        references: Object.fromEntries(dailyPlan.map((plan) => [plan.key, generateReference(plan)])),
+        activities: Object.fromEntries(dailyPlan.map((plan) => [plan.key, generateRealActivities(plan.day, plan)])),
       };
     }
 
-    // Ensure competencies match exactly what user provided (never trust AI for this)
-    aiJson.competency = {
-      mon: dailyPlan.Monday.competency,
-      tue: dailyPlan.Tuesday.competency,
-      wed: dailyPlan.Wednesday.competency,
-      thu: dailyPlan.Thursday.competency,
-      fri: dailyPlan.Friday.competency,
+    aiJson.competency = Object.fromEntries(dailyPlan.map((plan) => [plan.key, plan.competency]));
+    aiJson.references = aiJson.references || {};
+    aiJson.activities = aiJson.activities || {};
+    dailyPlan.forEach((plan) => {
+      if (noGenerationTypes.includes(plan.examType)) {
+        aiJson.references[plan.key] = plan.examType;
+        aiJson.activities[plan.key] = plan.examType;
+      }
+    });
+    aiJson.planning = {
+      activeDays: normalizedActiveDays,
+      keyStage: keyStage || null,
+      dailyInstructions: Object.fromEntries(dailyPlan.map((plan) => [plan.key, plan.instructions || ""])),
+      learningTasks: Object.fromEntries(dailyPlan.map((plan) => [plan.key, plan.examType])),
     };
 
     // Step 3: Save to database
@@ -767,9 +704,11 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
         section,
         date_from: dateFrom,
         date_to: dateTo,
-        competency: `Mon: ${dailyPlan.Monday.competency}; Tue: ${dailyPlan.Tuesday.competency}; Wed: ${dailyPlan.Wednesday.competency}; Thu: ${dailyPlan.Thursday.competency}; Fri: ${dailyPlan.Friday.competency}`,
+        competency: dailyPlan.map((plan) => `${plan.day.slice(0, 3)}: ${plan.competency}`).join("; "),
         code: code || null,
-        custom_instructions: customInstructions || null,
+        custom_instructions: dailyPlan.some((plan) => plan.instructions)
+          ? JSON.stringify(Object.fromEntries(dailyPlan.map((plan) => [plan.key, plan.instructions || ""])))
+          : null,
         ai_json: aiJson,
       };
 
@@ -786,6 +725,43 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
     console.log("Matrix data saved successfully:", matrixData);
 
     const matrixId = matrixData?.id;
+
+    // Generate visuals only when the teacher explicitly selected a picture-based activity.
+    const pictureQuizImages: Record<string, string> = {};
+    const visualImageBuffers: Record<string, Uint8Array> = {};
+    if (LOVABLE_API_KEY) {
+      for (const plan of dailyPlan.filter((item) => item.examType === "Picture-Based Activity")) {
+        try {
+          const imageResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash-image-preview",
+              modalities: ["image", "text"],
+              messages: [{ role: "user", content: `Create one clean educational illustration for ${gradeLevel} ${subject}. It must directly support this competency: "${plan.competency}". Use the ${effectiveLanguage} language only when labels are essential. Do not put answers in the image. Make the visual inclusive, classroom-safe, readable on an A4 worksheet, and free of logos or watermarks. Teacher guidance: ${plan.instructions || "none"}.` }],
+            }),
+          });
+          if (!imageResponse.ok) continue;
+          const imageData = await imageResponse.json();
+          const dataUrl = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+          if (!dataUrl) continue;
+          const rawBase64 = dataUrl.replace(/^data:image\/\w+;base64,/, "");
+          const imageBuffer = Uint8Array.from(atob(rawBase64), (character) => character.charCodeAt(0));
+          const imagePath = `${userId}/lesson-visuals/${matrixId}-${plan.key}.png`;
+          const { error: visualUploadError } = await supabase.storage.from("weelmat").upload(imagePath, imageBuffer, { contentType: "image/png", upsert: true });
+          if (visualUploadError) continue;
+          const { data: publicImage } = supabase.storage.from("weelmat").getPublicUrl(imagePath);
+          pictureQuizImages[plan.key] = publicImage.publicUrl;
+          visualImageBuffers[plan.key] = imageBuffer;
+        } catch (imageError) {
+          console.error(`Picture-based activity image failed for ${plan.day}:`, imageError);
+        }
+      }
+    }
+    if (Object.keys(pictureQuizImages).length) {
+      aiJson.pictureQuizImages = pictureQuizImages;
+      await supabase.from("weelmat_matrices").update({ ai_json: aiJson }).eq("id", matrixId);
+    }
 
     // Function to extract answer key from quiz content
     const extractAnswerKey = (content: string): string[] => {
@@ -1391,12 +1367,114 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
 
     const studentDocxBuffer = await Packer.toBuffer(studentDoc);
 
+    // Branded A4 landscape output. This supersedes the legacy fixed five-column buffers above.
+    const resolvedKeyStage = keyStage || (
+      gradeLevel === "Kinder" || /^Grade [1-3]$/.test(gradeLevel) ? "KS1" :
+      /^Grade [4-6]$/.test(gradeLevel) ? "KS2" :
+      /^Grade (7|8|9|10)$/.test(gradeLevel) ? "KS3" :
+      /^Grade (11|12)$/.test(gradeLevel) ? "KS4" : ""
+    );
+    const keyStageLabel = resolvedKeyStage === "KS1" ? "Kinder to Grade 3" : resolvedKeyStage === "KS2" ? "Grades 4 to 6" : resolvedKeyStage === "KS3" ? "Grades 7 to 10" : resolvedKeyStage === "KS4" ? "Grades 11 to 12" : "";
+    let logoBuffer: Uint8Array | null = null;
+    const logoOrigins = [...new Set([req.headers.get("origin"), "https://weelmatgenerator.com"].filter(Boolean))] as string[];
+    for (const origin of logoOrigins) {
+      try {
+        const logoResponse = await fetch(`${origin}/weelmat-logo.png`);
+        if (logoResponse.ok) {
+          logoBuffer = new Uint8Array(await logoResponse.arrayBuffer());
+          break;
+        }
+      } catch (logoError) {
+        console.error(`WeeLMat logo could not be loaded from ${origin}:`, logoError);
+      }
+    }
+
+    const buildBrandedDocument = (studentVersion: boolean) => {
+      const forest = "173F2A";
+      const actionGreen = "236130";
+      const gold = "D6A73D";
+      const cream = "F6F0E7";
+      const paper = "FFFCF7";
+      const ink = "142019";
+      const borderColor = "D8D0C4";
+      const tableWidth = 15700;
+      const labelWidth = 2350;
+      const dayWidth = Math.floor((tableWidth - labelWidth) / Math.max(dailyPlanList.length, 1));
+      const border = { style: BorderStyle.SINGLE, size: 8, color: borderColor };
+      const borders = { top: border, bottom: border, left: border, right: border };
+      const cell = (children: Paragraph[], width = dayWidth, fill?: string, verticalAlign = VerticalAlign.TOP) => new TableCell({
+        children,
+        width: { size: width, type: WidthType.DXA },
+        borders,
+        margins: { top: 100, bottom: 100, left: 110, right: 110 },
+        shading: fill ? { type: ShadingType.CLEAR, color: "auto", fill } : undefined,
+        verticalAlign,
+      });
+      const textParagraphs = (text: string) => (text || " ").split(/\r?\n/).map((line) => new Paragraph({
+        children: [new TextRun({ text: line || " ", color: ink, size: 16, font: "Arial" })],
+        spacing: { after: 45, line: 235 },
+      }));
+      const labelCell = (text: string) => cell([new Paragraph({ children: [new TextRun({ text, bold: true, color: forest, size: 16, font: "Arial" })], spacing: { after: 0 } })], labelWidth, cream, VerticalAlign.CENTER);
+      const dayCellText = (plan: typeof dailyPlanList[number], group: "competency" | "references" | "activities") => {
+        if (noGenerationTypes.includes(plan.examType)) return plan.examType;
+        if (group === "competency") return plan.competency;
+        return aiJson?.[group]?.[plan.key] || "";
+      };
+      const activityCell = (plan: typeof dailyPlanList[number]) => {
+        const special = noGenerationTypes.includes(plan.examType);
+        const paragraphs = special
+          ? textParagraphs(plan.examType)
+          : studentVersion
+            ? parseActivityContentForStudent(aiJson?.activities?.[plan.key] || "")
+            : parseActivityContentWithAnswerKey(aiJson?.activities?.[plan.key] || "");
+        if (!special && visualImageBuffers[plan.key]) {
+          paragraphs.unshift(new Paragraph({ children: [new ImageRun({ data: visualImageBuffers[plan.key], transformation: { width: 150, height: 96 } })], alignment: AlignmentType.CENTER, spacing: { after: 90 } }));
+        }
+        return cell(paragraphs);
+      };
+      const metadataCell = (label: string, value: string, width: number) => cell([new Paragraph({ children: [new TextRun({ text: `${label}: `, bold: true, color: forest, size: 16, font: "Arial" }), new TextRun({ text: value || "—", color: ink, size: 16, font: "Arial" })], spacing: { after: 0 } })], width, paper, VerticalAlign.CENTER);
+
+      return new Document({
+        creator: "WeeLMat Generator",
+        title: `${studentVersion ? "Learner" : "Teacher"} WeeLMat - ${subject} - ${gradeLevel}`,
+        styles: { default: { document: { run: { font: "Arial", size: 18, color: ink }, paragraph: { spacing: { after: 100, line: 250 } } } } },
+        sections: [{
+          properties: { page: { size: { width: 11906, height: 16838, orientation: PageOrientation.LANDSCAPE }, margin: { top: 430, right: 540, bottom: 500, left: 540, header: 250, footer: 250 } } },
+          footers: { default: new Footer({ children: [new Paragraph({ children: [new TextRun({ text: studentVersion ? "Learner copy" : "Teacher copy", bold: true, color: actionGreen, size: 14, font: "Arial" }), new TextRun({ text: "  •  Review and adapt generated content before classroom use.", color: "5D6A61", size: 14, font: "Arial" })], alignment: AlignmentType.CENTER })] }) },
+          children: [
+            ...(logoBuffer ? [new Paragraph({ children: [new ImageRun({ data: logoBuffer, transformation: { width: 112, height: 45 } })], alignment: AlignmentType.CENTER, spacing: { after: 60 } })] : []),
+            new Paragraph({ children: [new TextRun({ text: effectiveLanguage === "Filipino" ? "LINGGUHANG MATRIS NG PAGKATUTO (WeeLMat)" : "WEEKLY LEARNING MATRIX (WeeLMat)", bold: true, color: forest, size: 28, font: "Arial" })], alignment: AlignmentType.CENTER, spacing: { after: 40 } }),
+            new Paragraph({ children: [new TextRun({ text: `${resolvedKeyStage}${keyStageLabel ? ` · ${keyStageLabel}` : ""} · ${studentVersion ? "Learner copy" : "Teacher copy"}`, bold: true, color: gold, size: 16, font: "Arial" })], alignment: AlignmentType.CENTER, spacing: { after: 110 } }),
+            new Table({ width: { size: tableWidth, type: WidthType.DXA }, layout: TableLayoutType.FIXED, columnWidths: [7850, 7850], rows: [
+              new TableRow({ children: [metadataCell(effectiveLanguage === "Filipino" ? "Asignatura" : "Subject", subject, 7850), metadataCell(effectiveLanguage === "Filipino" ? "Antas at Seksyon" : "Grade and Section", `${gradeLevel} · ${section}`, 7850)] }),
+              new TableRow({ children: [metadataCell(effectiveLanguage === "Filipino" ? "Saklaw na Petsa" : "Covered Dates", `${dateFrom} – ${dateTo}`, 7850), metadataCell("Key Stage", `${resolvedKeyStage} · ${keyStageLabel}`, 7850)] }),
+            ] }),
+            new Paragraph({ children: [new TextRun({ text: " ", size: 4 })], spacing: { after: 40 } }),
+            new Table({
+              width: { size: tableWidth, type: WidthType.DXA },
+              layout: TableLayoutType.FIXED,
+              columnWidths: [labelWidth, ...dailyPlanList.map(() => dayWidth)],
+              rows: [
+                new TableRow({ tableHeader: true, children: [cell([new Paragraph({ children: [new TextRun({ text: effectiveLanguage === "Filipino" ? "Bahagi ng Plano" : "Planning Category", bold: true, color: paper, size: 16, font: "Arial" })], alignment: AlignmentType.CENTER })], labelWidth, forest, VerticalAlign.CENTER), ...dailyPlanList.map((plan) => cell([new Paragraph({ children: [new TextRun({ text: effectiveLanguage === "Filipino" ? plan.filipino : plan.day, bold: true, color: paper, size: 16, font: "Arial" })], alignment: AlignmentType.CENTER })], dayWidth, forest, VerticalAlign.CENTER))] }),
+                new TableRow({ children: [labelCell(effectiveLanguage === "Filipino" ? "Kompetensya" : "Competency"), ...dailyPlanList.map((plan) => cell(textParagraphs(dayCellText(plan, "competency"))))] }),
+                new TableRow({ children: [labelCell(effectiveLanguage === "Filipino" ? "Mungkahing Materyales / Sanggunian" : "Suggested Learning Material / Reference"), ...dailyPlanList.map((plan) => cell(textParagraphs(dayCellText(plan, "references"))))] }),
+                new TableRow({ children: [labelCell(effectiveLanguage === "Filipino" ? "Mga Gawain sa Pagkatuto" : "Learning Activities / Tasks"), ...dailyPlanList.map(activityCell)] }),
+              ],
+            }),
+          ],
+        }],
+      });
+    };
+
+    const finalTeacherDocxBuffer = await Packer.toBuffer(buildBrandedDocument(false));
+    const finalStudentDocxBuffer = await Packer.toBuffer(buildBrandedDocument(true));
+
     // Step 6: Upload Teacher DOCX to Supabase Storage
     console.log("Uploading Teacher DOCX...");
     const teacherDocxFilename = `weelmat-teacher-${matrixId}.docx`;
     const { error: teacherUploadError } = await supabase.storage
       .from("weelmat")
-      .upload(teacherDocxFilename, teacherDocxBuffer, {
+      .upload(teacherDocxFilename, finalTeacherDocxBuffer, {
         contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         upsert: true,
       });
@@ -1415,7 +1493,7 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
     const studentDocxFilename = `weelmat-student-${matrixId}.docx`;
     const { error: studentUploadError } = await supabase.storage
       .from("weelmat")
-      .upload(studentDocxFilename, studentDocxBuffer, {
+      .upload(studentDocxFilename, finalStudentDocxBuffer, {
         contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         upsert: true,
       });

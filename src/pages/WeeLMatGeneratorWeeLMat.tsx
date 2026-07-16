@@ -35,37 +35,12 @@ import { toast } from "@/components/ui/sonner";
 import { WeeLMatDownloadModal } from "@/components/WeeLMatDownloadModal";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-
-type FormValues = {
-  subject: string;
-  gradeLevel: string;
-  section: string;
-  dateFrom: string;
-  dateTo: string;
-  mondayCompetency: string;
-  tuesdayCompetency: string;
-  wednesdayCompetency: string;
-  thursdayCompetency: string;
-  fridayCompetency: string;
-  mondayExamType: string;
-  tuesdayExamType: string;
-  wednesdayExamType: string;
-  thursdayExamType: string;
-  fridayExamType: string;
-  mondayQuestionCount: number;
-  tuesdayQuestionCount: number;
-  wednesdayQuestionCount: number;
-  thursdayQuestionCount: number;
-  fridayQuestionCount: number;
-  code?: string;
-  customInstructions?: string;
-  language?: string;
-};
+import { getActivePlanningDays, type WeeLMatFormValues } from "@/lib/weelmatPlanning";
 
 type DayKey = "mon" | "tue" | "wed" | "thu" | "fri";
 type DayContent = Partial<Record<DayKey, string>>;
 
-type AiJson = Partial<FormValues> & {
+type AiJson = Partial<WeeLMatFormValues> & {
   subject?: string;
   grade_level?: string;
   date_from?: string;
@@ -129,14 +104,6 @@ const premiumGenerationSteps: GenerationStep[] = [
   },
 ];
 
-const dayColumns = [
-  { key: "mon", label: "Monday", competencyField: "mondayCompetency" },
-  { key: "tue", label: "Tuesday", competencyField: "tuesdayCompetency" },
-  { key: "wed", label: "Wednesday", competencyField: "wednesdayCompetency" },
-  { key: "thu", label: "Thursday", competencyField: "thursdayCompetency" },
-  { key: "fri", label: "Friday", competencyField: "fridayCompetency" },
-] as const;
-
 const toAiJson = (value: unknown): AiJson | null => {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
   return value as AiJson;
@@ -148,12 +115,17 @@ const getErrorMessage = (error: unknown) =>
 const WeeLMatGeneratorWeeLMat = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const values = (location.state || null) as FormValues | null;
+  const values = (location.state || null) as WeeLMatFormValues | null;
   const matrixId = useMemo(
     () => new URLSearchParams(location.search).get("matrixId"),
     [location.search],
   );
   const isPremium = location.pathname.includes("/premium/weelmat");
+  const dayColumns = useMemo(() => getActivePlanningDays(values?.activeDays).map((day) => ({
+    ...day,
+    label: day.day,
+    competencyField: `${day.prefix}Competency` as keyof WeeLMatFormValues,
+  })), [values?.activeDays]);
   const steps = useMemo(
     () => (isPremium ? premiumGenerationSteps : standardGenerationSteps),
     [isPremium],
@@ -376,10 +348,7 @@ const WeeLMatGeneratorWeeLMat = () => {
   };
 
   const getCompetency = (day: (typeof dayColumns)[number]) =>
-    values?.[day.competencyField] ??
-    aiJson?.[day.competencyField] ??
-    aiJson?.competencies?.[day.key] ??
-    "";
+    String(values?.[day.competencyField] ?? aiJson?.[day.competencyField] ?? aiJson?.competencies?.[day.key] ?? "");
 
   const revisePreviewCell = async () => {
     if (!revisionTarget || !revisionInstruction.trim() || !aiJson) return;
@@ -663,12 +632,12 @@ const WeeLMatGeneratorWeeLMat = () => {
 
                 <div className="flex items-start gap-2 border-b border-warm-border bg-primary/5 px-4 py-3 text-xs leading-5 text-muted-foreground md:hidden" id="premium-matrix-scroll-help">
                   <Info aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  <span>Swipe horizontally to review Monday through Friday. The planning category stays visible.</span>
+                  <span>Swipe horizontally to review the included school days. The planning category stays visible.</span>
                 </div>
 
                 <Table aria-describedby="premium-matrix-scroll-help" className="min-w-[920px]">
                   <TableCaption className="sr-only">
-                    Weekly competencies, learning references, activities, and answer keys from Monday through Friday.
+                    Weekly competencies, learning references, activities, and answer keys for the included school days.
                   </TableCaption>
                   <TableHeader>
                     <TableRow className="bg-forest hover:bg-forest">

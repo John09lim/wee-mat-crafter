@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/sonner";
 import { PasscodeDialog } from "@/components/PasscodeDialog";
 import { ExtractedTextPreviewModal } from "@/components/ExtractedTextPreviewModal";
@@ -28,8 +29,22 @@ import {
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  allPlanningDayPrefixes,
+  getFridaySummativeCompetency,
+  getKeyStage,
+  getTaskOption,
+  learningTaskTypes,
+  planningDays,
+  specialCompetencyForTask,
+  taskGroups,
+  taskOptions,
+  taskSkipsGeneration,
+  taskUsesItemCount,
+  type LearningTaskType,
+  type PlanningDayPrefix,
+} from "@/lib/weelmatPlanning";
 
-const examTypes = ["Identification", "Matching Type", "True/False", "Multiple Choice", "Essay", "Performance Task", "HOLIDAY"] as const;
 const questionCounts = [5, 10, 15] as const;
 
 const schema = z.object({
@@ -38,27 +53,53 @@ const schema = z.object({
   section: z.string().min(1, "Section is required"),
   dateFrom: z.string().min(1, "From date is required"),
   dateTo: z.string().min(1, "To date is required"),
-  mondayCompetency: z.string().min(1, "Monday competency is required").transform(s => s.trim()),
-  tuesdayCompetency: z.string().min(1, "Tuesday competency is required").transform(s => s.trim()),
-  wednesdayCompetency: z.string().min(1, "Wednesday competency is required").transform(s => s.trim()),
-  thursdayCompetency: z.string().min(1, "Thursday competency is required").transform(s => s.trim()),
-  fridayCompetency: z.string().min(1, "Friday competency is required").transform(s => s.trim()),
-  mondayExamType: z.enum(examTypes, { required_error: "Monday exam type is required" }),
-  tuesdayExamType: z.enum(examTypes, { required_error: "Tuesday exam type is required" }),
-  wednesdayExamType: z.enum(examTypes, { required_error: "Wednesday exam type is required" }),
-  thursdayExamType: z.enum(examTypes, { required_error: "Thursday exam type is required" }),
-  fridayExamType: z.enum(examTypes, { required_error: "Friday exam type is required" }),
-  mondayQuestionCount: z.number().min(3, "Minimum 3 questions").max(20, "Maximum 20 questions"),
-  tuesdayQuestionCount: z.number().min(3, "Minimum 3 questions").max(20, "Maximum 20 questions"),
-  wednesdayQuestionCount: z.number().min(3, "Minimum 3 questions").max(20, "Maximum 20 questions"),
-  thursdayQuestionCount: z.number().min(3, "Minimum 3 questions").max(20, "Maximum 20 questions"),
-  fridayQuestionCount: z.number().min(3, "Minimum 3 questions").max(20, "Maximum 20 questions"),
+  activeDays: z.array(z.enum(["monday", "tuesday", "wednesday", "thursday", "friday"])).min(1, "Keep at least one school day"),
+  mondayCompetency: z.string().default(""),
+  tuesdayCompetency: z.string().default(""),
+  wednesdayCompetency: z.string().default(""),
+  thursdayCompetency: z.string().default(""),
+  fridayCompetency: z.string().default(""),
+  mondayExamType: z.enum(learningTaskTypes, { required_error: "Monday learning task is required" }),
+  tuesdayExamType: z.enum(learningTaskTypes, { required_error: "Tuesday learning task is required" }),
+  wednesdayExamType: z.enum(learningTaskTypes, { required_error: "Wednesday learning task is required" }),
+  thursdayExamType: z.enum(learningTaskTypes, { required_error: "Thursday learning task is required" }),
+  fridayExamType: z.enum(learningTaskTypes, { required_error: "Friday learning task is required" }),
+  mondayQuestionCount: z.number().default(5),
+  tuesdayQuestionCount: z.number().default(5),
+  wednesdayQuestionCount: z.number().default(5),
+  thursdayQuestionCount: z.number().default(5),
+  fridayQuestionCount: z.number().default(5),
+  mondayInstructions: z.string().default(""),
+  tuesdayInstructions: z.string().default(""),
+  wednesdayInstructions: z.string().default(""),
+  thursdayInstructions: z.string().default(""),
+  fridayInstructions: z.string().default(""),
   code: z.string().optional().or(z.literal("")),
-  customInstructions: z.string().optional().or(z.literal("")),
   language: z.enum(["English","Filipino"]).default("English"),
-}).refine((data) => new Date(data.dateFrom) <= new Date(data.dateTo), {
-  message: "From date must be before or equal to To date",
-  path: ["dateFrom"],
+}).superRefine((data, context) => {
+  if (new Date(data.dateFrom) > new Date(data.dateTo)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message: "From date must be before or equal to To date", path: ["dateFrom"] });
+  }
+
+  planningDays.forEach(({ day, prefix }) => {
+    if (!data.activeDays.includes(prefix)) return;
+    const task = data[`${prefix}ExamType`];
+    const competency = data[`${prefix}Competency`].trim();
+    const questionCount = data[`${prefix}QuestionCount`];
+
+    if (!taskSkipsGeneration(task) && !(prefix === "friday" && task === "Summative Test") && !competency) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: `${day} competency is required`, path: [`${prefix}Competency`] });
+    }
+    if (prefix === "friday" && task === "Summative Test") {
+      const sourceCompetency = getFridaySummativeCompetency(data, data.activeDays);
+      if (!sourceCompetency) {
+        context.addIssue({ code: z.ZodIssueCode.custom, message: "Add at least one Monday–Thursday competency for the summative test", path: ["fridayCompetency"] });
+      }
+    }
+    if (taskUsesItemCount(task) && (questionCount < 3 || questionCount > 20)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "Choose between 3 and 20 items", path: [`${prefix}QuestionCount`] });
+    }
+  });
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -80,19 +121,9 @@ const grades = [
 ] as const;
 const subjectSuggestions = ["Filipino","English","Math","Science","AP","EsP","MAPEH","EPP/TLE"];
 
-const planningDays = [
-  { day: "Monday", prefix: "monday" },
-  { day: "Tuesday", prefix: "tuesday" },
-  { day: "Wednesday", prefix: "wednesday" },
-  { day: "Thursday", prefix: "thursday" },
-  { day: "Friday", prefix: "friday" },
-] as const;
-
-type PlanningDayPrefix = (typeof planningDays)[number]["prefix"];
-
 interface ExtractedDayData {
   competency?: string;
-  examType?: (typeof examTypes)[number];
+  examType?: LearningTaskType;
   questionCount?: number;
 }
 
@@ -203,6 +234,7 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
   defaultValues: {
     gradeLevel: "",
     language: "English",
+    activeDays: allPlanningDayPrefixes,
     mondayExamType: "Multiple Choice",
     tuesdayExamType: "Multiple Choice",
     wednesdayExamType: "Multiple Choice",
@@ -213,6 +245,11 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
     wednesdayQuestionCount: 5,
     thursdayQuestionCount: 5,
     fridayQuestionCount: 5,
+    mondayInstructions: "",
+    tuesdayInstructions: "",
+    wednesdayInstructions: "",
+    thursdayInstructions: "",
+    fridayInstructions: "",
   }
 });
 
@@ -220,7 +257,7 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
 useEffect(() => {
   const prefillData = location.state?.prefillData;
   if (prefillData) {
-    reset(prefillData);
+    reset({ ...prefillData, activeDays: prefillData.activeDays?.length ? prefillData.activeDays : allPlanningDayPrefixes });
     setDailyCompetencies({
       monday: prefillData.mondayCompetency || "",
       tuesday: prefillData.tuesdayCompetency || "",
@@ -233,72 +270,75 @@ useEffect(() => {
 }, [location.state, reset]);
 
 const watchedValues = watch();
+  const enabledDays = watchedValues.activeDays?.length ? watchedValues.activeDays : allPlanningDayPrefixes;
+  const selectedKeyStage = getKeyStage(watchedValues.gradeLevel);
 
   const isDayComplete = (day: PlanningDayPrefix) => {
+    if (!enabledDays.includes(day)) return false;
     const competency = watchedValues[`${day}Competency` as keyof FormValues] as string | undefined;
-    const examType = watchedValues[`${day}ExamType` as keyof FormValues];
+    const examType = watchedValues[`${day}ExamType` as keyof FormValues] as LearningTaskType | undefined;
     const questionCount = watchedValues[`${day}QuestionCount` as keyof FormValues] as number | undefined;
-    return Boolean(competency?.trim() && examType && questionCount && questionCount >= 3 && questionCount <= 20);
+    if (!examType) return false;
+    if (taskSkipsGeneration(examType)) return true;
+    if (day === "friday" && examType === "Summative Test") {
+      return Boolean(getFridaySummativeCompetency(watchedValues, enabledDays));
+    }
+    if (!competency?.trim()) return false;
+    return taskUsesItemCount(examType) ? Boolean(questionCount && questionCount >= 3 && questionCount <= 20) : true;
   };
 
-  const completedDays = planningDays.filter(({ prefix }) => isDayComplete(prefix)).length;
+  const completedDays = planningDays.filter(({ prefix }) => enabledDays.includes(prefix) && isDayComplete(prefix)).length;
   const activeDayConfig = planningDays.find(({ prefix }) => prefix === activeDay) ?? planningDays[0];
   const activeCompetencyField = `${activeDay}Competency` as `${PlanningDayPrefix}Competency`;
   const activeExamTypeField = `${activeDay}ExamType` as `${PlanningDayPrefix}ExamType`;
   const activeQuestionCountField = `${activeDay}QuestionCount` as `${PlanningDayPrefix}QuestionCount`;
+  const activeInstructionsField = `${activeDay}Instructions` as `${PlanningDayPrefix}Instructions`;
+  const activeTask = watchedValues[activeExamTypeField] as LearningTaskType | undefined;
+  const activeTaskOption = getTaskOption(activeTask);
+  const activeDayEnabled = enabledDays.includes(activeDay);
+  const fridaySummativeCompetency = getFridaySummativeCompetency(watchedValues, enabledDays);
 
-  const isFormComplete = (values: Partial<FormValues>) => {
-    if (!values.subject?.trim() || !values.gradeLevel || !values.section?.trim() || 
-        !values.dateFrom || !values.dateTo || !values.language) {
-      return false;
+  useEffect(() => {
+    if (watchedValues.fridayExamType !== "Summative Test" || !enabledDays.includes("friday")) return;
+    if (watchedValues.fridayCompetency === fridaySummativeCompetency) return;
+    setDailyCompetencies((current) => ({ ...current, friday: fridaySummativeCompetency }));
+    setValue("fridayCompetency", fridaySummativeCompetency, { shouldDirty: true, shouldValidate: false });
+  }, [enabledDays, fridaySummativeCompetency, setValue, watchedValues.fridayCompetency, watchedValues.fridayExamType]);
+
+  const isFormComplete = (values: Partial<FormValues>) => schema.safeParse(values).success;
+
+  const togglePlanningDay = (prefix: PlanningDayPrefix, include: boolean) => {
+    const nextDays = include
+      ? planningDays.filter(({ prefix: candidate }) => [...enabledDays, prefix].includes(candidate)).map(({ prefix: candidate }) => candidate)
+      : enabledDays.filter((candidate) => candidate !== prefix);
+    if (!nextDays.length) {
+      toast.error("Keep at least one school day in the WeeLMat.");
+      return;
     }
-    
-    const days = ["monday", "tuesday", "wednesday", "thursday", "friday"];
-    const isComplete = days.every(day => {
-      const competency = values[`${day}Competency` as keyof FormValues] as string;
-      const examType = values[`${day}ExamType` as keyof FormValues];
-      const questionCount = values[`${day}QuestionCount` as keyof FormValues] as number;
-      
-      // For HOLIDAY, only check that examType is set and competency is "HOLIDAY"
-      if (examType === "HOLIDAY") {
-        return competency?.trim() === "HOLIDAY" && questionCount;
-      }
-      
-      return competency?.trim() && examType && questionCount && 
-             typeof questionCount === 'number' && questionCount >= 3 && questionCount <= 20;
-    });
-    
-    return isComplete;
+    setValue("activeDays", nextDays, { shouldDirty: true, shouldValidate: true });
+  };
+
+  const chooseLearningTask = (task: LearningTaskType) => {
+    const previousTask = watchedValues[activeExamTypeField] as LearningTaskType | undefined;
+    setValue(activeExamTypeField, task, { shouldDirty: true, shouldValidate: true });
+    const specialCompetency = specialCompetencyForTask(task);
+    if (specialCompetency) {
+      setDailyCompetencies((current) => ({ ...current, [activeDay]: specialCompetency }));
+      setValue(activeCompetencyField, specialCompetency, { shouldDirty: true, shouldValidate: true });
+    } else if (task === "Summative Test" && activeDay === "friday") {
+      setDailyCompetencies((current) => ({ ...current, friday: fridaySummativeCompetency }));
+      setValue("fridayCompetency", fridaySummativeCompetency, { shouldDirty: true, shouldValidate: true });
+    } else if (taskSkipsGeneration(previousTask)) {
+      setDailyCompetencies((current) => ({ ...current, [activeDay]: "" }));
+      setValue(activeCompetencyField, "", { shouldDirty: true, shouldValidate: false });
+    }
   };
 
   const onSubmit = async (values: FormValues) => {
-    console.log("Dashboard form submission - Raw form values:", values);
-    
-    // Enhanced validation logging
-    const days = ["monday", "tuesday", "wednesday", "thursday", "friday"];
-    const validationResults = days.map(day => ({
-      day,
-      competency: values[`${day}Competency` as keyof FormValues],
-      examType: values[`${day}ExamType` as keyof FormValues],
-      questionCount: values[`${day}QuestionCount` as keyof FormValues],
-      complete: !!(values[`${day}Competency` as keyof FormValues] && 
-                   values[`${day}ExamType` as keyof FormValues] && 
-                   values[`${day}QuestionCount` as keyof FormValues])
-    }));
-    
-    console.log("Dashboard validation results:", validationResults);
-    
-    const incompleteFields = validationResults.filter(r => !r.complete);
-    if (incompleteFields.length > 0) {
-      console.error("Form submission blocked - incomplete fields:", incompleteFields);
-      alert(`Please complete the following days: ${incompleteFields.map(f => f.day).join(', ')}`);
-      setLoading(false);
-      return;
-    }
-    
     setLoading(true);
-    console.log("Navigating to WeeLMatGenerator with validated values:", values);
-    navigate(isPremium ? "/premium/weelmat/result" : "/weelmatgenerator", { state: values });
+    navigate(isPremium ? "/premium/weelmat/result" : "/weelmatgenerator", {
+      state: { ...values, keyStage: getKeyStage(values.gradeLevel)?.code },
+    });
   }
 
   const [result, setResult] = useState<{subject:string;grade:string;section:string;dates:string;docx?:string;pdf?:string}|null>(null);
@@ -527,7 +567,7 @@ const watchedValues = watch();
                 </Button>
               </section>
             ) : null}
-            <header className="mb-8 grid gap-6 border-b border-border pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
+            <header className="mb-8 grid grid-cols-[minmax(0,1fr)] gap-6 border-b border-border pb-8 lg:grid-cols-[1fr_auto] lg:items-end">
               <div className="flex items-start gap-4">
                 <span className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
                   <Sparkles className="h-6 w-6" aria-hidden="true" />
@@ -562,7 +602,7 @@ const watchedValues = watch();
                 {[
                   ["01", "Class details", Boolean(watchedValues.subject && watchedValues.gradeLevel && watchedValues.section)],
                   ["02", "Learning source", matrixMode === "manual" || extractionSuccess],
-                  ["03", "Week plan", completedDays === planningDays.length],
+                  ["03", "Week plan", completedDays === enabledDays.length],
                   ["04", "Review", isFormComplete(watchedValues)],
                 ].map(([number, label, complete], index) => (
                   <li key={String(label)} className={`flex flex-1 items-center gap-3 border-b-2 px-3 pb-4 ${index === 2 ? "border-secondary" : "border-transparent"}`}>
@@ -575,10 +615,10 @@ const watchedValues = watch();
               </ol>
             </nav>
 
-            <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-        <div>
-          <div className="rounded-2xl border border-border bg-card p-5 shadow-[0_18px_50px_-42px_rgba(20,32,25,.55)] sm:p-7 lg:p-8">
-            <form className="grid gap-8" onSubmit={handleSubmit(onSubmit)} noValidate>
+            <section className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+        <div className="min-w-0">
+          <div className="min-w-0 rounded-2xl border border-border bg-card p-5 shadow-[0_18px_50px_-42px_rgba(20,32,25,.55)] sm:p-7 lg:p-8">
+            <form className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-8" onSubmit={handleSubmit(onSubmit)} noValidate>
               <section aria-labelledby="class-details-heading">
                 <div className="mb-5 flex items-center gap-3">
                   <span className="font-display text-2xl font-semibold text-secondary">01</span>
@@ -588,7 +628,7 @@ const watchedValues = watch();
                   </div>
                 </div>
 
-              <div className="grid gap-5 md:grid-cols-12">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-5 md:grid-cols-12">
                 <div className="space-y-2 md:col-span-5">
                   <Label htmlFor="matrix-subject">Subject area</Label>
                   <Input id="matrix-subject" placeholder={`e.g., ${subjectSuggestions.join(', ')}`} aria-invalid={Boolean(errors.subject)} {...register("subject")} />
@@ -604,6 +644,11 @@ const watchedValues = watch();
                       {grades.map((grade) => (<SelectItem key={grade} value={grade}>{grade}</SelectItem>))}
                     </SelectContent>
                   </Select>
+                  {selectedKeyStage && (
+                    <p className="rounded-md bg-primary/10 px-2 py-1.5 text-xs font-semibold text-primary" aria-live="polite">
+                      {selectedKeyStage.code} · {selectedKeyStage.label}
+                    </p>
+                  )}
                   {errors.gradeLevel && <p role="alert" className="text-destructive text-sm">{errors.gradeLevel.message}</p>}
                 </div>
                 <div className="space-y-2 md:col-span-2">
@@ -623,7 +668,7 @@ const watchedValues = watch();
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-5 sm:grid-cols-2">
+              <div className="mt-5 grid grid-cols-[minmax(0,1fr)] gap-5 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="matrix-date-from">Week begins</Label>
                   <Input id="matrix-date-from" type="date" aria-invalid={Boolean(errors.dateFrom)} {...register("dateFrom")} />
@@ -646,7 +691,7 @@ const watchedValues = watch();
                     <p className="mt-1 text-sm text-muted-foreground">Choose whether to enter the week yourself or extract a starting point from a file.</p>
                   </div>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label="Matrix content mode">
+                <div className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2" role="group" aria-label="Matrix content mode">
                   <Button
                     type="button"
                     variant={matrixMode === "manual" ? "default" : "outline"}
@@ -739,8 +784,8 @@ const watchedValues = watch();
                         <p className="mt-1 text-sm text-muted-foreground">Complete one focused day at a time. Your entries remain saved as you switch days.</p>
                       </div>
                     </div>
-                    <span className="hidden rounded-full bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary sm:inline-flex">
-                      {completedDays} of 5 days ready
+                    <span className="hidden rounded-full bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary sm:inline-flex" aria-live="polite">
+                      {completedDays} of {enabledDays.length} included days ready
                     </span>
                   </div>
 
@@ -749,109 +794,156 @@ const watchedValues = watch();
                       {planningDays.map(({ day, prefix }) => {
                         const complete = isDayComplete(prefix);
                         const selected = activeDay === prefix;
+                        const included = enabledDays.includes(prefix);
                         return (
-                          <button
-                            key={day}
-                            type="button"
-                            role="tab"
-                            id={`day-tab-${prefix}`}
-                            aria-selected={selected}
-                            aria-controls={`day-panel-${prefix}`}
-                            onClick={() => setActiveDay(prefix)}
-                            className={`flex min-h-16 min-w-36 items-center justify-between gap-3 border-b-2 px-4 py-3 text-left transition-colors lg:w-full lg:min-w-0 lg:border-b lg:border-l-2 ${selected ? "border-l-secondary border-b-secondary bg-primary text-primary-foreground lg:border-b-border" : "border-l-transparent border-b-transparent bg-transparent text-foreground hover:bg-card"}`}
-                          >
-                            <span>
-                              <span className={`block text-[11px] font-semibold uppercase tracking-[0.16em] ${selected ? "text-secondary" : "text-muted-foreground"}`}>{day.slice(0, 3)}</span>
-                              <span className="font-display text-lg font-semibold">{day}</span>
-                            </span>
-                            {complete ? <CheckCircle2 className={`h-4 w-4 ${selected ? "text-secondary" : "text-primary"}`} aria-label="Complete" /> : <ArrowRight className="h-4 w-4 opacity-55" aria-hidden="true" />}
-                          </button>
+                          <div key={day} className={`flex min-w-48 items-center border-b-2 pr-3 lg:min-w-0 lg:border-b lg:border-l-2 ${selected ? "border-l-secondary border-b-secondary bg-primary text-primary-foreground lg:border-b-border" : "border-l-transparent border-b-transparent bg-transparent text-foreground"}`}>
+                            <button
+                              type="button"
+                              role="tab"
+                              id={`day-tab-${prefix}`}
+                              aria-selected={selected}
+                              aria-controls={`day-panel-${prefix}`}
+                              onClick={() => setActiveDay(prefix)}
+                              className="flex min-h-16 min-w-0 flex-1 items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-card/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                            >
+                              <span>
+                                <span className={`block text-[11px] font-semibold uppercase tracking-[0.16em] ${selected ? "text-secondary" : "text-muted-foreground"}`}>{day.slice(0, 3)}</span>
+                                <span className="font-display text-lg font-semibold">{day}</span>
+                                {!included && <span className={`block text-[10px] font-semibold uppercase tracking-wide ${selected ? "text-primary-foreground/70" : "text-muted-foreground"}`}>Removed</span>}
+                              </span>
+                              {included && complete ? <CheckCircle2 className={`h-4 w-4 ${selected ? "text-secondary" : "text-primary"}`} aria-label="Complete" /> : <ArrowRight className="h-4 w-4 opacity-55" aria-hidden="true" />}
+                            </button>
+                            <Switch
+                              aria-label={`${included ? "Remove" : "Include"} ${day}`}
+                              checked={included}
+                              className={selected ? "data-[state=checked]:bg-secondary" : undefined}
+                              onCheckedChange={(checked) => togglePlanningDay(prefix, checked)}
+                            />
+                          </div>
                         );
                       })}
                     </div>
 
                     <div key={activeDay} id={`day-panel-${activeDay}`} role="tabpanel" aria-labelledby={`day-tab-${activeDay}`} className="space-y-6 bg-card p-5 sm:p-6">
-                      <div className="flex items-center gap-3 border-b border-border pb-4">
-                        <CalendarDays className="h-5 w-5 text-primary" aria-hidden="true" />
-                        <h3 className="font-display text-2xl font-semibold text-foreground">{activeDayConfig.day}</h3>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor={activeCompetencyField}>Competency</Label>
-                        <Textarea
-                          key={activeCompetencyField}
-                          id={activeCompetencyField}
-                          name={activeCompetencyField}
-                          rows={4}
-                          placeholder={`Enter ${activeDayConfig.day}'s competency exactly as it should appear…`}
-                          aria-invalid={Boolean(errors[activeCompetencyField])}
-                          value={dailyCompetencies[activeDay]}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setDailyCompetencies((current) => ({ ...current, [activeDay]: value }));
-                            setValue(activeCompetencyField, value, { shouldDirty: true, shouldValidate: false });
-                          }}
-                        />
-                        {errors[activeCompetencyField] && <p role="alert" className="text-sm text-destructive">{errors[activeCompetencyField]?.message}</p>}
-                      </div>
-
-                      <fieldset>
-                        <legend className="text-sm font-medium text-foreground">Assessment type</legend>
-                        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-                          {examTypes.map((type) => (
-                            <Button
-                              key={type}
-                              type="button"
-                              variant={watchedValues[activeExamTypeField] === type ? "default" : "outline"}
-                              className="h-11 whitespace-normal px-3 text-xs sm:text-sm"
-                              aria-pressed={watchedValues[activeExamTypeField] === type}
-                              onClick={() => {
-                                setValue(activeExamTypeField, type, { shouldValidate: true });
-                                if (type === "HOLIDAY") {
-                                  setDailyCompetencies((current) => ({ ...current, [activeDay]: "HOLIDAY" }));
-                                  setValue(activeCompetencyField, "HOLIDAY", { shouldValidate: true });
-                                }
-                              }}
-                            >
-                              {type}
-                            </Button>
-                          ))}
-                        </div>
-                        {errors[activeExamTypeField] && <p role="alert" className="mt-2 text-sm text-destructive">{errors[activeExamTypeField]?.message}</p>}
-                      </fieldset>
-
-                      <fieldset>
-                        <legend className="text-sm font-medium text-foreground">Question count</legend>
-                        <div className="mt-2 flex flex-wrap items-end gap-2">
-                          {questionCounts.map((count) => (
-                            <Button
-                              key={count}
-                              type="button"
-                              variant={watchedValues[activeQuestionCountField] === count ? "default" : "outline"}
-                              className="h-11 min-w-14"
-                              aria-pressed={watchedValues[activeQuestionCountField] === count}
-                              onClick={() => setValue(activeQuestionCountField, count, { shouldValidate: true })}
-                            >
-                              {count}
-                            </Button>
-                          ))}
-                          <div className="ml-1 space-y-1">
-                            <Label htmlFor={`${activeQuestionCountField}-custom`} className="text-xs text-muted-foreground">Custom</Label>
-                            <Input
-                              id={`${activeQuestionCountField}-custom`}
-                              type="number"
-                              min={3}
-                              max={20}
-                              inputMode="numeric"
-                              className="w-24"
-                              value={watchedValues[activeQuestionCountField] ?? 5}
-                              onChange={(event) => setValue(activeQuestionCountField, Number(event.target.value), { shouldValidate: true })}
-                            />
+                      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+                        <div className="flex items-center gap-3">
+                          <CalendarDays className="h-5 w-5 text-primary" aria-hidden="true" />
+                          <div>
+                            <h3 className="font-display text-2xl font-semibold text-foreground">{activeDayConfig.day}</h3>
+                            <p className="text-xs text-muted-foreground">{activeDayEnabled ? "This day will appear as a document column." : "This day is removed from the document."}</p>
                           </div>
                         </div>
-                        <p className="mt-2 text-xs text-muted-foreground">Choose between 3 and 20 questions.</p>
-                        {errors[activeQuestionCountField] && <p role="alert" className="mt-2 text-sm text-destructive">{errors[activeQuestionCountField]?.message}</p>}
-                      </fieldset>
+                        <div className="flex min-h-11 items-center gap-3 rounded-full border border-border px-4">
+                          <Label htmlFor={`include-${activeDay}`} className="cursor-pointer text-sm">Include day</Label>
+                          <Switch id={`include-${activeDay}`} checked={activeDayEnabled} onCheckedChange={(checked) => togglePlanningDay(activeDay, checked)} />
+                        </div>
+                      </div>
+
+                      {!activeDayEnabled ? (
+                        <div className="rounded-xl border border-dashed border-border bg-muted/30 p-6 text-center">
+                          <p className="font-semibold text-foreground">{activeDayConfig.day} will not be generated.</p>
+                          <p className="mt-1 text-sm text-muted-foreground">Turn on “Include day” to restore its column and planning fields.</p>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="space-y-2">
+                            <Label htmlFor={activeCompetencyField}>Competency</Label>
+                            <Textarea
+                              key={activeCompetencyField}
+                              id={activeCompetencyField}
+                              name={activeCompetencyField}
+                              rows={4}
+                              readOnly={taskSkipsGeneration(activeTask) || (activeDay === "friday" && activeTask === "Summative Test")}
+                              placeholder={`Enter ${activeDayConfig.day}'s competency exactly as it should appear…`}
+                              aria-invalid={Boolean(errors[activeCompetencyField])}
+                              value={dailyCompetencies[activeDay]}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                setDailyCompetencies((current) => ({ ...current, [activeDay]: value }));
+                                setValue(activeCompetencyField, value, { shouldDirty: true, shouldValidate: false });
+                              }}
+                            />
+                            {activeDay === "friday" && activeTask === "Summative Test" && (
+                              <p className="text-xs leading-5 text-primary">Friday automatically combines the included Monday–Thursday competencies.</p>
+                            )}
+                            {errors[activeCompetencyField] && <p role="alert" className="text-sm text-destructive">{errors[activeCompetencyField]?.message}</p>}
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor={`${activeExamTypeField}-select`}>Learning task or assessment</Label>
+                            <Select value={activeTask} onValueChange={(value) => chooseLearningTask(value as LearningTaskType)}>
+                              <SelectTrigger id={`${activeExamTypeField}-select`} className="min-h-11 w-full">
+                                <SelectValue placeholder="Choose how learners will show learning" />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-96">
+                                {taskGroups.map((group) => (
+                                  <SelectGroup key={group}>
+                                    <SelectLabel>{group}</SelectLabel>
+                                    {taskOptions.filter((option) => option.group === group).map((option) => (
+                                      <SelectItem key={option.value} value={option.value}>{option.value}</SelectItem>
+                                    ))}
+                                  </SelectGroup>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {activeTaskOption && (
+                              <div className="rounded-lg border border-primary/15 bg-primary/5 p-3 text-sm leading-5 text-muted-foreground" aria-live="polite">
+                                <span className="font-semibold text-foreground">{activeTaskOption.group}.</span> {activeTaskOption.description}
+                                {"supportsImage" in activeTaskOption && activeTaskOption.supportsImage && <span className="mt-1 block font-medium text-primary">The generator will also request a lesson-aligned visual.</span>}
+                              </div>
+                            )}
+                            {errors[activeExamTypeField] && <p role="alert" className="text-sm text-destructive">{errors[activeExamTypeField]?.message}</p>}
+                          </div>
+
+                          {taskUsesItemCount(activeTask) && (
+                            <fieldset>
+                              <legend className="text-sm font-medium text-foreground">Number of items</legend>
+                              <div className="mt-2 flex flex-wrap items-end gap-2">
+                                {questionCounts.map((count) => (
+                                  <Button
+                                    key={count}
+                                    type="button"
+                                    variant={watchedValues[activeQuestionCountField] === count ? "default" : "outline"}
+                                    className="h-11 min-w-14"
+                                    aria-pressed={watchedValues[activeQuestionCountField] === count}
+                                    onClick={() => setValue(activeQuestionCountField, count, { shouldValidate: true })}
+                                  >
+                                    {count}
+                                  </Button>
+                                ))}
+                                <div className="ml-1 space-y-1">
+                                  <Label htmlFor={`${activeQuestionCountField}-custom`} className="text-xs text-muted-foreground">Custom</Label>
+                                  <Input
+                                    id={`${activeQuestionCountField}-custom`}
+                                    type="number"
+                                    min={3}
+                                    max={20}
+                                    inputMode="numeric"
+                                    className="w-24"
+                                    value={watchedValues[activeQuestionCountField] ?? 5}
+                                    onChange={(event) => setValue(activeQuestionCountField, Number(event.target.value), { shouldValidate: true })}
+                                  />
+                                </div>
+                              </div>
+                              <p className="mt-2 text-xs text-muted-foreground">Choose between 3 and 20 items.</p>
+                              {errors[activeQuestionCountField] && <p role="alert" className="mt-2 text-sm text-destructive">{errors[activeQuestionCountField]?.message}</p>}
+                            </fieldset>
+                          )}
+
+                          {!taskSkipsGeneration(activeTask) && (
+                            <div className="space-y-2">
+                              <Label htmlFor={activeInstructionsField}>Daily generation guidance</Label>
+                              <Textarea
+                                id={activeInstructionsField}
+                                rows={4}
+                                placeholder={`Add learner needs, materials, differentiation, activity format, or other instructions for ${activeDayConfig.day}.`}
+                                {...register(activeInstructionsField)}
+                              />
+                              <p className="text-xs leading-5 text-muted-foreground">The AI must follow this guidance for {activeDayConfig.day} only.</p>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                 </section>
@@ -862,17 +954,17 @@ const watchedValues = watch();
                   <span className="font-display text-2xl font-semibold text-secondary">04</span>
                   <div>
                     <h2 id="review-heading" className="font-display text-2xl font-semibold text-foreground">Review details</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">Add optional context that should guide the generated draft.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Confirm the curriculum reference. Daily guidance is entered inside each school day.</p>
                   </div>
                 </div>
-                <div className="grid gap-5 md:grid-cols-[.7fr_1.3fr]">
+                <div className="grid grid-cols-[minmax(0,1fr)] gap-5 md:grid-cols-[.7fr_1.3fr]">
                   <div className="space-y-2">
                     <Label htmlFor="matrix-code">Curriculum code <span className="text-muted-foreground">(optional)</span></Label>
                     <Input id="matrix-code" placeholder="e.g., EN6V-Ia-1" {...register("code")} />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="matrix-instructions">Custom instructions <span className="text-muted-foreground">(optional)</span></Label>
-                    <Textarea id="matrix-instructions" rows={5} placeholder="Add assessment criteria, differentiation needs, classroom context, or other guidance…" {...register("customInstructions")} />
+                  <div className="rounded-xl border border-primary/15 bg-primary/5 p-4 text-sm leading-6 text-muted-foreground">
+                    <p className="font-semibold text-foreground">Day-specific guidance is now part of the week plan.</p>
+                    <p>Use each day’s guidance field so Monday’s instructions never overwrite Tuesday’s activity.</p>
                   </div>
                 </div>
               </section>
@@ -912,7 +1004,7 @@ const watchedValues = watch();
                     </p>
                   )}
                   {matrixMode === "manual" && !isFormComplete(watchedValues) && (
-                    <p className="text-sm text-muted-foreground">Complete the class details and all five school days to generate.</p>
+                    <p className="text-sm text-muted-foreground">Complete the class details and every included school day to generate.</p>
                   )}
                   {extractionSuccess && isFormComplete(watchedValues) && (
                     <p className="text-sm font-medium text-success">Ready to generate your editable WeeLMat draft.</p>
@@ -922,12 +1014,12 @@ const watchedValues = watch();
             </form>
           </div>
         </div>
-        <aside className="space-y-5 lg:sticky lg:top-24">
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
           <div className="rounded-2xl border border-primary/15 bg-primary p-6 text-primary-foreground shadow-[0_18px_45px_-38px_rgba(20,32,25,.8)]">
             <p className="text-sm font-semibold uppercase tracking-[0.15em] text-secondary">Weekly progress</p>
-            <p className="font-display mt-3 text-3xl font-semibold">{completedDays} of 5 days</p>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15" aria-label={`${completedDays} of 5 days complete`} role="progressbar" aria-valuemin={0} aria-valuemax={5} aria-valuenow={completedDays}>
-              <div className="h-full rounded-full bg-secondary transition-[width] duration-300" style={{ width: `${completedDays * 20}%` }} />
+            <p className="font-display mt-3 text-3xl font-semibold">{completedDays} of {enabledDays.length} days</p>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/15" aria-label={`${completedDays} of ${enabledDays.length} included days complete`} role="progressbar" aria-valuemin={0} aria-valuemax={enabledDays.length} aria-valuenow={completedDays}>
+              <div className="h-full rounded-full bg-secondary transition-[width] duration-300" style={{ width: `${enabledDays.length ? (completedDays / enabledDays.length) * 100 : 0}%` }} />
             </div>
             <ol className="mt-6 space-y-2 text-sm">
               {planningDays.map(({ day, prefix }) => (
@@ -935,7 +1027,7 @@ const watchedValues = watch();
                   <button type="button" className="min-h-11 flex-1 rounded-md px-2 text-left font-medium transition-colors hover:bg-white/10 hover:text-secondary" onClick={() => { setMatrixMode("manual"); setActiveDay(prefix); }}>
                     {day}
                   </button>
-                  {isDayComplete(prefix) ? <CheckCircle2 className="h-5 w-5 text-secondary" aria-label="Complete" /> : <span className="h-5 w-5 rounded-full border border-white/35" aria-label="Incomplete" />}
+                  {!enabledDays.includes(prefix) ? <span className="text-[10px] font-semibold uppercase tracking-wide text-primary-foreground/55">Removed</span> : isDayComplete(prefix) ? <CheckCircle2 className="h-5 w-5 text-secondary" aria-label="Complete" /> : <span className="h-5 w-5 rounded-full border border-white/35" aria-label="Incomplete" />}
                 </li>
               ))}
             </ol>
