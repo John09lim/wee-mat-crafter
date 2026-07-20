@@ -19,9 +19,10 @@ const getErrorMessage = (error: unknown, fallback: string) =>
 interface PasswordResetDialogProps {
   open: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 }
 
-const PasswordResetDialog = ({ open, onClose }: PasswordResetDialogProps) => {
+const PasswordResetDialog = ({ open, onClose, onSuccess }: PasswordResetDialogProps) => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -64,7 +65,7 @@ const PasswordResetDialog = ({ open, onClose }: PasswordResetDialogProps) => {
       setNewPassword("");
       setConfirmPassword("");
       setFormError(null);
-      onClose();
+      (onSuccess || onClose)();
     } catch (error: unknown) {
       const message = getErrorMessage(error, "Failed to update password");
       console.error("Password update error:", error);
