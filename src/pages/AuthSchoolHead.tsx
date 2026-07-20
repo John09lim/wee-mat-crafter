@@ -10,6 +10,7 @@ import {
   type AuthPortalMode,
 } from "@/components/auth/AuthPortal";
 import { supabase } from "@/integrations/supabase/client";
+import { repairCurrentPrincipalAccount } from "@/lib/principalAccount";
 
 const getErrorMessage = (error: unknown, fallback: string) =>
   error instanceof Error && error.message ? error.message : fallback;
@@ -108,6 +109,26 @@ export default function AuthSchoolHead() {
     }
   };
 
+  const finishPasswordRecovery = async () => {
+    try {
+      await repairCurrentPrincipalAccount();
+      setShowPasswordResetDialog(false);
+      toast.success("Your school-head account is ready.");
+      navigate("/principal-dashboard", { replace: true });
+    } catch (error: unknown) {
+      const message = getErrorMessage(
+        error,
+        "Your password was changed, but the school-head account could not be verified.",
+      );
+      console.error("Principal recovery repair error:", error);
+      setShowPasswordResetDialog(false);
+      setFormError(message);
+      toast.error(message);
+      await supabase.auth.signOut();
+      navigate("/auth-school-head", { replace: true });
+    }
+  };
+
   const handleAuth = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setFormError(null);
@@ -136,7 +157,7 @@ export default function AuthSchoolHead() {
             email,
             password,
             options: {
-              emailRedirectTo: `${window.location.origin}/principal-dashboard`,
+              emailRedirectTo: `${window.location.origin}/auth-school-head`,
               data: {
                 full_name: name,
                 role: "school_head",
@@ -225,53 +246,20 @@ export default function AuthSchoolHead() {
           return;
         }
 
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("user_id", data.user.id)
-          .maybeSingle();
-
-        if (!profile) {
-          await supabase.from("profiles").insert({
-            user_id: data.user.id,
-            email: data.user.email!,
-            teacher_name:
-              data.user.user_metadata?.full_name ||
-              data.user.email?.split("@")[0] ||
-              "School Head",
-            school: "Please update",
-            district_name: "Please update",
-          });
-          toast("Profile created. Please update your school information.");
+        try {
+          await repairCurrentPrincipalAccount();
+        } catch (repairError: unknown) {
+          const message = getErrorMessage(
+            repairError,
+            "This account could not be verified as a school-head account.",
+          );
+          setFormError(message);
+          toast.error(message);
+          await supabase.auth.signOut();
+          return;
         }
 
-        const { data: roleData } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", data.user.id)
-          .eq("role", "school_head")
-          .maybeSingle();
-
-        if (!roleData) {
-          const { error: roleError } = await supabase
-            .from("user_roles")
-            .insert({ user_id: data.user.id, role: "school_head" });
-
-          if (roleError) {
-            console.error("Role assignment error:", roleError);
-            const message = "There was an issue with your account. Please contact support.";
-            setFormError(message);
-            toast.error(message);
-            await supabase.auth.signOut();
-            setLoading(false);
-            return;
-          }
-
-          toast.success("Welcome back! Your account has been updated.");
-        } else {
-          toast.success("Login successful!");
-        }
-
+        toast.success("Login successful!");
         navigate("/principal-dashboard");
       }
     } catch (error: unknown) {
@@ -295,9 +283,11 @@ export default function AuthSchoolHead() {
     <>
       <PasswordResetDialog
         open={showPasswordResetDialog}
+        onSuccess={() => void finishPasswordRecovery()}
         onClose={() => {
           setShowPasswordResetDialog(false);
-          navigate("/principal-dashboard");
+          void supabase.auth.signOut();
+          navigate("/auth-school-head", { replace: true });
         }}
       />
 
