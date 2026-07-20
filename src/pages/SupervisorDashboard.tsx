@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -7,13 +7,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { School, Users, CheckCircle, TrendingUp, UserCircle, ExternalLink, Upload, ArrowRight, Pencil, Save, X } from "lucide-react";
+import { School, Users, CheckCircle, TrendingUp, UserCircle, ExternalLink, Upload, ArrowRight, Pencil, Save, X, CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import DocumentViewer from "@/components/DocumentViewer";
 
 import { SchoolManagement } from "@/components/SchoolManagement";
 import { PrincipalDashboardView } from "@/components/PrincipalDashboardView";
+import { teacherHasSubmission } from "@/lib/submissionTracking";
+import {
+  addReportingWeeks,
+  formatReportingWeek,
+  getReportingWeekEnd,
+  getReportingWeekStart,
+  normalizeReportingWeekKey,
+  toLocalDateKey,
+} from "@/lib/reportingWeek";
 
 interface WeeklyReport {
   id: string;
@@ -27,9 +36,11 @@ interface WeeklyReport {
 }
 
 interface SchoolAssignment {
+  id?: string | null;
   user_id: string | null;
   school_name: string;
   teacher_name?: string | null;
+  teacher_email?: string | null;
 }
 
 interface ManagedSchool {
@@ -40,7 +51,7 @@ interface ManagedSchool {
 
 interface TeacherSubmission {
   id: string;
-  user_id: string;
+  user_id: string | null;
   school_name: string;
   teacher_name: string;
   subject: string;
@@ -66,6 +77,15 @@ interface SupervisorAccountDraft {
   district_name: string;
 }
 
+const normalizeSchoolName = (value?: string | null) =>
+  String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+
+const teacherIdentityKey = (teacher: SchoolAssignment) => {
+  if (teacher.user_id) return `user:${teacher.user_id}`;
+  if (teacher.teacher_email?.trim()) return `email:${teacher.teacher_email.trim().toLocaleLowerCase()}`;
+  return `name:${String(teacher.teacher_name || "").trim().replace(/\s+/g, " ").toLocaleLowerCase()}`;
+};
+
 export default function SupervisorDashboard() {
   const [reports, setReports] = useState<WeeklyReport[]>([]);
   const [schools, setSchools] = useState<SchoolAssignment[]>([]);
@@ -75,6 +95,7 @@ export default function SupervisorDashboard() {
   const [managedSchools, setManagedSchools] = useState<ManagedSchool[]>([]);
   const [uploadingProfile, setUploadingProfile] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<string | null>(null);
+  const [selectedWeekStart, setSelectedWeekStart] = useState(() => getReportingWeekStart(new Date()));
   const [accountDraft, setAccountDraft] = useState<SupervisorAccountDraft>({
     teacher_name: "",
     district_name: "",
@@ -82,11 +103,7 @@ export default function SupervisorDashboard() {
   const [isEditingAccount, setIsEditingAccount] = useState(false);
   const [savingAccount, setSavingAccount] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       // Get supervisor's profile to filter by their district
       const { data: { user } } = await supabase.auth.getUser();
@@ -158,7 +175,37 @@ export default function SupervisorDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void fetchData();
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void fetchData();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    const refreshInterval = window.setInterval(() => void fetchData(), 30_000);
+
+    const liveDashboard = supabase
+      .channel("supervisor-weekly-dashboard")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "teacher_submissions" },
+        () => void fetchData(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "school_assignments" },
+        () => void fetchData(),
+      )
+      .subscribe();
+
+    return () => {
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.clearInterval(refreshInterval);
+      void supabase.removeChannel(liveDashboard);
+    };
+  }, [fetchData]);
 
   const handleProfileImageUpload = async (file: File) => {
     try {
@@ -258,47 +305,69 @@ export default function SupervisorDashboard() {
     return acc;
   }, {} as Record<string, WeeklyReport[]>);
 
-  const getInstructionalMonday = (date: Date) => {
-    const value = new Date(date);
-    const day = value.getDay();
-    if (day === 6) value.setDate(value.getDate() + 2);
-    else if (day === 0) value.setDate(value.getDate() + 1);
-    value.setDate(value.getDate() + (1 - value.getDay()));
-    value.setHours(0, 0, 0, 0);
-    return value;
-  };
-  const toDateKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-  const currentMonday = getInstructionalMonday(new Date());
-  const currentMondayKey = toDateKey(currentMonday);
-  const currentFriday = new Date(currentMonday);
-  currentFriday.setDate(currentFriday.getDate() + 4);
-  const currentWeekSubmissions = teacherSubmissions.filter((submission) => String(submission.week_start).substring(0, 10) === currentMondayKey);
+  const currentMonday = getReportingWeekStart(new Date());
+  const currentMondayKey = toLocalDateKey(currentMonday);
+  const selectedWeekKey = toLocalDateKey(selectedWeekStart);
+  const selectedFriday = getReportingWeekEnd(selectedWeekStart);
+  const isViewingCurrentWeek = selectedWeekKey === currentMondayKey;
+  const selectedWeekSubmissions = teacherSubmissions.filter(
+    (submission) => normalizeReportingWeekKey(submission.week_start) === selectedWeekKey,
+  );
 
   // Include schools discovered through any district data source. This keeps legacy
   // principal-created schools visible even when their supervisor_id was not backfilled.
-  const districtSchoolNames = [...new Set([
-    ...managedSchools.map((school) => school.school_name),
-    ...schools.map((school) => school.school_name),
-    ...teacherSubmissions.map((submission) => submission.school_name),
-  ].filter(Boolean))].sort();
+  const districtSchoolNames = Array.from(
+    new Map(
+      [
+        ...managedSchools.map((school) => school.school_name),
+        ...schools.map((school) => school.school_name),
+        ...teacherSubmissions.map((submission) => submission.school_name),
+      ]
+        .filter(Boolean)
+        .map((schoolName) => [normalizeSchoolName(schoolName), schoolName]),
+    ).values(),
+  ).sort((left, right) => left.localeCompare(right));
 
   const schoolWeeklyRows = districtSchoolNames.map((schoolName) => {
-    const schoolTeachers = schools.filter((teacher) => teacher.school_name === schoolName);
-    const teacherKeys = new Set(schoolTeachers.map((teacher) => teacher.user_id || teacher.teacher_name?.trim().toLowerCase()).filter(Boolean));
-    const schoolSubmissions = currentWeekSubmissions.filter((submission) => submission.school_name === schoolName);
-    const submittedKeys = new Set(schoolSubmissions.map((submission) => submission.user_id || submission.teacher_name.trim().toLowerCase()).filter(Boolean));
-    const submitted = [...teacherKeys].filter((key) => submittedKeys.has(key)).length;
-    const total = teacherKeys.size;
-    return { schoolName, submitted, total, rate: total > 0 ? Math.round((submitted / total) * 100) : 0 };
+    const schoolKey = normalizeSchoolName(schoolName);
+    const uniqueTeachers = Array.from(
+      new Map(
+        schools
+          .filter((teacher) => normalizeSchoolName(teacher.school_name) === schoolKey)
+          .filter((teacher) => Boolean(teacher.user_id || teacher.teacher_name?.trim()))
+          .map((teacher) => [teacherIdentityKey(teacher), teacher]),
+      ).values(),
+    );
+    const schoolSubmissions = selectedWeekSubmissions.filter(
+      (submission) => normalizeSchoolName(submission.school_name) === schoolKey,
+    );
+    const submitted = uniqueTeachers.filter((teacher) =>
+      teacher.teacher_name && teacherHasSubmission(
+        { user_id: teacher.user_id, teacher_name: teacher.teacher_name },
+        schoolSubmissions,
+      ),
+    ).length;
+    const total = uniqueTeachers.length;
+    const managedSchool = managedSchools.find(
+      (school) => normalizeSchoolName(school.school_name) === schoolKey,
+    );
+    return {
+      schoolName,
+      submitted,
+      notSubmitted: Math.max(total - submitted, 0),
+      total,
+      rate: total > 0 ? Math.round((submitted / total) * 100) : 0,
+      principalName: managedSchool?.principal_name || null,
+    };
   });
 
   const totalSchools = districtSchoolNames.length;
   const completedThisWeek = schoolWeeklyRows.filter((school) => school.total > 0 && school.rate === 100).length;
-  const overallCompliance = schoolWeeklyRows.length > 0
-    ? Math.round(schoolWeeklyRows.reduce((sum, school) => sum + school.rate, 0) / schoolWeeklyRows.length)
-    : 0;
   const totalTeachersTracked = schoolWeeklyRows.reduce((sum, school) => sum + school.total, 0);
   const totalSubmitted = schoolWeeklyRows.reduce((sum, school) => sum + school.submitted, 0);
+  const overallCompliance = totalTeachersTracked > 0
+    ? Math.round((totalSubmitted / totalTeachersTracked) * 100)
+    : 0;
   const schoolsSubmitted = schoolWeeklyRows.filter((school) => school.submitted > 0).length;
   const schoolsNotSubmitted = Math.max(totalSchools - schoolsSubmitted, 0);
 
@@ -363,6 +432,84 @@ export default function SupervisorDashboard() {
         </Button>
       </header>
 
+      <section className="mb-7 overflow-hidden rounded-2xl border border-[#1D5A34] bg-[#173F2A] text-white shadow-[0_18px_46px_rgba(23,63,42,0.16)]" aria-labelledby="selected-week-heading">
+        <div className="grid lg:grid-cols-[1.25fr_0.75fr]">
+          <div className="p-5 sm:p-7">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className="border border-[#F3C957]/60 bg-[#F3C957] text-[#173F2A] hover:bg-[#F3C957]">
+                {isViewingCurrentWeek ? "THIS WEEK" : "SELECTED WEEK"}
+              </Badge>
+              <span className="text-sm text-[#CFE0D3]">Monday–Friday reporting</span>
+            </div>
+            <p className="mt-5 text-sm font-semibold uppercase tracking-[0.18em] text-[#F3C957]">Live district completion</p>
+            <h2 id="selected-week-heading" className="font-display mt-2 text-3xl font-semibold sm:text-4xl">
+              {formatReportingWeek(selectedWeekStart)}
+            </h2>
+            <div className="mt-6 flex items-end gap-4">
+              <p className="font-display text-6xl font-semibold tabular-nums text-[#F3C957] sm:text-7xl">{overallCompliance}%</p>
+              <p className="pb-2 text-sm leading-6 text-[#CFE0D3]">
+                {totalSubmitted} of {totalTeachersTracked} teachers submitted
+              </p>
+            </div>
+            <Progress value={overallCompliance} className="mt-5 h-3 bg-white/15" />
+          </div>
+
+          <div className="border-t border-white/15 bg-white/[0.04] p-5 sm:p-7 lg:border-l lg:border-t-0">
+            <div className="flex items-center justify-between gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 border-white/30 bg-transparent px-3 text-white hover:bg-white/10 hover:text-white"
+                onClick={() => setSelectedWeekStart((week) => addReportingWeeks(week, -1))}
+                aria-label="Show previous reporting week"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="text-center">
+                <CalendarDays className="mx-auto h-5 w-5 text-[#F3C957]" aria-hidden="true" />
+                <p className="mt-1 text-sm font-semibold">Choose reporting week</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 border-white/30 bg-transparent px-3 text-white hover:bg-white/10 hover:text-white"
+                onClick={() => setSelectedWeekStart((week) => addReportingWeeks(week, 1))}
+                aria-label="Show next reporting week"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="mt-5 grid gap-2">
+              {[
+                { label: "Last week", start: addReportingWeeks(currentMonday, -1) },
+                { label: "This week", start: currentMonday },
+                { label: "Next week", start: addReportingWeeks(currentMonday, 1) },
+              ].map((option) => {
+                const optionKey = toLocalDateKey(option.start);
+                const active = optionKey === selectedWeekKey;
+                return (
+                  <button
+                    key={option.label}
+                    type="button"
+                    onClick={() => setSelectedWeekStart(option.start)}
+                    className={`rounded-lg border px-4 py-3 text-left transition-colors ${
+                      active
+                        ? "border-[#F3C957] bg-[#F3C957] text-[#173F2A]"
+                        : "border-white/20 bg-white/[0.04] text-white hover:bg-white/10"
+                    }`}
+                    aria-pressed={active}
+                  >
+                    <span className="block text-xs font-semibold uppercase tracking-[0.12em]">{option.label}</span>
+                    <span className="mt-1 block text-sm">{formatReportingWeek(option.start)}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Overview Stats */}
       <section className="mb-7 grid overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7] shadow-[0_8px_26px_rgba(20,32,25,0.05)] sm:grid-cols-2 lg:grid-cols-4" aria-label="District summary">
         <div className="border-b border-[#D8D0C4] p-4 sm:border-r lg:border-b-0 sm:p-5">
@@ -380,7 +527,7 @@ export default function SupervisorDashboard() {
             <CheckCircle className="h-8 w-8 text-green-600" />
             <div>
               <p className="font-display text-2xl font-semibold tabular-nums text-[#173F2A]">{completedThisWeek}</p>
-              <p className="text-sm text-[#526159]">Completed this week</p>
+              <p className="text-sm text-[#526159]">{isViewingCurrentWeek ? "Completed this week" : "Schools fully complete"}</p>
             </div>
           </div>
         </div>
@@ -390,7 +537,7 @@ export default function SupervisorDashboard() {
             <TrendingUp className="h-8 w-8" style={{ color: "#f5ca47" }} />
             <div>
               <p className="font-display text-2xl font-semibold tabular-nums text-[#173F2A]">{overallCompliance}%</p>
-              <p className="text-sm text-[#526159]">Overall compliance</p>
+              <p className="text-sm text-[#526159]">Teacher completion</p>
             </div>
           </div>
         </div>
@@ -408,8 +555,8 @@ export default function SupervisorDashboard() {
 
       <Tabs defaultValue="overview" className="mb-7">
         <div className="mb-4">
-          <h2 className="font-display text-2xl font-semibold text-[#173F2A]">Schools requiring attention</h2>
-          <p className="mt-1 text-sm text-[#526159]">Open a school to review teachers, files, and recent reporting history.</p>
+          <h2 className="font-display text-2xl font-semibold text-[#173F2A]">School completion for {formatReportingWeek(selectedWeekStart)}</h2>
+          <p className="mt-1 text-sm text-[#526159]">Open a school to see who submitted, who has not submitted, and its recent files.</p>
         </div>
         <div className="overflow-x-auto pb-1">
           <TabsList className="h-auto min-w-max border border-[#D8D0C4] bg-[#EEE8DE] p-1">
@@ -425,33 +572,20 @@ export default function SupervisorDashboard() {
             <PrincipalDashboardView
               schoolName={selectedSchool}
               districtName={profile?.district_name || ""}
+              weekStart={selectedWeekKey}
               onClose={() => setSelectedSchool(null)}
             />
           ) : (
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {districtSchoolNames.map((schoolName) => {
-                const school = managedSchools.find((item) => item.school_name === schoolName) || { id: schoolName, school_name: schoolName, principal_name: null };
-                const schoolReportsForSchool = reports.filter(r => r.school_name === school.school_name);
+                const schoolKey = normalizeSchoolName(schoolName);
+                const school = managedSchools.find((item) => normalizeSchoolName(item.school_name) === schoolKey) || { id: schoolName, school_name: schoolName, principal_name: null };
+                const schoolReportsForSchool = reports.filter((report) => normalizeSchoolName(report.school_name) === schoolKey);
                 const latestReport = schoolReportsForSchool[0];
-                
-                // Get teacher count from school_assignments
-                const teachersInSchool = schools.filter(s => s.school_name === school.school_name);
-                const teacherCount = teachersInSchool.length;
-                
-                // Get submissions for this school this week
-                const today = new Date();
-                const startOfWeek = new Date(today);
-                startOfWeek.setDate(today.getDate() - today.getDay());
-                
-                const thisWeekSubmissions = teacherSubmissions.filter(sub => {
-                  const subDate = new Date(sub.created_at);
-                  return sub.school_name === school.school_name && subDate >= startOfWeek;
-                });
-                
-                const submittedCount = new Set(thisWeekSubmissions.map(s => s.user_id)).size;
-                const completionRate = teacherCount > 0
-                  ? Math.round((submittedCount / teacherCount) * 100)
-                  : 0;
+                const weeklyRow = schoolWeeklyRows.find((row) => normalizeSchoolName(row.schoolName) === schoolKey);
+                const teacherCount = weeklyRow?.total || 0;
+                const submittedCount = weeklyRow?.submitted || 0;
+                const completionRate = weeklyRow?.rate || 0;
 
                 return (
                   <button
@@ -461,22 +595,42 @@ export default function SupervisorDashboard() {
                     onClick={() => setSelectedSchool(school.school_name)}
                     aria-label={`View ${school.school_name} school details`}
                   >
-                    <div className="flex items-start justify-between mb-4">
+                    <div className="mb-4 flex items-start justify-between gap-3">
                       <h3 className="font-display text-xl font-semibold text-[#173F2A]">{school.school_name}</h3>
-                      <Badge variant={latestReport?.status === 'completed' ? 'default' : 'secondary'}>
-                        {latestReport?.status || 'No Reports'}
+                      <Badge
+                        variant="outline"
+                        className={
+                          teacherCount === 0
+                            ? "shrink-0 border-[#CFC6B9] text-[#526159]"
+                            : completionRate === 100
+                              ? "shrink-0 border-[#8FC09B] bg-[#EAF3EB] text-[#17613A]"
+                              : "shrink-0 border-[#E1BD75] bg-[#FBF2DC] text-[#76500A]"
+                        }
+                      >
+                        {teacherCount === 0 ? "No teachers" : `${completionRate}%`}
                       </Badge>
                     </div>
                     
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Teachers Submitted:</span>
+                        <span className="text-muted-foreground">Teachers submitted</span>
                         <span className="font-semibold">
                           {submittedCount} / {teacherCount}
                         </span>
                       </div>
                       
                       <Progress value={completionRate} className="h-2" />
+
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="rounded-lg bg-[#EAF3EB] px-3 py-2 text-[#17613A]">
+                          <span className="block font-semibold tabular-nums">{submittedCount}</span>
+                          Submitted
+                        </div>
+                        <div className="rounded-lg bg-[#FAECE8] px-3 py-2 text-[#A83224]">
+                          <span className="block font-semibold tabular-nums">{Math.max(teacherCount - submittedCount, 0)}</span>
+                          Not submitted
+                        </div>
+                      </div>
                       
                       {latestReport && (
                         <div className="text-sm text-muted-foreground">
@@ -485,7 +639,7 @@ export default function SupervisorDashboard() {
                       )}
                       
                       <div className="text-xs text-muted-foreground">
-                        Principal: {school.principal_name || "Not assigned"}
+                        Principal: {school.principal_name || "Not linked yet"}
                       </div>
                       
                       <span className="mt-3 flex min-h-11 w-full items-center justify-between rounded-lg border border-[#236130] px-3 text-sm font-semibold text-[#173F2A]">
@@ -604,7 +758,9 @@ export default function SupervisorDashboard() {
         </TabsContent>
       </Tabs>
       <div className="mb-4">
-        <p className="text-sm font-semibold text-[#526159]">Week of {currentMonday.toLocaleDateString("en-US", { month: "long", day: "numeric" })} – {currentFriday.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
+        <p className="text-sm font-semibold text-[#526159]">
+          Week of {selectedWeekStart.toLocaleDateString("en-US", { month: "long", day: "numeric" })} – {selectedFriday.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+        </p>
         <h2 className="font-display mt-1 text-2xl font-semibold text-[#173F2A]">Weekly submission dashboard</h2>
       </div>
       {/* Charts Section */}
