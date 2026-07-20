@@ -30,6 +30,7 @@ import {
   canonicalDistrictName,
   canonicalSchoolName,
   isBacongDistrict,
+  isOfficialBacongSchool,
   schoolIdentityKey,
 } from "@/lib/districtReporting";
 
@@ -137,10 +138,6 @@ export default function SupervisorDashboard() {
       }
 
       const profileDistrict = canonicalDistrictName(profileData.district_name);
-      setProfile({
-        ...(profileData as SupervisorProfile),
-        district_name: profileDistrict,
-      });
 
       if (!profileDistrict) {
         setManagedSchools([]);
@@ -166,17 +163,37 @@ export default function SupervisorDashboard() {
         submissionsResult.error;
       if (queryError) throw queryError;
 
+      const visibleRows = [
+        ...((managedSchoolsResult.data || []) as ManagedSchool[]),
+        ...((reportsResult.data || []) as WeeklyReport[]),
+        ...((assignmentsResult.data || []) as SchoolAssignment[]),
+        ...((submissionsResult.data || []) as TeacherSubmission[]),
+      ];
+      // Older supervisor accounts sometimes retained "Unknown District" while
+      // their linked schools were already identifiable as Bacong. Recover the
+      // district only from data this supervisor is already permitted to view.
+      const effectiveDistrict =
+        isBacongDistrict(profileDistrict) ||
+        visibleRows.some((row) => isOfficialBacongSchool(row.school_name))
+          ? BACONG_DISTRICT_NAME
+          : profileDistrict;
+
+      setProfile({
+        ...(profileData as SupervisorProfile),
+        district_name: effectiveDistrict,
+      });
+
       const districtSchools = ((managedSchoolsResult.data || []) as ManagedSchool[])
-        .filter((school) => belongsToDistrict(school, profileDistrict))
+        .filter((school) => belongsToDistrict(school, effectiveDistrict))
         .map((school) => ({ ...school, school_name: canonicalSchoolName(school.school_name) }));
       const districtReports = ((reportsResult.data || []) as WeeklyReport[])
-        .filter((report) => belongsToDistrict(report, profileDistrict))
+        .filter((report) => belongsToDistrict(report, effectiveDistrict))
         .map((report) => ({ ...report, school_name: canonicalSchoolName(report.school_name) }));
       const districtAssignments = ((assignmentsResult.data || []) as SchoolAssignment[])
-        .filter((assignment) => belongsToDistrict(assignment, profileDistrict))
+        .filter((assignment) => belongsToDistrict(assignment, effectiveDistrict))
         .map((assignment) => ({ ...assignment, school_name: canonicalSchoolName(assignment.school_name) }));
       const districtSubmissions = ((submissionsResult.data || []) as TeacherSubmission[])
-        .filter((submission) => belongsToDistrict(submission, profileDistrict))
+        .filter((submission) => belongsToDistrict(submission, effectiveDistrict))
         .map((submission) => ({ ...submission, school_name: canonicalSchoolName(submission.school_name) }));
 
       setManagedSchools(districtSchools);
