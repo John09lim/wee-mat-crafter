@@ -14,6 +14,11 @@ import {
   parseLocalDateKey,
   toLocalDateKey,
 } from "@/lib/reportingWeek";
+import {
+  belongsToDistrict,
+  canonicalSchoolName,
+  isSameSchoolName,
+} from "@/lib/districtReporting";
 
 interface PrincipalDashboardViewProps {
   schoolName: string;
@@ -28,6 +33,8 @@ interface SchoolTeacher {
   teacher_name: string;
   grade_level?: string | null;
   profile_image_url?: string | null;
+  school_name?: string | null;
+  district_name?: string | null;
 }
 
 interface SchoolSubmission {
@@ -42,10 +49,14 @@ interface SchoolSubmission {
   week_start: string;
   week_end: string;
   created_at: string;
+  school_name?: string | null;
+  district_name?: string | null;
 }
 
 interface SchoolInfo {
   principal_name?: string | null;
+  school_name?: string | null;
+  district_name?: string | null;
 }
 
 export function PrincipalDashboardView({ schoolName, districtName, weekStart, onClose }: PrincipalDashboardViewProps) {
@@ -57,29 +68,34 @@ export function PrincipalDashboardView({ schoolName, districtName, weekStart, on
 
   const fetchSchoolData = useCallback(async () => {
     try {
-      // Fetch school info
-      const { data: schoolData } = await supabase
-        .from("schools")
-        .select("*")
-        .eq("school_name", schoolName)
-        .eq("district_name", districtName)
-        .maybeSingle();
+      // RLS scopes these reads to the supervisor. Matching client-side lets
+      // legacy school/district spellings resolve to the same official school.
+      const [schoolsResult, teachersResult, submissionsResult] = await Promise.all([
+        supabase.from("schools").select("*"),
+        supabase.from("school_assignments").select("*"),
+        supabase.from("teacher_submissions").select("*").order("created_at", { ascending: false }),
+      ]);
 
-      setSchoolInfo(schoolData as SchoolInfo | null);
+      const queryError = schoolsResult.error || teachersResult.error || submissionsResult.error;
+      if (queryError) throw queryError;
 
-      // Fetch all teachers from this school
-      const { data: teachersData, error: teachersError } = await supabase
-        .from("school_assignments")
-        .select("*")
-        .eq("school_name", schoolName)
-        .eq("district_name", districtName);
+      const schoolData = ((schoolsResult.data || []) as SchoolInfo[]).find(
+        (school) =>
+          belongsToDistrict(school, districtName) &&
+          isSameSchoolName(school.school_name, schoolName),
+      );
+      setSchoolInfo(schoolData || null);
 
-      if (teachersError) throw teachersError;
+      const teachersData = ((teachersResult.data || []) as SchoolTeacher[]).filter(
+        (teacher) =>
+          belongsToDistrict(teacher, districtName) &&
+          isSameSchoolName(teacher.school_name, schoolName),
+      );
       const uniqueTeachers = Array.from(
         new Map(
-          ((teachersData || []) as SchoolTeacher[]).map((teacher) => [
+          teachersData.map((teacher) => [
             teacher.user_id || teacher.teacher_name.trim().replace(/\s+/g, " ").toLocaleLowerCase(),
-            teacher,
+            { ...teacher, school_name: canonicalSchoolName(teacher.school_name) },
           ]),
         ).values(),
       );
@@ -87,15 +103,17 @@ export function PrincipalDashboardView({ schoolName, districtName, weekStart, on
 
       // Keep recent submissions available while the selected week controls the
       // submitted/not-submitted roster and completion statistics.
-      const { data: submissionsData, error: submissionsError } = await supabase
-        .from("teacher_submissions")
-        .select("*")
-        .eq("school_name", schoolName)
-        .eq("district_name", districtName)
-        .order("created_at", { ascending: false });
-
-      if (submissionsError) throw submissionsError;
-      setSubmissions((submissionsData || []) as SchoolSubmission[]);
+      const submissionsData = ((submissionsResult.data || []) as SchoolSubmission[])
+        .filter(
+          (submission) =>
+            belongsToDistrict(submission, districtName) &&
+            isSameSchoolName(submission.school_name, schoolName),
+        )
+        .map((submission) => ({
+          ...submission,
+          school_name: canonicalSchoolName(submission.school_name),
+        }));
+      setSubmissions(submissionsData);
 
     } catch (error) {
       console.error("Error fetching school data:", error);
