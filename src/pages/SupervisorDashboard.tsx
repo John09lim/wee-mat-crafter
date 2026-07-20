@@ -23,6 +23,15 @@ import {
   normalizeReportingWeekKey,
   toLocalDateKey,
 } from "@/lib/reportingWeek";
+import {
+  BACONG_DISTRICT_NAME,
+  BACONG_DISTRICT_SCHOOLS,
+  belongsToDistrict,
+  canonicalDistrictName,
+  canonicalSchoolName,
+  isBacongDistrict,
+  schoolIdentityKey,
+} from "@/lib/districtReporting";
 
 interface WeeklyReport {
   id: string;
@@ -33,6 +42,7 @@ interface WeeklyReport {
   status: string;
   submitted_teachers: number;
   total_teachers: number;
+  district_name?: string | null;
 }
 
 interface SchoolAssignment {
@@ -41,12 +51,14 @@ interface SchoolAssignment {
   school_name: string;
   teacher_name?: string | null;
   teacher_email?: string | null;
+  district_name?: string | null;
 }
 
 interface ManagedSchool {
   id: string;
   school_name: string;
   principal_name?: string | null;
+  district_name?: string | null;
 }
 
 interface TeacherSubmission {
@@ -62,6 +74,7 @@ interface TeacherSubmission {
   created_at: string;
   status: string;
   file_url: string;
+  district_name?: string | null;
 }
 
 interface SupervisorProfile {
@@ -78,7 +91,7 @@ interface SupervisorAccountDraft {
 }
 
 const normalizeSchoolName = (value?: string | null) =>
-  String(value || "").trim().replace(/\s+/g, " ").toLocaleLowerCase();
+  schoolIdentityKey(value);
 
 const teacherIdentityKey = (teacher: SchoolAssignment) => {
   if (teacher.user_id) return `user:${teacher.user_id}`;
@@ -123,9 +136,13 @@ export default function SupervisorDashboard() {
         return;
       }
 
-      setProfile(profileData as SupervisorProfile);
+      const profileDistrict = canonicalDistrictName(profileData.district_name);
+      setProfile({
+        ...(profileData as SupervisorProfile),
+        district_name: profileDistrict,
+      });
 
-      if (!profileData.district_name) {
+      if (!profileDistrict) {
         setManagedSchools([]);
         setReports([]);
         setSchools([]);
@@ -133,43 +150,39 @@ export default function SupervisorDashboard() {
         return;
       }
 
-      // Fetch managed schools from schools table
-      const { data: managedSchoolsData } = await supabase
-        .from("schools")
-        .select("*")
-        .eq("district_name", profileData.district_name);
-      
-      setManagedSchools((managedSchoolsData || []) as ManagedSchool[]);
+      // RLS limits these reads to the supervisor's district. Client-side
+      // canonicalization then joins legacy district and school-name aliases.
+      const [managedSchoolsResult, reportsResult, assignmentsResult, submissionsResult] = await Promise.all([
+        supabase.from("schools").select("*"),
+        supabase.from("principal_weekly_reports").select("*").order("created_at", { ascending: false }),
+        supabase.from("school_assignments").select("*"),
+        supabase.from("teacher_submissions").select("*").order("created_at", { ascending: false }),
+      ]);
 
-      // Fetch ONLY reports from supervisor's district
-      const { data: reportsData, error: reportsError } = await supabase
-        .from("principal_weekly_reports")
-        .select("*")
-        .eq("district_name", profileData.district_name)
-        .order("created_at", { ascending: false });
+      const queryError =
+        managedSchoolsResult.error ||
+        reportsResult.error ||
+        assignmentsResult.error ||
+        submissionsResult.error;
+      if (queryError) throw queryError;
 
-      if (reportsError) throw reportsError;
+      const districtSchools = ((managedSchoolsResult.data || []) as ManagedSchool[])
+        .filter((school) => belongsToDistrict(school, profileDistrict))
+        .map((school) => ({ ...school, school_name: canonicalSchoolName(school.school_name) }));
+      const districtReports = ((reportsResult.data || []) as WeeklyReport[])
+        .filter((report) => belongsToDistrict(report, profileDistrict))
+        .map((report) => ({ ...report, school_name: canonicalSchoolName(report.school_name) }));
+      const districtAssignments = ((assignmentsResult.data || []) as SchoolAssignment[])
+        .filter((assignment) => belongsToDistrict(assignment, profileDistrict))
+        .map((assignment) => ({ ...assignment, school_name: canonicalSchoolName(assignment.school_name) }));
+      const districtSubmissions = ((submissionsResult.data || []) as TeacherSubmission[])
+        .filter((submission) => belongsToDistrict(submission, profileDistrict))
+        .map((submission) => ({ ...submission, school_name: canonicalSchoolName(submission.school_name) }));
 
-      // Fetch ONLY school assignments in supervisor's district
-      const { data: schoolsData, error: schoolsError } = await supabase
-        .from("school_assignments")
-        .select("*")
-        .eq("district_name", profileData.district_name);
-
-      if (schoolsError) throw schoolsError;
-
-      // Fetch teacher submissions from this district
-      const { data: submissionsData, error: submissionsError } = await supabase
-        .from("teacher_submissions")
-        .select("*")
-        .eq("district_name", profileData.district_name)
-        .order("created_at", { ascending: false });
-
-      if (submissionsError) throw submissionsError;
-
-      setReports((reportsData || []) as WeeklyReport[]);
-      setSchools((schoolsData || []) as SchoolAssignment[]);
-      setTeacherSubmissions((submissionsData || []) as TeacherSubmission[]);
+      setManagedSchools(districtSchools);
+      setReports(districtReports);
+      setSchools(districtAssignments);
+      setTeacherSubmissions(districtSubmissions);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -316,15 +329,23 @@ export default function SupervisorDashboard() {
 
   // Include schools discovered through any district data source. This keeps legacy
   // principal-created schools visible even when their supervisor_id was not backfilled.
+  // Bacong's official roster is also seeded so a school remains visible before its
+  // principal, teachers, or first submission have been linked.
+  const officialDistrictSchools = isBacongDistrict(profile?.district_name)
+    ? BACONG_DISTRICT_SCHOOLS.map((school) => school.name)
+    : [];
   const districtSchoolNames = Array.from(
     new Map(
       [
+        ...officialDistrictSchools,
         ...managedSchools.map((school) => school.school_name),
         ...schools.map((school) => school.school_name),
         ...teacherSubmissions.map((submission) => submission.school_name),
+        ...reports.map((report) => report.school_name),
       ]
+        .map((schoolName) => canonicalSchoolName(schoolName))
         .filter(Boolean)
-        .map((schoolName) => [normalizeSchoolName(schoolName), schoolName]),
+        .map((schoolName) => [schoolIdentityKey(schoolName), schoolName]),
     ).values(),
   ).sort((left, right) => left.localeCompare(right));
 
@@ -349,6 +370,10 @@ export default function SupervisorDashboard() {
     ).length;
     const total = uniqueTeachers.length;
     const managedSchool = managedSchools.find(
+      (school) =>
+        normalizeSchoolName(school.school_name) === schoolKey &&
+        Boolean(school.principal_name?.trim()),
+    ) || managedSchools.find(
       (school) => normalizeSchoolName(school.school_name) === schoolKey,
     );
     return {
@@ -579,7 +604,14 @@ export default function SupervisorDashboard() {
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {districtSchoolNames.map((schoolName) => {
                 const schoolKey = normalizeSchoolName(schoolName);
-                const school = managedSchools.find((item) => normalizeSchoolName(item.school_name) === schoolKey) || { id: schoolName, school_name: schoolName, principal_name: null };
+                const school =
+                  managedSchools.find(
+                    (item) =>
+                      normalizeSchoolName(item.school_name) === schoolKey &&
+                      Boolean(item.principal_name?.trim()),
+                  ) ||
+                  managedSchools.find((item) => normalizeSchoolName(item.school_name) === schoolKey) ||
+                  { id: schoolName, school_name: schoolName, principal_name: null };
                 const schoolReportsForSchool = reports.filter((report) => normalizeSchoolName(report.school_name) === schoolKey);
                 const latestReport = schoolReportsForSchool[0];
                 const weeklyRow = schoolWeeklyRows.find((row) => normalizeSchoolName(row.schoolName) === schoolKey);
