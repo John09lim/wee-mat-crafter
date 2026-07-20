@@ -5,7 +5,9 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { School, Users, CheckCircle, TrendingUp, UserCircle, ExternalLink, Upload, ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { School, Users, CheckCircle, TrendingUp, UserCircle, ExternalLink, Upload, ArrowRight, Pencil, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import DocumentViewer from "@/components/DocumentViewer";
@@ -53,10 +55,15 @@ interface TeacherSubmission {
 
 interface SupervisorProfile {
   user_id: string;
-  district_name: string;
+  district_name?: string | null;
   teacher_name?: string | null;
   email?: string | null;
   profile_image_url?: string | null;
+}
+
+interface SupervisorAccountDraft {
+  teacher_name: string;
+  district_name: string;
 }
 
 export default function SupervisorDashboard() {
@@ -68,6 +75,12 @@ export default function SupervisorDashboard() {
   const [managedSchools, setManagedSchools] = useState<ManagedSchool[]>([]);
   const [uploadingProfile, setUploadingProfile] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<string | null>(null);
+  const [accountDraft, setAccountDraft] = useState<SupervisorAccountDraft>({
+    teacher_name: "",
+    district_name: "",
+  });
+  const [isEditingAccount, setIsEditingAccount] = useState(false);
+  const [savingAccount, setSavingAccount] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -88,13 +101,20 @@ export default function SupervisorDashboard() {
         .eq("user_id", user.id)
         .single();
 
-      if (!profileData || !profileData.district_name) {
-        console.error("Supervisor profile or district not found");
-        setLoading(false);
+      if (!profileData) {
+        console.error("Supervisor profile not found");
         return;
       }
 
       setProfile(profileData as SupervisorProfile);
+
+      if (!profileData.district_name) {
+        setManagedSchools([]);
+        setReports([]);
+        setSchools([]);
+        setTeacherSubmissions([]);
+        return;
+      }
 
       // Fetch managed schools from schools table
       const { data: managedSchoolsData } = await supabase
@@ -174,6 +194,58 @@ export default function SupervisorDashboard() {
       toast.error(error instanceof Error ? error.message : "Failed to upload profile image");
     } finally {
       setUploadingProfile(false);
+    }
+  };
+
+  const startAccountEdit = () => {
+    if (!profile) return;
+
+    setAccountDraft({
+      teacher_name: profile.teacher_name?.trim() || "",
+      district_name: profile.district_name?.trim() || "",
+    });
+    setIsEditingAccount(true);
+  };
+
+  const cancelAccountEdit = () => {
+    setIsEditingAccount(false);
+  };
+
+  const handleSaveAccount = async () => {
+    const supervisorName = accountDraft.teacher_name.trim();
+    const districtName = accountDraft.district_name.trim();
+
+    if (!supervisorName || !districtName) {
+      toast.error("Supervisor name and district are required.");
+      return;
+    }
+
+    try {
+      setSavingAccount(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: updatedProfile, error } = await supabase
+        .from("profiles")
+        .update({
+          teacher_name: supervisorName,
+          district_name: districtName,
+        })
+        .eq("user_id", user.id)
+        .select("*")
+        .single();
+
+      if (error) throw error;
+
+      setProfile(updatedProfile as SupervisorProfile);
+      setIsEditingAccount(false);
+      toast.success("Supervisor account information updated.");
+      await fetchData();
+    } catch (error: unknown) {
+      console.error("Supervisor account update error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to save account information.");
+    } finally {
+      setSavingAccount(false);
     }
   };
 
@@ -683,7 +755,7 @@ export default function SupervisorDashboard() {
       {/* Account Info Card */}
       {profile && (
         <Card className="mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
-          <div className="flex items-start gap-4">
+          <div className="flex flex-col items-start gap-4 sm:flex-row">
             <div className="relative">
               <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
                 {profile.profile_image_url ? (
@@ -708,27 +780,119 @@ export default function SupervisorDashboard() {
                 type="file"
                 accept="image/*"
                 className="hidden"
+                disabled={uploadingProfile}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) handleProfileImageUpload(file);
                 }}
               />
             </div>
-            <div className="flex-1">
-              <h2 className="font-display mb-2 text-xl font-semibold text-[#173F2A]">
-                Account Information
-              </h2>
-              <div className="grid md:grid-cols-3 gap-3 text-sm">
+            <div className="w-full min-w-0 flex-1">
+              <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <span className="font-semibold">Name:</span> {profile.teacher_name}
+                  <h2 className="font-display text-xl font-semibold text-[#173F2A]">
+                    Account Information
+                  </h2>
+                  <p className="mt-1 text-sm text-[#526159]">
+                    Keep your supervisor name and district accurate for school reporting.
+                  </p>
                 </div>
-                <div>
-                  <span className="font-semibold">Email:</span> {profile.email}
-                </div>
-                <div>
-                  <span className="font-semibold">District:</span> {profile.district_name || "N/A"}
-                </div>
+                {!isEditingAccount && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={startAccountEdit}
+                    className="h-11 gap-2 border-[#236130] text-[#173F2A] hover:bg-[#EAF1E6] sm:shrink-0"
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                    Edit information
+                  </Button>
+                )}
               </div>
+
+              {isEditingAccount ? (
+                <div className="rounded-xl border border-[#D8D0C4] bg-[#F7F1E8] p-4 sm:p-5">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="supervisorName">Supervisor name</Label>
+                      <Input
+                        id="supervisorName"
+                        value={accountDraft.teacher_name}
+                        onChange={(event) => setAccountDraft((current) => ({
+                          ...current,
+                          teacher_name: event.target.value,
+                        }))}
+                        placeholder="Enter the supervisor's full name"
+                        className="h-11 bg-[#FFFCF7]"
+                        autoComplete="name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="supervisorEmail">Email</Label>
+                      <Input
+                        id="supervisorEmail"
+                        value={profile.email || ""}
+                        disabled
+                        className="h-11 bg-[#EEE9E1]"
+                      />
+                      <p className="text-xs text-[#526159]">Your sign-in email cannot be changed here.</p>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="supervisorDistrict">District</Label>
+                      <Input
+                        id="supervisorDistrict"
+                        value={accountDraft.district_name}
+                        onChange={(event) => setAccountDraft((current) => ({
+                          ...current,
+                          district_name: event.target.value,
+                        }))}
+                        placeholder="e.g., Bacong District"
+                        className="h-11 bg-[#FFFCF7] md:max-w-xl"
+                        required
+                      />
+                      <p className="text-xs leading-5 text-[#526159]">
+                        Use the official district name shared by the schools under your supervision.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={cancelAccountEdit}
+                      disabled={savingAccount}
+                      className="h-11 gap-2"
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" />
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleSaveAccount}
+                      disabled={savingAccount}
+                      className="h-11 gap-2 bg-[#236130] text-white hover:bg-[#173F2A]"
+                    >
+                      <Save className="h-4 w-4" aria-hidden="true" />
+                      {savingAccount ? "Saving…" : "Save changes"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-x-8 gap-y-4 text-sm md:grid-cols-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#526159]">Name</p>
+                    <p className="mt-1 font-medium text-[#173F2A]">{profile.teacher_name || "Not provided"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#526159]">Email</p>
+                    <p className="mt-1 break-all font-medium text-[#173F2A]">{profile.email || "Not provided"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#526159]">District</p>
+                    <p className="mt-1 font-medium text-[#173F2A]">{profile.district_name || "Needs setup"}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </Card>
