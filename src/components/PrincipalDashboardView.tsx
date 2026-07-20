@@ -6,16 +6,25 @@ import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, XCircle, UserCircle, ArrowLeft, ExternalLink } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import DocumentViewer from "@/components/DocumentViewer";
+import { teacherHasSubmission } from "@/lib/submissionTracking";
+import {
+  formatReportingWeek,
+  getReportingWeekStart,
+  normalizeReportingWeekKey,
+  parseLocalDateKey,
+  toLocalDateKey,
+} from "@/lib/reportingWeek";
 
 interface PrincipalDashboardViewProps {
   schoolName: string;
   districtName: string;
+  weekStart: string;
   onClose: () => void;
 }
 
 interface SchoolTeacher {
   id: string;
-  user_id: string;
+  user_id: string | null;
   teacher_name: string;
   grade_level?: string | null;
   profile_image_url?: string | null;
@@ -23,29 +32,23 @@ interface SchoolTeacher {
 
 interface SchoolSubmission {
   id: string;
-  user_id: string;
+  user_id: string | null;
   teacher_name: string;
   subject: string;
   grade_level: string;
   section?: string | null;
   status: string;
   file_url: string;
+  week_start: string;
+  week_end: string;
+  created_at: string;
 }
 
 interface SchoolInfo {
   principal_name?: string | null;
 }
 
-function getMondayOfWeek(date: Date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-export function PrincipalDashboardView({ schoolName, districtName, onClose }: PrincipalDashboardViewProps) {
+export function PrincipalDashboardView({ schoolName, districtName, weekStart, onClose }: PrincipalDashboardViewProps) {
   const [teachers, setTeachers] = useState<SchoolTeacher[]>([]);
   const [submissions, setSubmissions] = useState<SchoolSubmission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,22 +75,23 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
         .eq("district_name", districtName);
 
       if (teachersError) throw teachersError;
-      setTeachers((teachersData || []) as SchoolTeacher[]);
+      const uniqueTeachers = Array.from(
+        new Map(
+          ((teachersData || []) as SchoolTeacher[]).map((teacher) => [
+            teacher.user_id || teacher.teacher_name.trim().replace(/\s+/g, " ").toLocaleLowerCase(),
+            teacher,
+          ]),
+        ).values(),
+      );
+      setTeachers(uniqueTeachers);
 
-      // Fetch submissions for current week
-      const currentMonday = getMondayOfWeek(new Date());
-      const currentFriday = new Date(currentMonday);
-      currentFriday.setDate(currentMonday.getDate() + 4);
-      currentFriday.setHours(23, 59, 59, 999);
-      const weekStartStr = currentMonday.toISOString().split('T')[0];
-      const weekEndStr = currentFriday.toISOString().split('T')[0];
-
+      // Keep recent submissions available while the selected week controls the
+      // submitted/not-submitted roster and completion statistics.
       const { data: submissionsData, error: submissionsError } = await supabase
         .from("teacher_submissions")
         .select("*")
         .eq("school_name", schoolName)
-        .gte("week_start", weekStartStr)
-        .lte("week_end", weekEndStr)
+        .eq("district_name", districtName)
         .order("created_at", { ascending: false });
 
       if (submissionsError) throw submissionsError;
@@ -112,10 +116,23 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
     return name.substring(0, 2).toUpperCase();
   };
 
-  // Calculate submission status
-  const submittedUserIds = new Set(submissions.map(s => s.user_id));
-  const submittedTeachers = teachers.filter(t => submittedUserIds.has(t.user_id));
-  const notSubmittedTeachers = teachers.filter(t => !submittedUserIds.has(t.user_id));
+  const selectedWeekDate = parseLocalDateKey(weekStart) || getReportingWeekStart(new Date());
+  const selectedWeekKey = toLocalDateKey(selectedWeekDate);
+  const currentWeekKey = toLocalDateKey(getReportingWeekStart(new Date()));
+  const selectedWeekSubmissions = submissions.filter(
+    (submission) => normalizeReportingWeekKey(submission.week_start) === selectedWeekKey,
+  );
+
+  // Calculate submission status for the selected Monday–Friday week.
+  const submittedTeachers = teachers.filter((teacher) =>
+    teacherHasSubmission(teacher, selectedWeekSubmissions),
+  );
+  const notSubmittedTeachers = teachers.filter((teacher) =>
+    !teacherHasSubmission(teacher, selectedWeekSubmissions),
+  );
+  const completionRate = teachers.length > 0
+    ? Math.round((submittedTeachers.length / teachers.length) * 100)
+    : 0;
 
   // Chart data
   const submissionCompletionData = [
@@ -124,9 +141,9 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
   ];
 
   const statusChartData = [
-    { name: "Reviewed", value: submissions.filter(s => s.status === 'reviewed').length, color: "#17613A" },
-    { name: "Pending", value: submissions.filter(s => s.status === 'pending').length, color: "#D6A73D" },
-    { name: "Returned", value: submissions.filter(s => s.status === 'returned').length, color: "#A83224" }
+    { name: "Reviewed", value: selectedWeekSubmissions.filter(s => s.status === 'reviewed').length, color: "#17613A" },
+    { name: "Pending", value: selectedWeekSubmissions.filter(s => s.status === 'pending').length, color: "#D6A73D" },
+    { name: "Returned", value: selectedWeekSubmissions.filter(s => s.status === 'returned').length, color: "#A83224" }
   ];
 
   if (loading) {
@@ -156,20 +173,26 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
           {schoolName}
         </h2>
         <p className="mb-2 text-[#526159]">{districtName}</p>
+        <div className="mb-3 inline-flex items-center rounded-full border border-[#D6A73D]/45 bg-[#FFF7DF] px-3 py-1 text-sm font-semibold text-[#76500A]">
+          {selectedWeekKey === currentWeekKey ? "This week" : "Selected week"} · {formatReportingWeek(selectedWeekDate)}
+        </div>
         {schoolInfo?.principal_name && (
           <p className="text-sm">
             <span className="font-semibold">Principal:</span> {schoolInfo.principal_name}
           </p>
         )}
-        <div className="mt-5 grid overflow-hidden rounded-lg border border-[#D8D0C4] sm:grid-cols-3">
+        <div className="mt-5 grid overflow-hidden rounded-lg border border-[#D8D0C4] sm:grid-cols-2 lg:grid-cols-4">
           <div className="border-b border-[#D8D0C4] p-3 sm:border-b-0 sm:border-r">
             <p className="font-display text-xl font-semibold tabular-nums text-[#173F2A]">{teachers.length}</p><p className="text-sm text-[#526159]">Teachers</p>
           </div>
           <div className="border-b border-[#D8D0C4] p-3 sm:border-b-0 sm:border-r">
             <p className="font-display text-xl font-semibold tabular-nums text-[#17613A]">{submittedTeachers.length}</p><p className="text-sm text-[#526159]">Submitted</p>
           </div>
-          <div className="p-3">
+          <div className="border-b border-[#D8D0C4] p-3 sm:border-b-0 sm:border-r">
             <p className="font-display text-xl font-semibold tabular-nums text-[#A83224]">{notSubmittedTeachers.length}</p><p className="text-sm text-[#526159]">Not submitted</p>
+          </div>
+          <div className="p-3">
+            <p className="font-display text-xl font-semibold tabular-nums text-[#D39F24]">{completionRate}%</p><p className="text-sm text-[#526159]">Completion</p>
           </div>
           {/* Preserve the original metrics while presenting them as one summary strip. */}
           <Badge variant="outline" className="sr-only">
@@ -243,7 +266,7 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
       <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h3 className="font-display text-2xl font-semibold text-[#173F2A]">
-            This Week's Teacher Submissions
+            {selectedWeekKey === currentWeekKey ? "This Week's" : "Selected Week's"} Teacher Submissions
           </h3>
           <div className="flex gap-2">
             <Button
@@ -274,7 +297,9 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
             </h4>
             <div className={displayMode === 'image' ? "flex flex-wrap gap-3" : "space-y-3"}>
               {submittedTeachers.map((teacher) => {
-                const submission = submissions.find(s => s.user_id === teacher.user_id);
+                const submission = selectedWeekSubmissions.find((candidate) =>
+                  teacherHasSubmission(teacher, [candidate]),
+                );
                 return displayMode === 'image' ? (
                   <div key={teacher.id} className="flex flex-col items-center">
                     <div className="w-12 h-14 rounded-lg bg-muted flex items-center justify-center overflow-hidden border-2 border-[#1eba83]">
@@ -369,6 +394,9 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
                 <p className="text-sm text-muted-foreground">
                   {sub.subject} • {sub.grade_level} • Section {sub.section}
                 </p>
+                <p className="mt-1 text-xs text-[#526159]">
+                  Week of {formatReportingWeek(parseLocalDateKey(normalizeReportingWeekKey(sub.week_start)) || selectedWeekDate)}
+                </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <Badge 
@@ -392,7 +420,7 @@ export function PrincipalDashboardView({ schoolName, districtName, onClose }: Pr
             </div>
           ))}
           {submissions.length === 0 && (
-            <p className="text-center text-muted-foreground py-4">No submissions found for this week.</p>
+            <p className="text-center text-muted-foreground py-4">No recent submissions found for this school.</p>
           )}
         </div>
       </Card>
