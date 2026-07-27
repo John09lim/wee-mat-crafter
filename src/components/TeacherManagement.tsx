@@ -7,6 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Upload, User, Trash2, Pencil, X } from "lucide-react";
 import {
+  collapseTeacherAssignments,
+  normalizeTeacherEmail,
+  parseSubjectAssignments,
+  SUBJECT_TEACHER_LABEL,
+  type TeacherAssignmentRecord,
+} from "@/lib/teacherManagement";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -18,22 +25,40 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-interface Teacher {
-  id: string;
-  teacher_name: string | null;
-  teacher_email: string | null;
-  grade_level: string | null;
-  section: string | null;
-  profile_image_url: string | null;
-  assignments?: Teacher[];
-}
+type Teacher = TeacherAssignmentRecord;
+
+type MembershipRpcError = {
+  code?: string;
+  message?: string;
+};
+
+type UpsertMembershipResult = {
+  assignment_id: string;
+  linked_user_id: string | null;
+  teacher_name: string;
+  teacher_email: string;
+};
+
+type MembershipRpcClient = {
+  rpc: (
+    functionName:
+      | "upsert_principal_teacher_membership"
+      | "remove_principal_teacher_membership",
+    parameters: Record<string, unknown>,
+  ) => Promise<{
+    data: UpsertMembershipResult | number | null;
+    error: MembershipRpcError | null;
+  }>;
+};
+
+const membershipRpcClient = supabase as unknown as MembershipRpcClient;
 
 interface TeacherManagementProps {
   schoolName: string;
   districtName: string;
   principalId: string;
   teachers: Teacher[];
-  onRefresh: () => void;
+  onRefresh: () => void | Promise<void>;
 }
 
 // Helper function to get sort order for grade levels
@@ -62,9 +87,6 @@ const getGradeLevelSortOrder = (gradeLevel: string | null): number => {
 };
 
 export function TeacherManagement({ 
-  schoolName, 
-  districtName, 
-  principalId,
   teachers,
   onRefresh 
 }: TeacherManagementProps) {
@@ -74,7 +96,6 @@ export function TeacherManagement({
   const [teacherEmail, setTeacherEmail] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
   const [section, setSection] = useState("");
-  const [subject, setSubject] = useState("");
   const [teacherType, setTeacherType] = useState<"regular" | "subject">("regular");
   const [uploading, setUploading] = useState(false);
   const [profileImage, setProfileImage] = useState<File | null>(null);
@@ -83,24 +104,7 @@ export function TeacherManagement({
     { gradeLevel: "", subject: "" }
   ]);
   
-  // Group teachers by email (for subject teachers with multiple assignments)
-  const teachersByEmail = teachers.reduce((acc, teacher) => {
-    const email = teacher.teacher_email || "";
-    if (!acc[email]) {
-      acc[email] = [];
-    }
-    acc[email].push(teacher);
-    return acc;
-  }, {} as Record<string, Teacher[]>);
-
-  // Create unique teacher entries (one per email, with grouped data)
-  const uniqueTeachers = Object.values(teachersByEmail).map(group => {
-    const primary = group[0];
-    return {
-      ...primary,
-      assignments: group
-    };
-  });
+  const uniqueTeachers = collapseTeacherAssignments(teachers);
 
   // Sort by grade level hierarchy
   const sortedTeachers = uniqueTeachers.sort((a, b) => {
@@ -109,183 +113,163 @@ export function TeacherManagement({
     return orderA - orderB;
   });
 
-  const handleAddTeacher = async () => {
-    // Validation for regular teachers
-    if (teacherType === "regular" && (!teacherName || !teacherEmail || !gradeLevel || !section)) {
+  const resetForm = () => {
+    setTeacherName("");
+    setTeacherEmail("");
+    setGradeLevel("");
+    setSection("");
+    setTeacherType("regular");
+    setProfileImage(null);
+    setGradeSubjectPairs([{ gradeLevel: "", subject: "" }]);
+  };
+
+  const describeDatabaseError = (error: unknown, fallback: string) => {
+    const databaseError = error as { code?: string; message?: string };
+    if (databaseError.code === "23505") {
+      return "This teacher is already connected to your school.";
+    }
+    if (databaseError.code === "42501") {
+      return "You can only manage teachers assigned to your own school.";
+    }
+    if (databaseError.code === "P0002") {
+      return "The teacher record was not found. The list has been refreshed.";
+    }
+    if (
+      databaseError.code === "PGRST202" ||
+      databaseError.message?.includes("upsert_principal_teacher_membership") ||
+      databaseError.message?.includes("remove_principal_teacher_membership")
+    ) {
+      return "The teacher-management database update has not been installed yet.";
+    }
+    return databaseError.message || fallback;
+  };
+
+  const validateTeacherForm = () => {
+    const normalizedEmail = normalizeTeacherEmail(teacherEmail);
+    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+    const subjectPairsComplete =
+      gradeSubjectPairs.length > 0 &&
+      gradeSubjectPairs.every((pair) => pair.subject.trim());
+
+    if (
+      !teacherName.trim() ||
+      !validEmail ||
+      (teacherType === "regular" && (!gradeLevel.trim() || !section.trim())) ||
+      (teacherType === "subject" && !subjectPairsComplete)
+    ) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
+        title: "Missing or invalid information",
+        description:
+          teacherType === "subject"
+            ? "Enter the teacher name, a valid email, and every subject."
+            : "Enter the teacher name, a valid email, grade level, and section.",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
-    // Validation for subject teachers
-    if (teacherType === "subject" && (!teacherName || !teacherEmail)) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in teacher name and email.",
-        variant: "destructive",
-      });
-      return;
-    }
+    return true;
+  };
 
-    if (teacherType === "subject") {
-      const hasEmptyPairs = gradeSubjectPairs.some(pair => !pair.gradeLevel || !pair.subject);
-      if (hasEmptyPairs) {
-        toast({
-          title: "Missing Information",
-          description: "Please fill in all Grade Level and Subject pairs.",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
+  const uploadTeacherImage = async () => {
+    if (!profileImage) return null;
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
+
+    const fileExt = profileImage.name.split(".").pop();
+    const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `${user.id}/teacher-profiles/${fileName}`;
+    const { error: uploadError } = await supabase.storage
+      .from("weelmat")
+      .upload(filePath, profileImage);
+
+    if (uploadError) throw uploadError;
+
+    return supabase.storage.from("weelmat").getPublicUrl(filePath).data.publicUrl;
+  };
+
+  const saveTeacherMembership = async (assignmentId: string | null) => {
+    if (!validateTeacherForm()) return false;
+
+    setUploading(true);
     try {
-      let profileImageUrl = null;
+      const profileImageUrl = await uploadTeacherImage();
+      const subjects = Array.from(
+        new Set(
+          gradeSubjectPairs
+            .map((pair) => pair.subject.trim())
+            .filter(Boolean),
+        ),
+      );
+      const classification =
+        teacherType === "subject" ? SUBJECT_TEACHER_LABEL : gradeLevel.trim();
+      const classOrSubjects =
+        teacherType === "subject" ? subjects.join(", ") : section.trim();
 
-      // Upload profile image if provided
-      if (profileImage) {
-        setUploading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Not authenticated");
+      const { data, error } = await membershipRpcClient.rpc(
+        "upsert_principal_teacher_membership",
+        {
+          p_assignment_id: assignmentId,
+          p_teacher_name: teacherName.trim(),
+          p_teacher_email: normalizeTeacherEmail(teacherEmail),
+          p_grade_level: classification,
+          p_section: classOrSubjects,
+          p_profile_image_url: profileImageUrl,
+        },
+      );
 
-        const fileExt = profileImage.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `${user.id}/teacher-profiles/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('weelmat')
-          .upload(filePath, profileImage);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('weelmat')
-          .getPublicUrl(filePath);
-
-        profileImageUrl = publicUrl;
+      if (error) throw error;
+      if (!data || typeof data === "number" || !data.assignment_id) {
+        throw new Error("The database did not confirm the teacher membership.");
       }
 
-      // Fetch principal's profile information
-      const { data: principalProfile } = await supabase
-        .from("profiles")
-        .select("teacher_name, profile_image_url")
-        .eq("user_id", principalId)
-        .single();
-
-      // Get supervisor for this district
-      const { data: supervisor } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .eq("district_name", districtName)
-        .not("district_name", "is", null)
-        .limit(1)
-        .maybeSingle();
-
-      // Query user_roles to verify it's actually a supervisor
-      let supervisorId = null;
-      if (supervisor) {
-        const { data: roleCheck } = await supabase
-          .from("user_roles")
-          .select("user_id")
-          .eq("user_id", supervisor.user_id)
-          .eq("role", "supervisor")
-          .maybeSingle();
-        
-        if (roleCheck) {
-          supervisorId = supervisor.user_id;
-        }
-      }
-
-      // Insert teacher into school_assignments
-      if (teacherType === "regular") {
-        // Single insert for regular teachers
-        const { error } = await supabase
-          .from("school_assignments")
-          .insert({
-            user_id: null,
-            school_name: schoolName,
-            district_name: districtName,
-            principal_id: principalId,
-            principal_name: principalProfile?.teacher_name || null,
-            principal_profile_image_url: principalProfile?.profile_image_url || null,
-            supervisor_id: supervisorId,
-            teacher_name: teacherName,
-            teacher_email: teacherEmail.toLowerCase(),
-            grade_level: gradeLevel,
-            section: section,
-            profile_image_url: profileImageUrl,
-          });
-
-        if (error) throw error;
-      } else {
-        // Multiple inserts for subject teachers (one per grade/subject pair)
-        const inserts = gradeSubjectPairs.map(pair => ({
-          user_id: null,
-          school_name: schoolName,
-          district_name: districtName,
-          principal_id: principalId,
-          principal_name: principalProfile?.teacher_name || null,
-          principal_profile_image_url: principalProfile?.profile_image_url || null,
-          supervisor_id: supervisorId,
-          teacher_name: teacherName,
-          teacher_email: teacherEmail.toLowerCase(),
-          grade_level: pair.gradeLevel,
-          section: pair.subject,
-          profile_image_url: profileImageUrl,
-        }));
-
-        const { error } = await supabase
-          .from("school_assignments")
-          .insert(inserts);
-
-        if (error) throw error;
-      }
-
+      await onRefresh();
       toast({
-        title: "Teacher Added",
-        description: `${teacherName} has been added to your school.`,
+        title: assignmentId ? "Teacher updated" : "Teacher added",
+        description: data.linked_user_id
+          ? `${data.teacher_name} is linked to the existing teacher account.`
+          : `${data.teacher_name} is ready and will link when that teacher signs in.`,
       });
-
-      // Reset form
-      setTeacherName("");
-      setTeacherEmail("");
-      setGradeLevel("");
-      setSection("");
-      setSubject("");
-      setTeacherType("regular");
-      setProfileImage(null);
-      setGradeSubjectPairs([{ gradeLevel: "", subject: "" }]);
+      resetForm();
       setIsAdding(false);
-      onRefresh();
+      setEditingId(null);
+      return true;
     } catch (error: unknown) {
+      await onRefresh();
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add the teacher.",
+        title: "Teacher was not saved",
+        description: describeDatabaseError(
+          error,
+          assignmentId
+            ? "Failed to update the teacher."
+            : "Failed to add the teacher.",
+        ),
         variant: "destructive",
       });
+      return false;
     } finally {
       setUploading(false);
     }
   };
 
+  const handleAddTeacher = async () => {
+    await saveTeacherMembership(null);
+  };
+
   const handleEditTeacher = (teacher: Teacher) => {
     setEditingId(teacher.id);
     
-    // Check if this is a subject teacher with multiple assignments
-    const isSubject = teacher.assignments && teacher.assignments.length > 1;
+    const isSubject =
+      teacher.grade_level?.trim().toLocaleLowerCase() ===
+        SUBJECT_TEACHER_LABEL.toLocaleLowerCase() ||
+      Boolean(teacher.assignments && teacher.assignments.length > 1);
     setTeacherType(isSubject ? "subject" : "regular");
     setTeacherName(teacher.teacher_name || "");
     setTeacherEmail(teacher.teacher_email || "");
     
-    if (isSubject && teacher.assignments) {
-      // Load all grade/subject pairs
-      setGradeSubjectPairs(teacher.assignments.map(a => ({
-        gradeLevel: a.grade_level || "",
-        subject: a.section || ""
-      })));
+    if (isSubject) {
+      setGradeSubjectPairs(parseSubjectAssignments(teacher));
       setGradeLevel("");
       setSection("");
     } else {
@@ -299,210 +283,32 @@ export function TeacherManagement({
   };
 
   const handleUpdateTeacher = async () => {
-    // Validation for regular teachers
-    if (teacherType === "regular" && (!teacherName || !teacherEmail || !gradeLevel || !section)) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validation for subject teachers
-    if (teacherType === "subject" && (!teacherName || !teacherEmail)) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in teacher name and email.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (teacherType === "subject") {
-      const hasEmptyPairs = gradeSubjectPairs.some(pair => !pair.gradeLevel || !pair.subject);
-      if (hasEmptyPairs) {
-        toast({
-          title: "Missing Information",
-          description: "Please fill in all Grade Level and Subject pairs.",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
-    try {
-      let profileImageUrl = null;
-
-      // Upload new profile image if provided
-      if (profileImage) {
-        setUploading(true);
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("Not authenticated");
-
-        const fileExt = profileImage.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const filePath = `${user.id}/teacher-profiles/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('weelmat')
-          .upload(filePath, profileImage);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('weelmat')
-          .getPublicUrl(filePath);
-
-        profileImageUrl = publicUrl;
-      }
-
-      // Fetch principal's profile information for consistency
-      const { data: principalProfile } = await supabase
-        .from("profiles")
-        .select("teacher_name, profile_image_url")
-        .eq("user_id", principalId)
-        .single();
-
-      // Get supervisor for this district
-      const { data: supervisor } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .eq("district_name", districtName)
-        .not("district_name", "is", null)
-        .limit(1)
-        .maybeSingle();
-
-      let supervisorId = null;
-      if (supervisor) {
-        const { data: roleCheck } = await supabase
-          .from("user_roles")
-          .select("user_id")
-          .eq("user_id", supervisor.user_id)
-          .eq("role", "supervisor")
-          .maybeSingle();
-        
-        if (roleCheck) {
-          supervisorId = supervisor.user_id;
-        }
-      }
-
-      if (teacherType === "regular") {
-        // Single update for regular teacher
-        const updateData: {
-          teacher_name: string;
-          teacher_email: string;
-          grade_level: string;
-          section: string;
-          profile_image_url?: string;
-        } = {
-          teacher_name: teacherName,
-          teacher_email: teacherEmail.toLowerCase(),
-          grade_level: gradeLevel,
-          section: section,
-        };
-
-        if (profileImageUrl) {
-          updateData.profile_image_url = profileImageUrl;
-        }
-
-        const { error } = await supabase
-          .from("school_assignments")
-          .update(updateData)
-          .eq("id", editingId);
-
-        if (error) throw error;
-      } else {
-        // For subject teachers: delete all old assignments and insert new ones
-        // First get all assignment IDs for this teacher email
-        const { data: oldAssignments } = await supabase
-          .from("school_assignments")
-          .select("id")
-          .eq("teacher_email", teacherEmail.toLowerCase())
-          .eq("school_name", schoolName);
-
-        if (oldAssignments && oldAssignments.length > 0) {
-          const { error: deleteError } = await supabase
-            .from("school_assignments")
-            .delete()
-            .in("id", oldAssignments.map(a => a.id));
-
-          if (deleteError) throw deleteError;
-        }
-
-        // Insert new assignments
-        const inserts = gradeSubjectPairs.map(pair => ({
-          user_id: null,
-          school_name: schoolName,
-          district_name: districtName,
-          principal_id: principalId,
-          principal_name: principalProfile?.teacher_name || null,
-          principal_profile_image_url: principalProfile?.profile_image_url || null,
-          supervisor_id: supervisorId,
-          teacher_name: teacherName,
-          teacher_email: teacherEmail.toLowerCase(),
-          grade_level: pair.gradeLevel,
-          section: pair.subject,
-          profile_image_url: profileImageUrl || null,
-        }));
-
-        const { error } = await supabase
-          .from("school_assignments")
-          .insert(inserts);
-
-        if (error) throw error;
-      }
-
-      toast({
-        title: "Teacher Updated",
-        description: `${teacherName} has been updated successfully.`,
-      });
-
-      // Reset form
-      setTeacherName("");
-      setTeacherEmail("");
-      setGradeLevel("");
-      setSection("");
-      setSubject("");
-      setTeacherType("regular");
-      setProfileImage(null);
-      setGradeSubjectPairs([{ gradeLevel: "", subject: "" }]);
-      setEditingId(null);
-      onRefresh();
-    } catch (error: unknown) {
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update the teacher.",
-        variant: "destructive",
-      });
-    } finally {
-      setUploading(false);
-    }
+    if (!editingId) return;
+    await saveTeacherMembership(editingId);
   };
 
-  const handleDeleteTeacher = async (teacherId: string, teacherName: string | null, teacherEmail: string | null) => {
+  const handleDeleteTeacher = async (teacherId: string, teacherName: string | null) => {
     try {
       setDeletingId(teacherId);
-      
-      // Delete all assignments for this teacher email (handles subject teachers with multiple rows)
-      const { error } = await supabase
-        .from("school_assignments")
-        .delete()
-        .eq("teacher_email", teacherEmail?.toLowerCase())
-        .eq("school_name", schoolName);
-
+      const { data, error } = await membershipRpcClient.rpc(
+        "remove_principal_teacher_membership",
+        { p_assignment_id: teacherId },
+      );
       if (error) throw error;
+      if (typeof data !== "number" || data < 1) {
+        throw new Error("The database did not remove a teacher membership.");
+      }
 
-      onRefresh();
-      
+      await onRefresh();
       toast({
         title: "Teacher Removed",
-        description: `${teacherName || "Teacher"} has been removed from your school.`,
+        description: `${teacherName || "Teacher"} was removed from this school. The teacher's main account was not deleted.`,
       });
     } catch (error: unknown) {
+      await onRefresh();
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to remove the teacher.",
+        title: "Teacher was not removed",
+        description: describeDatabaseError(error, "Failed to remove the teacher."),
         variant: "destructive",
       });
     } finally {
@@ -512,14 +318,7 @@ export function TeacherManagement({
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setTeacherName("");
-    setTeacherEmail("");
-    setGradeLevel("");
-    setSection("");
-    setSubject("");
-    setTeacherType("regular");
-    setProfileImage(null);
-    setGradeSubjectPairs([{ gradeLevel: "", subject: "" }]);
+    resetForm();
   };
 
   return (
@@ -926,14 +725,17 @@ export function TeacherManagement({
                         <AlertDialogHeader>
                           <AlertDialogTitle>Remove Teacher?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Are you sure you want to remove <strong>{teacher.teacher_name}</strong> from your school? 
-                            This action cannot be undone.
+                            Remove this teacher from your school? This will remove{" "}
+                            <strong>{teacher.teacher_name}</strong> from your Principal
+                            Dashboard but will not automatically delete the teacher&apos;s
+                            main account.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={() => handleDeleteTeacher(teacher.id, teacher.teacher_name, teacher.teacher_email)}
+                            onClick={() => handleDeleteTeacher(teacher.id, teacher.teacher_name)}
+                            disabled={deletingId === teacher.id}
                             className="bg-red-600 hover:bg-red-700"
                           >
                             Remove
@@ -946,7 +748,7 @@ export function TeacherManagement({
               )}
             </div>
           ))}
-          {teachers.length === 0 && !isAdding && (
+          {sortedTeachers.length === 0 && !isAdding && (
             <p className="text-center text-muted-foreground py-8">
               No teachers added yet. Click "Add Teacher" to get started.
             </p>

@@ -19,7 +19,11 @@ import DocumentViewer from "@/components/DocumentViewer";
 import { TeacherManagement } from "@/components/TeacherManagement";
 import WeeklySubmissionCalendar from "@/components/WeeklySubmissionCalendar";
 import { WeeklySubmissionSummary } from "@/components/WeeklySubmissionSummary";
-import { normalizeTeacherName, normalizeWeekStart, teacherHasSubmission } from "@/lib/submissionTracking";
+import { normalizeWeekStart, teacherHasSubmission } from "@/lib/submissionTracking";
+import {
+  collapseTeacherAssignments,
+  type TeacherAssignmentRecord,
+} from "@/lib/teacherManagement";
 
 interface Submission {
   id: string;
@@ -61,14 +65,7 @@ const emptyPrincipalAccountDraft: PrincipalAccountDraft = {
   school_id: "",
 };
 
-interface ManagedTeacher {
-  user_id: string;
-  teacher_name: string;
-  teacher_email?: string | null;
-  grade_level?: string | null;
-  section?: string | null;
-  profile_image_url?: string | null;
-}
+type ManagedTeacher = TeacherAssignmentRecord & { teacher_name: string };
 
 interface SupervisorInfo {
   teacher_name?: string | null;
@@ -81,10 +78,10 @@ export default function PrincipalDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [profile, setProfile] = useState<PrincipalProfile | null>(null);
-  const [allTeachers, setAllTeachers] = useState<ManagedTeacher[]>([]);
   const [newSubmissionsCount, setNewSubmissionsCount] = useState(0);
   const initialLoadComplete = useRef(false);
   const [managedTeachers, setManagedTeachers] = useState<ManagedTeacher[]>([]);
+  const [managedTeacherAssignments, setManagedTeacherAssignments] = useState<ManagedTeacher[]>([]);
   const [uploadingProfile, setUploadingProfile] = useState(false);
   const [supervisorInfo, setSupervisorInfo] = useState<SupervisorInfo | null>(null);
   const [displayMode, setDisplayMode] = useState<'text' | 'image'>('text');
@@ -123,6 +120,18 @@ export default function PrincipalDashboard() {
             setNewSubmissionsCount(prev => prev + 1);
             setSubmissions(prev => [newSubmission, ...prev]);
           }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'school_assignments',
+          filter: `principal_id=eq.${profile.user_id}`
+        },
+        () => {
+          void fetchSubmissions();
         }
       )
       .subscribe();
@@ -181,47 +190,33 @@ export default function PrincipalDashboard() {
       }
 
       // Fetch managed teachers from school_assignments
-      const { data: managedTeachersData } = await supabase
+      const { data: managedTeachersData, error: managedTeachersError } = await supabase
         .from("school_assignments")
         .select("*")
-        .eq("principal_id", user.id);
-      
-      const uniqueManagedTeachers = Array.from(
-        new Map(
-          ((managedTeachersData || []) as ManagedTeacher[]).map((teacher) => [
-            teacher.teacher_email?.trim().toLocaleLowerCase() ||
-              teacher.user_id ||
-              normalizeTeacherName(teacher.teacher_name),
-            teacher,
-          ]),
-        ).values(),
-      );
-      setManagedTeachers(uniqueManagedTeachers);
+        .eq("principal_id", user.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: true });
 
-      // Fetch all teachers from this school with their profiles
-      const { data: teachersData } = await supabase
-        .from("school_assignments")
-        .select("user_id, school_name")
-        .eq("school_name", profileData.school);
-
-      // Fetch teacher profiles to get names
-      if (teachersData && teachersData.length > 0) {
-        const teacherIds = teachersData.map(t => t.user_id);
-        const { data: teacherProfiles } = await supabase
-          .from("profiles")
-          .select("user_id, teacher_name")
-          .in("user_id", teacherIds);
-
-        const enrichedTeachers = managedTeachersData?.map(t => ({
-          user_id: t.user_id,
-          teacher_name: t.teacher_name || "Teacher",
-          grade_level: t.grade_level,
-          section: t.section
-        })) || [];
-        setAllTeachers(enrichedTeachers as ManagedTeacher[]);
-      } else {
-        setAllTeachers([]);
+      if (managedTeachersError) {
+        console.error("Failed to load teacher memberships:", managedTeachersError);
+        throw new Error(
+          managedTeachersError.code === "42703" ||
+            managedTeachersError.message?.includes("is_active")
+            ? "The teacher-management database update has not been installed yet."
+            : "Failed to load the teacher list.",
+        );
       }
+
+      const activeAssignments = ((managedTeachersData || []) as ManagedTeacher[])
+        .filter((teacher) => teacher.is_active !== false)
+        .map((teacher) => ({
+          ...teacher,
+          teacher_name: teacher.teacher_name?.trim() || "Teacher",
+          teacher_email: teacher.teacher_email?.trim().toLocaleLowerCase() || null,
+        }));
+      const uniqueManagedTeachers = collapseTeacherAssignments(activeAssignments);
+      setManagedTeacherAssignments(activeAssignments);
+      setManagedTeachers(uniqueManagedTeachers);
 
       // principal_id is the authoritative routing key. School names remain
       // display metadata and must not hide a valid teacher submission.
@@ -1229,7 +1224,7 @@ export default function PrincipalDashboard() {
             schoolName={profile.school}
             districtName={profile.district_name || ""}
             principalId={profile.user_id}
-            teachers={managedTeachers}
+            teachers={managedTeacherAssignments}
             onRefresh={fetchSubmissions}
           />
         </section>
