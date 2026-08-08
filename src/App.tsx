@@ -17,6 +17,7 @@ import { RouteChangeManager } from "@/components/system/RouteChangeManager";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import ChatbotWidget from "@/components/ChatbotWidget";
 
 const Splash = lazy(() => import("./pages/Splash"));
 const Index = lazy(() => import("./pages/Index"));
@@ -116,6 +117,7 @@ const App = () => {
               </Suspense>
             </div>
             {showFooter ? <Footer /> : null}
+            <ChatbotWidget />
           </div>
         </TooltipProvider>
       </QueryClientProvider>
