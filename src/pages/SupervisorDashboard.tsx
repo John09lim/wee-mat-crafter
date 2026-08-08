@@ -5,13 +5,30 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { School, Users, CheckCircle, TrendingUp, UserCircle, ExternalLink, Upload, ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { School, Users, CheckCircle, TrendingUp, UserCircle, ExternalLink, Upload, ArrowRight, Pencil, Save, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import DocumentViewer from "@/components/DocumentViewer";
 
 import { SchoolManagement } from "@/components/SchoolManagement";
 import { PrincipalDashboardView } from "@/components/PrincipalDashboardView";
+import {
+  BACONG_DISTRICT_NAME,
+  BACONG_DISTRICT_SCHOOLS,
+  belongsToDistrict,
+  canonicalDistrictName,
+  canonicalSchoolName,
+  classifySchoolLevel,
+  isBacongDistrict,
+  isOfficialBacongSchool,
+  isSameSchoolName,
+  schoolIdentityKey,
+} from "@/lib/districtReporting";
+import { teacherHasSubmission } from "@/lib/submissionTracking";
+import { collapseTeacherAssignments } from "@/lib/teacherClassification";
+import { isMissingSchoolIdentityValue } from "@/lib/schoolIdentity";
 
 interface WeeklyReport {
   id: string;
@@ -22,23 +39,31 @@ interface WeeklyReport {
   status: string;
   submitted_teachers: number;
   total_teachers: number;
+  district_name?: string | null;
 }
 
 interface SchoolAssignment {
+  id?: string | null;
   user_id: string | null;
   school_name: string;
   teacher_name?: string | null;
+  teacher_email?: string | null;
+  grade_level?: string | null;
+  section?: string | null;
+  profile_image_url?: string | null;
+  district_name?: string | null;
 }
 
 interface ManagedSchool {
   id: string;
   school_name: string;
   principal_name?: string | null;
+  district_name?: string | null;
 }
 
 interface TeacherSubmission {
   id: string;
-  user_id: string;
+  user_id: string | null;
   school_name: string;
   teacher_name: string;
   subject: string;
@@ -49,14 +74,120 @@ interface TeacherSubmission {
   created_at: string;
   status: string;
   file_url: string;
+  district_name?: string | null;
 }
 
 interface SupervisorProfile {
   user_id: string;
-  district_name: string;
+  district_name?: string | null;
   teacher_name?: string | null;
   email?: string | null;
   profile_image_url?: string | null;
+}
+
+interface SupervisorAccountDraft {
+  teacher_name: string;
+  district_name: string;
+}
+
+const emptySupervisorAccountDraft: SupervisorAccountDraft = {
+  teacher_name: "",
+  district_name: "",
+};
+
+interface SchoolWeeklyRow {
+  schoolName: string;
+  submitted: number;
+  notSubmitted: number;
+  total: number;
+  rate: number;
+  level: "elementary" | "secondary" | "other";
+  principalName: string | null;
+  latestReport?: WeeklyReport;
+}
+
+function SchoolGroup({
+  title,
+  description,
+  schools,
+  onSelect,
+}: {
+  title: string;
+  description: string;
+  schools: SchoolWeeklyRow[];
+  onSelect: (schoolName: string) => void;
+}) {
+  if (schools.length === 0) return null;
+
+  return (
+    <section className="space-y-4" aria-labelledby={`${title.replace(/\s+/g, "-").toLowerCase()}-heading`}>
+      <div>
+        <h3
+          id={`${title.replace(/\s+/g, "-").toLowerCase()}-heading`}
+          className="font-display text-2xl font-semibold text-[#173F2A]"
+        >
+          {title}
+        </h3>
+        <p className="mt-1 text-sm text-[#526159]">{description}</p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {schools.map((school) => (
+          <button
+            key={school.schoolName}
+            type="button"
+            className="flex min-h-60 flex-col rounded-xl border border-[#D8D0C4] bg-[#FFFCF7] p-5 text-left shadow-[0_8px_22px_rgba(20,32,25,0.04)] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-[#A8B6A7] hover:shadow-[0_14px_30px_rgba(20,32,25,0.09)] focus-visible:ring-2 focus-visible:ring-[#236130] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F6F0E7]"
+            onClick={() => onSelect(school.schoolName)}
+            aria-label={`View teachers and submissions for ${school.schoolName}`}
+          >
+            <div className="flex w-full items-start justify-between gap-3">
+              <h4 className="font-display text-xl font-semibold leading-tight text-[#173F2A]">
+                {school.schoolName}
+              </h4>
+              <Badge
+                variant="outline"
+                className={
+                  school.total === 0
+                    ? "shrink-0 border-[#CFC6B9] text-[#526159]"
+                    : school.rate === 100
+                      ? "shrink-0 border-[#8FC09B] bg-[#EAF3EB] text-[#17613A]"
+                      : "shrink-0 border-[#E1BD75] bg-[#FBF2DC] text-[#76500A]"
+                }
+              >
+                {school.total === 0 ? "No teachers" : `${school.rate}%`}
+              </Badge>
+            </div>
+
+            <div className="mt-5 w-full space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-[#526159]">Submitted this week</span>
+                <span className="font-semibold tabular-nums text-[#173F2A]">
+                  {school.submitted} / {school.total}
+                </span>
+              </div>
+              <Progress value={school.rate} className="h-2" />
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="rounded-lg bg-[#EAF3EB] px-3 py-2 text-[#17613A]">
+                  <span className="block font-semibold tabular-nums">{school.submitted}</span>
+                  Submitted
+                </div>
+                <div className="rounded-lg bg-[#FAECE8] px-3 py-2 text-[#A83224]">
+                  <span className="block font-semibold tabular-nums">{school.notSubmitted}</span>
+                  Not submitted
+                </div>
+              </div>
+              <p className="text-xs text-[#526159]">
+                Principal: {school.principalName || "Not linked yet"}
+              </p>
+            </div>
+
+            <span className="mt-auto flex min-h-11 w-full items-center justify-between rounded-lg border border-[#236130] px-3 text-sm font-semibold text-[#173F2A]">
+              View teachers <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export default function SupervisorDashboard() {
@@ -66,8 +197,12 @@ export default function SupervisorDashboard() {
   const [profile, setProfile] = useState<SupervisorProfile | null>(null);
   const [teacherSubmissions, setTeacherSubmissions] = useState<TeacherSubmission[]>([]);
   const [managedSchools, setManagedSchools] = useState<ManagedSchool[]>([]);
+  const [unassignedRecordCount, setUnassignedRecordCount] = useState(0);
   const [uploadingProfile, setUploadingProfile] = useState(false);
   const [selectedSchool, setSelectedSchool] = useState<string | null>(null);
+  const [accountDraft, setAccountDraft] = useState<SupervisorAccountDraft>(emptySupervisorAccountDraft);
+  const [isEditingAccount, setIsEditingAccount] = useState(false);
+  const [savingAccount, setSavingAccount] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -75,66 +210,92 @@ export default function SupervisorDashboard() {
 
   const fetchData = async () => {
     try {
-      // Get supervisor's profile to filter by their district
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setLoading(false);
         return;
       }
 
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("*")
         .eq("user_id", user.id)
         .single();
 
-      if (!profileData || !profileData.district_name) {
-        console.error("Supervisor profile or district not found");
-        setLoading(false);
+      if (profileError) throw profileError;
+      if (!profileData) throw new Error("Supervisor profile not found.");
+
+      // Fetch once, then normalize district aliases in the client. The matching
+      // database migration uses the same canonical identity for RLS and writes.
+      const [managedSchoolsResult, reportsResult, assignmentsResult, submissionsResult] = await Promise.all([
+        supabase.from("schools").select("*"),
+        supabase.from("principal_weekly_reports").select("*").order("created_at", { ascending: false }),
+        supabase.from("school_assignments").select("*"),
+        supabase.from("teacher_submissions").select("*").order("created_at", { ascending: false }),
+      ]);
+
+      const queryError =
+        managedSchoolsResult.error ||
+        reportsResult.error ||
+        assignmentsResult.error ||
+        submissionsResult.error;
+      if (queryError) throw queryError;
+
+      const allManagedSchools = (managedSchoolsResult.data || []) as ManagedSchool[];
+      const allReports = (reportsResult.data || []) as WeeklyReport[];
+      const allAssignments = (assignmentsResult.data || []) as SchoolAssignment[];
+      const allSubmissions = (submissionsResult.data || []) as TeacherSubmission[];
+
+      const profileDistrict = canonicalDistrictName(profileData.district_name);
+      const hasBacongEvidence = [
+        ...allManagedSchools,
+        ...allReports,
+        ...allAssignments,
+        ...allSubmissions,
+      ].some((row) =>
+        isBacongDistrict(row.district_name) ||
+        isOfficialBacongSchool(row.school_name),
+      );
+      const effectiveDistrict =
+        profileDistrict || (hasBacongEvidence ? BACONG_DISTRICT_NAME : "");
+
+      setProfile({
+        ...(profileData as SupervisorProfile),
+        district_name: effectiveDistrict,
+      });
+      if (!effectiveDistrict) {
+        setManagedSchools([]);
+        setReports([]);
+        setSchools([]);
+        setTeacherSubmissions([]);
+        setUnassignedRecordCount(0);
         return;
       }
 
-      setProfile(profileData as SupervisorProfile);
+      const districtManagedSchools = allManagedSchools.filter((row) => belongsToDistrict(row, effectiveDistrict));
+      const districtReports = allReports.filter((row) => belongsToDistrict(row, effectiveDistrict));
+      const districtAssignments = allAssignments.filter((row) => belongsToDistrict(row, effectiveDistrict));
+      const districtSubmissions = allSubmissions.filter((row) => belongsToDistrict(row, effectiveDistrict));
+      const isReportable = (row: {
+        school_name?: string | null;
+        district_name?: string | null;
+      }) =>
+        !isMissingSchoolIdentityValue(row.school_name) &&
+        !isMissingSchoolIdentityValue(row.district_name);
 
-      // Fetch managed schools from schools table
-      const { data: managedSchoolsData } = await supabase
-        .from("schools")
-        .select("*")
-        .eq("district_name", profileData.district_name);
-      
-      setManagedSchools((managedSchoolsData || []) as ManagedSchool[]);
-
-      // Fetch ONLY reports from supervisor's district
-      const { data: reportsData, error: reportsError } = await supabase
-        .from("principal_weekly_reports")
-        .select("*")
-        .eq("district_name", profileData.district_name)
-        .order("created_at", { ascending: false });
-
-      if (reportsError) throw reportsError;
-
-      // Fetch ONLY school assignments in supervisor's district
-      const { data: schoolsData, error: schoolsError } = await supabase
-        .from("school_assignments")
-        .select("*")
-        .eq("district_name", profileData.district_name);
-
-      if (schoolsError) throw schoolsError;
-
-      // Fetch teacher submissions from this district
-      const { data: submissionsData, error: submissionsError } = await supabase
-        .from("teacher_submissions")
-        .select("*")
-        .eq("district_name", profileData.district_name)
-        .order("created_at", { ascending: false });
-
-      if (submissionsError) throw submissionsError;
-
-      setReports((reportsData || []) as WeeklyReport[]);
-      setSchools((schoolsData || []) as SchoolAssignment[]);
-      setTeacherSubmissions((submissionsData || []) as TeacherSubmission[]);
+      setUnassignedRecordCount([
+        ...districtManagedSchools,
+        ...districtReports,
+        ...districtAssignments,
+        ...districtSubmissions,
+      ].filter((row) => !isReportable(row)).length);
+      setManagedSchools(districtManagedSchools.filter(isReportable));
+      setReports(districtReports.filter(isReportable));
+      setSchools(districtAssignments.filter(isReportable));
+      setTeacherSubmissions(districtSubmissions.filter(isReportable));
     } catch (error) {
       console.error("Error fetching data:", error);
+      toast.error(error instanceof Error ? error.message : "Unable to load district reporting.");
     } finally {
       setLoading(false);
     }
@@ -177,14 +338,74 @@ export default function SupervisorDashboard() {
     }
   };
 
-  // Group reports by school
-  const schoolReports = reports.reduce((acc, report) => {
-    if (!acc[report.school_name]) {
-      acc[report.school_name] = [];
+  const resetAccountDraft = () => {
+    if (!profile) return;
+
+    setAccountDraft({
+      teacher_name: String(profile.teacher_name || ""),
+      district_name: canonicalDistrictName(profile.district_name),
+    });
+  };
+
+  const handleCancelAccountEdit = () => {
+    resetAccountDraft();
+    setIsEditingAccount(false);
+  };
+
+  const handleSaveAccount = async () => {
+    const supervisorName = accountDraft.teacher_name.trim();
+    const districtName = canonicalDistrictName(accountDraft.district_name);
+
+    if (!supervisorName || !districtName) {
+      toast.error("Supervisor name and a valid district are required.");
+      return;
     }
-    acc[report.school_name].push(report);
+
+    try {
+      setSavingAccount(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: updatedProfile, error } = await supabase
+        .from("profiles")
+        .update({
+          teacher_name: supervisorName,
+          district_name: districtName,
+        })
+        .eq("user_id", user.id)
+        .select("*")
+        .single();
+
+      if (error) throw error;
+
+      setProfile(updatedProfile as SupervisorProfile);
+      setAccountDraft({
+        teacher_name: supervisorName,
+        district_name: districtName,
+      });
+      setIsEditingAccount(false);
+      toast.success("Supervisor account information updated.");
+      await fetchData();
+    } catch (error: unknown) {
+      console.error("Supervisor account update error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to save the account information.");
+    } finally {
+      setSavingAccount(false);
+    }
+  };
+
+  // Group reports under one canonical school spelling, deduplicating via
+  // schoolIdentityKey so variant spellings (e.g. case differences) merge.
+  const schoolReports = reports.reduce((acc, report) => {
+    const canonical = canonicalSchoolName(report.school_name);
+    if (!canonical) return acc;
+    const key = schoolIdentityKey(canonical);
+    if (!acc[key]) {
+      acc[key] = { displayName: canonical, reports: [] };
+    }
+    acc[key].reports.push(report);
     return acc;
-  }, {} as Record<string, WeeklyReport[]>);
+  }, {} as Record<string, { displayName: string; reports: WeeklyReport[] }>);
 
   const getInstructionalMonday = (date: Date) => {
     const value = new Date(date);
@@ -202,33 +423,72 @@ export default function SupervisorDashboard() {
   currentFriday.setDate(currentFriday.getDate() + 4);
   const currentWeekSubmissions = teacherSubmissions.filter((submission) => String(submission.week_start).substring(0, 10) === currentMondayKey);
 
-  // Include schools discovered through any district data source. This keeps legacy
-  // principal-created schools visible even when their supervisor_id was not backfilled.
-  const districtSchoolNames = [...new Set([
+  // Bacong supervisors always see the complete official school roster, including
+  // schools with no linked principal or teachers yet. Other districts remain data-driven.
+  const discoveredSchoolNames = [
     ...managedSchools.map((school) => school.school_name),
     ...schools.map((school) => school.school_name),
     ...teacherSubmissions.map((submission) => submission.school_name),
-  ].filter(Boolean))].sort();
+    ...reports.map((report) => report.school_name),
+  ]
+    .map(canonicalSchoolName)
+    .filter(Boolean);
+  const seededSchoolNames = isBacongDistrict(profile?.district_name)
+    ? BACONG_DISTRICT_SCHOOLS.map((school) => school.name)
+    : [];
+  const districtSchoolNames = Array.from(
+    new Map(
+      [...seededSchoolNames, ...discoveredSchoolNames].map((schoolName) => [
+        schoolIdentityKey(schoolName),
+        schoolName,
+      ]),
+    ).values(),
+  ).sort((left, right) => left.localeCompare(right));
 
   const schoolWeeklyRows = districtSchoolNames.map((schoolName) => {
-    const schoolTeachers = schools.filter((teacher) => teacher.school_name === schoolName);
-    const teacherKeys = new Set(schoolTeachers.map((teacher) => teacher.user_id || teacher.teacher_name?.trim().toLowerCase()).filter(Boolean));
-    const schoolSubmissions = currentWeekSubmissions.filter((submission) => submission.school_name === schoolName);
-    const submittedKeys = new Set(schoolSubmissions.map((submission) => submission.user_id || submission.teacher_name.trim().toLowerCase()).filter(Boolean));
-    const submitted = [...teacherKeys].filter((key) => submittedKeys.has(key)).length;
-    const total = teacherKeys.size;
-    return { schoolName, submitted, total, rate: total > 0 ? Math.round((submitted / total) * 100) : 0 };
+    const schoolTeachers = collapseTeacherAssignments(
+      schools
+        .filter((teacher) => isSameSchoolName(teacher.school_name, schoolName))
+        .filter((teacher): teacher is SchoolAssignment & { teacher_name: string } => Boolean(teacher.teacher_name?.trim())),
+    );
+    const schoolSubmissions = currentWeekSubmissions.filter((submission) =>
+      isSameSchoolName(submission.school_name, schoolName),
+    );
+    const submitted = schoolTeachers.filter((teacher) =>
+      teacherHasSubmission(teacher, schoolSubmissions),
+    ).length;
+    const total = schoolTeachers.length;
+    const managedSchool = managedSchools.find((school) =>
+      isSameSchoolName(school.school_name, schoolName),
+    );
+    const latestReport = reports.find((report) =>
+      isSameSchoolName(report.school_name, schoolName),
+    );
+    return {
+      schoolName,
+      submitted,
+      notSubmitted: Math.max(total - submitted, 0),
+      total,
+      rate: total > 0 ? Math.round((submitted / total) * 100) : 0,
+      level: classifySchoolLevel(schoolName),
+      principalName: managedSchool?.principal_name || null,
+      latestReport,
+    };
   });
 
   const totalSchools = districtSchoolNames.length;
   const completedThisWeek = schoolWeeklyRows.filter((school) => school.total > 0 && school.rate === 100).length;
-  const overallCompliance = schoolWeeklyRows.length > 0
-    ? Math.round(schoolWeeklyRows.reduce((sum, school) => sum + school.rate, 0) / schoolWeeklyRows.length)
-    : 0;
   const totalTeachersTracked = schoolWeeklyRows.reduce((sum, school) => sum + school.total, 0);
   const totalSubmitted = schoolWeeklyRows.reduce((sum, school) => sum + school.submitted, 0);
+  const overallCompliance = totalTeachersTracked > 0
+    ? Math.round((totalSubmitted / totalTeachersTracked) * 100)
+    : 0;
   const schoolsSubmitted = schoolWeeklyRows.filter((school) => school.submitted > 0).length;
   const schoolsNotSubmitted = Math.max(totalSchools - schoolsSubmitted, 0);
+  const elementarySchoolRows = schoolWeeklyRows.filter((school) => school.level === "elementary");
+  const secondarySchoolRows = schoolWeeklyRows.filter((school) => school.level === "secondary");
+  const otherSchoolRows = schoolWeeklyRows.filter((school) => school.level === "other");
+  const districtDisplayName = profile?.district_name || "District";
 
   // Data for charts
   const schoolComplianceData = [
@@ -247,7 +507,7 @@ export default function SupervisorDashboard() {
     submitted: school.submitted,
     total: school.total,
     rate: school.rate,
-  })).slice(0, 10);
+  }));
 
   if (loading) {
     return (
@@ -266,14 +526,18 @@ export default function SupervisorDashboard() {
     );
   }
 
-  // Group submissions by school and teacher
+  // Group submissions by school and teacher, deduplicating via
+  // schoolIdentityKey so variant spellings merge into one card.
   const submissionsBySchool = teacherSubmissions.reduce((acc, sub) => {
-    if (!acc[sub.school_name]) {
-      acc[sub.school_name] = [];
+    const canonical = canonicalSchoolName(sub.school_name);
+    if (!canonical) return acc;
+    const key = schoolIdentityKey(canonical);
+    if (!acc[key]) {
+      acc[key] = { displayName: canonical, submissions: [] };
     }
-    acc[sub.school_name].push(sub);
+    acc[key].submissions.push(sub);
     return acc;
-  }, {} as Record<string, TeacherSubmission[]>);
+  }, {} as Record<string, { displayName: string; submissions: TeacherSubmission[] }>);
 
   return (
     <main id="supervisor-dashboard-main" className="min-h-[calc(100dvh-4rem)] bg-[#F6F0E7] text-[#142019]">
@@ -334,10 +598,24 @@ export default function SupervisorDashboard() {
         </div>
       </section>
 
+      {unassignedRecordCount > 0 && (
+        <Card className="mb-7 border-[#E1BD75] bg-[#FBF2DC] p-4 shadow-none sm:p-5" role="status">
+          <div className="flex items-start gap-3">
+            <School className="mt-0.5 h-5 w-5 shrink-0 text-[#76500A]" aria-hidden="true" />
+            <div>
+              <h2 className="font-semibold text-[#5F430D]">School assignment needed</h2>
+              <p className="mt-1 text-sm leading-6 text-[#76500A]">
+                “Unknown School” is not a real school. {unassignedRecordCount} legacy {unassignedRecordCount === 1 ? "record is" : "records are"} missing a valid school or district. Each unresolved record is excluded from every school report and district total. The School Head should save the correct School and District in Account Information; linked teacher records will then synchronize automatically.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <Tabs defaultValue="overview" className="mb-7">
         <div className="mb-4">
-          <h2 className="font-display text-2xl font-semibold text-[#173F2A]">Schools requiring attention</h2>
-          <p className="mt-1 text-sm text-[#526159]">Open a school to review teachers, files, and recent reporting history.</p>
+          <h2 className="font-display text-2xl font-semibold text-[#173F2A]">{districtDisplayName} schools</h2>
+          <p className="mt-1 text-sm text-[#526159]">Open any school to see submitted and not-submitted teachers, files, and completion percentage.</p>
         </div>
         <div className="overflow-x-auto pb-1">
           <TabsList className="h-auto min-w-max border border-[#D8D0C4] bg-[#EEE8DE] p-1">
@@ -356,92 +634,83 @@ export default function SupervisorDashboard() {
               onClose={() => setSelectedSchool(null)}
             />
           ) : (
-            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {districtSchoolNames.map((schoolName) => {
-                const school = managedSchools.find((item) => item.school_name === schoolName) || { id: schoolName, school_name: schoolName, principal_name: null };
-                const schoolReportsForSchool = reports.filter(r => r.school_name === school.school_name);
-                const latestReport = schoolReportsForSchool[0];
-                
-                // Get teacher count from school_assignments
-                const teachersInSchool = schools.filter(s => s.school_name === school.school_name);
-                const teacherCount = teachersInSchool.length;
-                
-                // Get submissions for this school this week
-                const today = new Date();
-                const startOfWeek = new Date(today);
-                startOfWeek.setDate(today.getDate() - today.getDay());
-                
-                const thisWeekSubmissions = teacherSubmissions.filter(sub => {
-                  const subDate = new Date(sub.created_at);
-                  return sub.school_name === school.school_name && subDate >= startOfWeek;
-                });
-                
-                const submittedCount = new Set(thisWeekSubmissions.map(s => s.user_id)).size;
-                const completionRate = teacherCount > 0
-                  ? Math.round((submittedCount / teacherCount) * 100)
-                  : 0;
+            <div className="space-y-9">
+              <SchoolGroup
+                title="Elementary Schools"
+                description={`${districtDisplayName} elementary and central schools, arranged alphabetically.`}
+                schools={elementarySchoolRows}
+                onSelect={setSelectedSchool}
+              />
+              <SchoolGroup
+                title="Secondary Schools"
+                description={`${districtDisplayName} high schools and integrated schools, arranged alphabetically.`}
+                schools={secondarySchoolRows}
+                onSelect={setSelectedSchool}
+              />
+              <SchoolGroup
+                title="Other Schools"
+                description="Additional district schools that are not yet classified as elementary or secondary."
+                schools={otherSchoolRows}
+                onSelect={setSelectedSchool}
+              />
 
-                return (
-                  <button
-                    key={school.id} 
-                    type="button"
-                    className="min-h-64 cursor-pointer rounded-xl border border-[#D8D0C4] bg-[#FFFCF7] p-5 text-left shadow-[0_8px_22px_rgba(20,32,25,0.04)] outline-none transition-all duration-200 hover:-translate-y-0.5 hover:border-[#A8B6A7] hover:shadow-[0_14px_30px_rgba(20,32,25,0.09)] focus-visible:ring-2 focus-visible:ring-[#236130] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F6F0E7]"
-                    onClick={() => setSelectedSchool(school.school_name)}
-                    aria-label={`View ${school.school_name} school details`}
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <h3 className="font-display text-xl font-semibold text-[#173F2A]">{school.school_name}</h3>
-                      <Badge variant={latestReport?.status === 'completed' ? 'default' : 'secondary'}>
-                        {latestReport?.status || 'No Reports'}
-                      </Badge>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Teachers Submitted:</span>
-                        <span className="font-semibold">
-                          {submittedCount} / {teacherCount}
-                        </span>
-                      </div>
-                      
-                      <Progress value={completionRate} className="h-2" />
-                      
-                      {latestReport && (
-                        <div className="text-sm text-muted-foreground">
-                          Last Report: {new Date(latestReport.week_start).toLocaleDateString()}
-                        </div>
-                      )}
-                      
-                      <div className="text-xs text-muted-foreground">
-                        Principal: {school.principal_name || "Not assigned"}
-                      </div>
-                      
-                      <span className="mt-3 flex min-h-11 w-full items-center justify-between rounded-lg border border-[#236130] px-3 text-sm font-semibold text-[#173F2A]">
-                        View teachers <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
               {districtSchoolNames.length === 0 && (
-                <div className="col-span-full flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed border-[#CFC6B9] bg-[#FFFCF7] px-6 py-10 text-center text-[#526159]">
+                <div className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed border-[#CFC6B9] bg-[#FFFCF7] px-6 py-10 text-center text-[#526159]">
                   <School className="h-10 w-10 text-[#236130]" aria-hidden="true" />
                   <p className="font-display mt-3 text-xl font-semibold text-[#173F2A]">No schools added yet</p>
                   <p className="mt-2 max-w-md text-sm leading-6">Use Manage Schools below to add the first school in this district.</p>
                 </div>
               )}
+
+              <section
+                className="rounded-xl border border-[#1E5733] bg-[#173F2A] p-5 text-white shadow-[0_12px_30px_rgba(23,63,42,0.14)] sm:p-6"
+                aria-labelledby="overall-district-heading"
+              >
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-[#F3C957]">Overall</p>
+                    <h3 id="overall-district-heading" className="font-display mt-2 text-3xl font-semibold">
+                      {districtDisplayName} completion
+                    </h3>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-[#D9E5DC]">
+                      Weighted across every teacher linked to the schools above for the current school week.
+                    </p>
+                  </div>
+                  <p className="font-display text-5xl font-semibold tabular-nums text-[#F3C957]">{overallCompliance}%</p>
+                </div>
+                <div className="mt-6 grid overflow-hidden rounded-lg border border-white/20 sm:grid-cols-4">
+                  <div className="border-b border-white/20 p-4 sm:border-b-0 sm:border-r">
+                    <p className="text-2xl font-semibold tabular-nums">{totalSchools}</p>
+                    <p className="text-sm text-[#D9E5DC]">Schools</p>
+                  </div>
+                  <div className="border-b border-white/20 p-4 sm:border-b-0 sm:border-r">
+                    <p className="text-2xl font-semibold tabular-nums">{totalTeachersTracked}</p>
+                    <p className="text-sm text-[#D9E5DC]">Teachers tracked</p>
+                  </div>
+                  <div className="border-b border-white/20 p-4 sm:border-b-0 sm:border-r">
+                    <p className="text-2xl font-semibold tabular-nums text-[#98D6A9]">{totalSubmitted}</p>
+                    <p className="text-sm text-[#D9E5DC]">Submitted</p>
+                  </div>
+                  <div className="p-4">
+                    <p className="text-2xl font-semibold tabular-nums text-[#F2A393]">
+                      {Math.max(totalTeachersTracked - totalSubmitted, 0)}
+                    </p>
+                    <p className="text-sm text-[#D9E5DC]">Not submitted</p>
+                  </div>
+                </div>
+              </section>
             </div>
           )}
         </TabsContent>
 
         <TabsContent value="by-school" className="space-y-6">
-          {Object.entries(schoolReports).map(([schoolName, schoolReports]) => (
-            <Card key={schoolName} className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+          {Object.values(schoolReports).map((group) => (
+            <Card key={group.displayName} className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
               <h3 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
-                {schoolName}
+                {group.displayName}
               </h3>
               <div className="space-y-3">
-                {schoolReports.map((report) => (
+                {group.reports.map((report) => (
                   <div key={report.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                     <div>
                       <p className="font-medium">
@@ -466,7 +735,7 @@ export default function SupervisorDashboard() {
             <Card key={report.id} className="border-[#D8D0C4] bg-[#FFFCF7] p-4 shadow-none sm:p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-semibold">{report.school_name}</h4>
+                  <h4 className="font-semibold">{canonicalSchoolName(report.school_name) || report.school_name}</h4>
                   <p className="text-sm text-muted-foreground">
                     Week: {new Date(report.week_start).toLocaleDateString()} - {new Date(report.week_end).toLocaleDateString()}
                   </p>
@@ -488,13 +757,13 @@ export default function SupervisorDashboard() {
         </TabsContent>
 
         <TabsContent value="teacher-files" className="space-y-6">
-          {Object.entries(submissionsBySchool).map(([schoolName, submissions]) => (
-            <Card key={schoolName} className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+          {Object.values(submissionsBySchool).map((group) => (
+            <Card key={group.displayName} className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
               <h3 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
-                {schoolName} ({submissions.length} submissions)
+                {group.displayName} ({group.submissions.length} submissions)
               </h3>
               <div className="space-y-3">
-                {submissions.map((submission) => (
+                {group.submissions.map((submission) => (
                   <Card key={submission.id} className="border-[#E4DDD2] bg-white p-4 shadow-none transition-colors hover:bg-[#FFFCF7]">
                     <div className="flex justify-between items-start gap-4">
                       <div className="flex-1">
@@ -683,7 +952,7 @@ export default function SupervisorDashboard() {
       {/* Account Info Card */}
       {profile && (
         <Card className="mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
-          <div className="flex items-start gap-4">
+          <div className="flex flex-col items-start gap-4 sm:flex-row">
             <div className="relative">
               <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
                 {profile.profile_image_url ? (
@@ -708,27 +977,140 @@ export default function SupervisorDashboard() {
                 type="file"
                 accept="image/*"
                 className="hidden"
+                disabled={uploadingProfile}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) handleProfileImageUpload(file);
                 }}
               />
             </div>
-            <div className="flex-1">
-              <h2 className="font-display mb-2 text-xl font-semibold text-[#173F2A]">
-                Account Information
-              </h2>
-              <div className="grid md:grid-cols-3 gap-3 text-sm">
+            <div className="w-full min-w-0 flex-1">
+              <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <span className="font-semibold">Name:</span> {profile.teacher_name}
+                  <h2 className="font-display text-xl font-semibold text-[#173F2A]">
+                    Account Information
+                  </h2>
+                  <p className="mt-1 text-sm text-[#526159]">
+                    Keep your supervisor name and official district accurate for school-level reporting.
+                  </p>
                 </div>
-                <div>
-                  <span className="font-semibold">Email:</span> {profile.email}
-                </div>
-                <div>
-                  <span className="font-semibold">District:</span> {profile.district_name || "N/A"}
-                </div>
+                {!isEditingAccount && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      resetAccountDraft();
+                      setIsEditingAccount(true);
+                    }}
+                    className="h-11 gap-2 border-[#236130] text-[#173F2A] hover:bg-[#EAF1E6] sm:shrink-0"
+                  >
+                    <Pencil className="h-4 w-4" aria-hidden="true" />
+                    Edit information
+                  </Button>
+                )}
               </div>
+
+              {isMissingSchoolIdentityValue(profile.district_name) && !isEditingAccount && (
+                <div className="mb-5 rounded-xl border border-[#D6A73D]/45 bg-[#FFF7DF] p-4" role="status">
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#9A6A00]">
+                      <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <div>
+                      <p className="font-semibold text-[#5E4300]">Complete your district information</p>
+                      <p className="mt-1 text-sm leading-6 text-[#765D1B]">
+                        Enter the official district name to connect the correct schools, teachers, and weekly reports to this dashboard.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {isEditingAccount ? (
+                <div className="rounded-xl border border-[#D8D0C4] bg-[#F7F1E8] p-4 sm:p-5">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="supervisorName">Supervisor name</Label>
+                      <Input
+                        id="supervisorName"
+                        value={accountDraft.teacher_name}
+                        onChange={(event) => setAccountDraft((current) => ({
+                          ...current,
+                          teacher_name: event.target.value,
+                        }))}
+                        placeholder="Enter the supervisor's full name"
+                        className="h-11 bg-[#FFFCF7]"
+                        autoComplete="name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="supervisorEmail">Email</Label>
+                      <Input
+                        id="supervisorEmail"
+                        value={profile.email || ""}
+                        disabled
+                        className="h-11 bg-[#EEE9E1]"
+                      />
+                      <p className="text-xs text-[#526159]">Your sign-in email cannot be changed here.</p>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <Label htmlFor="supervisorDistrict">District</Label>
+                      <Input
+                        id="supervisorDistrict"
+                        value={accountDraft.district_name}
+                        onChange={(event) => setAccountDraft((current) => ({
+                          ...current,
+                          district_name: event.target.value,
+                        }))}
+                        placeholder="e.g., Bacong District"
+                        className="h-11 bg-[#FFFCF7] md:max-w-xl"
+                        required
+                      />
+                      <p className="text-xs leading-5 text-[#526159]">
+                        Use the official district name shared by the schools under your supervision.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleCancelAccountEdit}
+                      disabled={savingAccount}
+                      className="h-11 gap-2"
+                    >
+                      <X className="h-4 w-4" aria-hidden="true" />
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleSaveAccount}
+                      disabled={savingAccount}
+                      className="h-11 gap-2 bg-[#236130] text-white hover:bg-[#173F2A]"
+                    >
+                      <Save className="h-4 w-4" aria-hidden="true" />
+                      {savingAccount ? "Saving…" : "Save changes"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-x-8 gap-y-4 text-sm md:grid-cols-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#526159]">Name</p>
+                    <p className="mt-1 font-medium text-[#173F2A]">{profile.teacher_name || "Not provided"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#526159]">Email</p>
+                    <p className="mt-1 break-all font-medium text-[#173F2A]">{profile.email || "Not provided"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#526159]">District</p>
+                    <p className="mt-1 font-medium text-[#173F2A]">
+                      {canonicalDistrictName(profile.district_name) || "Needs setup"}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </Card>
