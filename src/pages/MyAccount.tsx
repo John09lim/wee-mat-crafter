@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { ArrowRight, BookOpenCheck, ClipboardCheck, FileText, ListChecks, Send, Eye, Upload, Plus, User, School, Mail, Edit2, Save, X, CheckCircle, Clock, XCircle, Lock, LogOut } from "lucide-react";
+import { ArrowRight, BookOpenCheck, ClipboardCheck, FileText, ListChecks, Send, Eye, Upload, Plus, User, School, Mail, Edit2, Save, X, CheckCircle, Clock, XCircle, Lock, LogOut, AlertTriangle, MapPin } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -23,7 +23,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import PasswordResetDialog from "@/components/PasswordResetDialog";
+import CompleteSchoolProfileDialog from "@/components/CompleteSchoolProfileDialog";
 import AssessmentGeneratorDialog from "@/features/assessment-generator/AssessmentGeneratorDialog";
+import { hasCompleteSchoolIdentity, isMissingSchoolIdentityValue, sanitizeSchoolIdentityValue } from "@/lib/schoolIdentity";
+import { getSupabaseFunctionErrorMessage } from "@/lib/supabaseFunctionError";
 
 interface UserProfile {
   teacher_name: string;
@@ -51,7 +54,56 @@ interface SchoolOption {
   principal_name: string;
   principal_profile_image_url: string | null;
   school_name: string;
+  district_name: string;
 }
+
+type SchoolConnectionIssue = "not_assigned" | "principal_setup" | null;
+
+const getProfileInitials = (name: string) => {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("");
+
+  return initials || "SH";
+};
+
+const SchoolHeadPhoto = ({
+  name,
+  profileImageUrl,
+}: {
+  name: string;
+  profileImageUrl: string | null;
+}) => {
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  const showImage = Boolean(profileImageUrl && failedImageUrl !== profileImageUrl);
+
+  return (
+    <div
+      className="flex h-14 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 border-border bg-muted"
+      title={showImage ? `${name}'s profile photo` : `${name} has not uploaded a profile photo`}
+    >
+      {showImage ? (
+        <img
+          src={profileImageUrl!}
+          alt={`${name}, School Head`}
+          className="h-full w-full object-cover"
+          onError={() => setFailedImageUrl(profileImageUrl)}
+        />
+      ) : (
+        <span
+          className="font-display text-sm font-semibold tracking-wide text-primary"
+          aria-label={`${name} has no profile photo`}
+        >
+          {getProfileInitials(name)}
+        </span>
+      )}
+    </div>
+  );
+};
 
 const MyAccount = () => {
   const navigate = useNavigate();
@@ -73,6 +125,8 @@ const MyAccount = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [showAssessmentGenerator, setShowAssessmentGenerator] = useState(false);
+  const [showCompleteProfile, setShowCompleteProfile] = useState(false);
+  const [dismissedCompleteProfile, setDismissedCompleteProfile] = useState(false);
   
   // Submission form state
   const [submitting, setSubmitting] = useState(false);
@@ -80,6 +134,7 @@ const MyAccount = () => {
   const [submissions, setSubmissions] = useState<TeacherSubmission[]>([]);
   const [schoolOptions, setSchoolOptions] = useState<SchoolOption[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<SchoolOption | null>(null);
+  const [schoolConnectionIssue, setSchoolConnectionIssue] = useState<SchoolConnectionIssue>(null);
   const [formData, setFormData] = useState({
     teacherName: "",
     gradeLevel: submissionDraft?.gradeLevel || "",
@@ -116,12 +171,13 @@ const MyAccount = () => {
         navigate("/auth");
         return;
       }
+      const normalizedUserEmail = user.email?.trim().toLowerCase() || "";
 
       // AUTO-LINK: Check if this teacher's email matches any unlinked school_assignments
       const { data: unlinkedAssignment } = await supabase
         .from("school_assignments")
         .select("id, school_name, district_name, principal_id")
-        .eq("teacher_email", user.email!.toLowerCase())
+        .eq("teacher_email", normalizedUserEmail)
         .is("user_id", null)
         .limit(1)
         .maybeSingle();
@@ -176,28 +232,58 @@ const MyAccount = () => {
         .eq("user_id", user.id)
         .maybeSingle();
 
+      const metadataSchool = sanitizeSchoolIdentityValue(user.user_metadata?.school);
+      const metadataDistrict = sanitizeSchoolIdentityValue(user.user_metadata?.district_name);
+
       if (!profileData) {
         const fallbackProfile = {
           user_id: user.id,
           email: user.email || "",
           teacher_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "Teacher",
-          school: "Please update",
-          district_name: "Please update",
+          school: metadataSchool || "Please update",
+          district_name: metadataDistrict || "Please update",
         };
         const { error: profileRepairError } = await supabase.from("profiles").upsert(fallbackProfile, { onConflict: "user_id" });
         if (profileRepairError) throw profileRepairError;
         profileData = { ...fallbackProfile, profile_image_url: null };
+      } else if (
+        hasCompleteSchoolIdentity(metadataSchool, metadataDistrict) &&
+        !hasCompleteSchoolIdentity(profileData.school, profileData.district_name)
+      ) {
+        const registrationIdentity = {
+          school: metadataSchool,
+          district_name: metadataDistrict,
+        };
+        const { error: identityRepairError } = await supabase
+          .from("profiles")
+          .update(registrationIdentity)
+          .eq("user_id", user.id);
+
+        if (identityRepairError) {
+          console.error("Error restoring the registration school identity:", identityRepairError);
+        } else {
+          profileData = { ...profileData, ...registrationIdentity };
+        }
       }
 
       if (profileData) {
         setProfile(profileData);
         setEditedProfile(profileData);
-        
+
         // Pre-fill submission form
         setFormData(prev => ({
           ...prev,
           teacherName: profileData.teacher_name || "",
         }));
+
+        // Auto-open the profile completion dialog when school or district
+        // is still a placeholder ("Unknown School", "Please update", etc.).
+        if (
+          isMissingSchoolIdentityValue(profileData.school) ||
+          isMissingSchoolIdentityValue(profileData.district_name)
+        ) {
+          setShowCompleteProfile(true);
+        }
       }
 
       // Render the workspace as soon as identity and profile are ready.
@@ -241,15 +327,12 @@ const MyAccount = () => {
         .from("profiles")
         .update({
           teacher_name: editedProfile.teacher_name,
-          school: editedProfile.school,
-          district_name: editedProfile.district_name,
         })
         .eq("user_id", user.id);
 
       if (error) throw error;
 
-      setProfile(editedProfile);
-      await fetchAssignedPrincipals(editedProfile);
+      setProfile((current) => current ? { ...current, teacher_name: editedProfile.teacher_name } : current);
       setIsEditing(false);
       toast.success("Profile updated successfully!");
     } catch (error) {
@@ -320,50 +403,86 @@ const MyAccount = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      const normalizedUserEmail = user.email?.trim().toLowerCase() || "";
 
       // Query school_assignments where this teacher is assigned
       const { data: assignments, error } = await supabase
         .from("school_assignments")
-        .select("principal_id, principal_name, principal_profile_image_url, school_name")
-        .or(`user_id.eq.${user.id},teacher_email.ilike.${user.email}`)
+        .select("principal_id, principal_name, principal_profile_image_url, school_name, district_name")
+        .or(`user_id.eq.${user.id},teacher_email.eq.${normalizedUserEmail}`)
         .not("principal_id", "is", null);
 
       if (error) throw error;
 
       if (!assignments || assignments.length === 0) {
         setSchoolOptions([]);
+        setSelectedSchool(null);
+        setSchoolConnectionIssue("not_assigned");
         return;
       }
 
-      // Map assignments directly to school options
-      const profileSchool = currentProfile?.school?.trim();
+      // The principal's assignment is the canonical school identity. Legacy
+      // placeholder records stay blocked until the principal completes setup.
       const options: SchoolOption[] = Array.from(
         new Map(
-          assignments.map((assignment) => {
-            const schoolName =
-              !assignment.school_name?.trim() || assignment.school_name.trim().toLowerCase() === "unknown school"
-                ? profileSchool || "Unknown School"
-                : assignment.school_name;
+          assignments.flatMap((assignment) => {
+            const schoolName = sanitizeSchoolIdentityValue(assignment.school_name);
+            const districtName = sanitizeSchoolIdentityValue(assignment.district_name);
+            if (!hasCompleteSchoolIdentity(schoolName, districtName)) return [];
+
             const option: SchoolOption = {
               principal_id: assignment.principal_id!,
               principal_name: assignment.principal_name || "School Head",
               principal_profile_image_url: assignment.principal_profile_image_url,
               school_name: schoolName,
+              district_name: districtName,
             };
-            return [`${option.principal_id}:${schoolName.trim().toLocaleLowerCase()}`, option] as const;
+            return [[
+              `${option.principal_id}:${schoolName.toLocaleLowerCase()}:${districtName.toLocaleLowerCase()}`,
+              option,
+            ] as const];
           }),
         ).values(),
       );
 
       setSchoolOptions(options);
-      
+      setSchoolConnectionIssue(options.length === 0 ? "principal_setup" : null);
+
       // Auto-select if only one option
       if (options.length === 1) {
         setSelectedSchool(options[0]);
+        if (
+          currentProfile &&
+          (sanitizeSchoolIdentityValue(currentProfile.school) !== options[0].school_name ||
+            sanitizeSchoolIdentityValue(currentProfile.district_name) !== options[0].district_name)
+        ) {
+          const canonicalIdentity = {
+            school: options[0].school_name,
+            district_name: options[0].district_name,
+          };
+          const { error: syncError } = await supabase
+            .from("profiles")
+            .update(canonicalIdentity)
+            .eq("user_id", user.id);
+
+          if (syncError) {
+            console.error("Error syncing the assigned school identity:", syncError);
+          } else {
+            setProfile((current) => current ? { ...current, ...canonicalIdentity } : current);
+            setEditedProfile((current) => current ? { ...current, ...canonicalIdentity } : current);
+          }
+        }
+      } else {
+        setSelectedSchool((current) => {
+          if (!current) return null;
+          return options.find((option) => option.principal_id === current.principal_id) || null;
+        });
       }
     } catch (error) {
       console.error("Error fetching assigned principals:", error);
       setSchoolOptions([]);
+      setSelectedSchool(null);
+      setSchoolConnectionIssue("not_assigned");
     }
   };
 
@@ -397,14 +516,17 @@ const MyAccount = () => {
       submitFormData.append("principalId", selectedSchool.principal_id);
       submitFormData.append("schoolHeadName", selectedSchool.principal_name);
       submitFormData.append("schoolName", selectedSchool.school_name);
-      submitFormData.append("districtName", profile?.district_name || "");
+      submitFormData.append("districtName", selectedSchool.district_name);
 
       const { data: result, error: submissionError } = await supabase.functions.invoke(
         "submit-weelmat",
         { body: submitFormData },
       );
 
-      if (submissionError) throw submissionError;
+      if (submissionError) {
+        const realMessage = await getSupabaseFunctionErrorMessage(submissionError);
+        throw new Error(realMessage);
+      }
       if (result?.error) throw new Error(result.error);
 
       toast.success("WeeLMat submitted successfully to your School Head!");
@@ -423,7 +545,7 @@ const MyAccount = () => {
       // Refresh submissions
       checkAuthAndFetchData();
     } catch (error: unknown) {
-      console.error("Submission error:", error);
+      console.error("WeeLMat submission error (raw):", error);
       toast.error(error instanceof Error ? error.message : "Submission failed");
     } finally {
       setSubmitting(false);
@@ -469,13 +591,35 @@ const MyAccount = () => {
 
   return (
     <>
-      <PasswordResetDialog 
-        open={showPasswordDialog} 
-        onClose={() => setShowPasswordDialog(false)} 
+      <PasswordResetDialog
+        open={showPasswordDialog}
+        onClose={() => setShowPasswordDialog(false)}
       />
       <AssessmentGeneratorDialog
         open={showAssessmentGenerator}
         onOpenChange={setShowAssessmentGenerator}
+      />
+      <CompleteSchoolProfileDialog
+        open={showCompleteProfile}
+        onOpenChange={(open) => {
+          setShowCompleteProfile(open);
+          if (!open) setDismissedCompleteProfile(true);
+        }}
+        initialSchool={sanitizeSchoolIdentityValue(profile?.school)}
+        initialDistrict={sanitizeSchoolIdentityValue(profile?.district_name)}
+        onSaved={(newSchool, newDistrict) => {
+          setProfile((current) =>
+            current
+              ? { ...current, school: newSchool, district_name: newDistrict }
+              : current,
+          );
+          setEditedProfile((current) =>
+            current
+              ? { ...current, school: newSchool, district_name: newDistrict }
+              : current,
+          );
+          setDismissedCompleteProfile(true);
+        }}
       />
       
       <main className="min-h-[calc(100dvh-4rem)] bg-background py-8 sm:py-12">
@@ -505,6 +649,41 @@ const MyAccount = () => {
               </Button>
             </div>
           </header>
+
+        {/* Incomplete school identity banner */}
+        {profile &&
+          dismissedCompleteProfile &&
+          (isMissingSchoolIdentityValue(profile.school) ||
+            isMissingSchoolIdentityValue(profile.district_name)) && (
+            <div
+              className="mb-5 rounded-xl border border-[#D6A73D]/45 bg-[#FFF7DF] p-4"
+              role="status"
+            >
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#9A6A00]">
+                  <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <div className="flex-1">
+                  <p className="font-semibold text-[#5E4300]">
+                    Complete your school information
+                  </p>
+                  <p className="mt-1 text-sm leading-6 text-[#765D1B]">
+                    Your school or district is still marked as unknown. Select your
+                    school so your submissions are tracked correctly.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => setShowCompleteProfile(true)}
+                    className="mt-3 gap-2 bg-[#236130] text-white hover:bg-[#173F2A]"
+                  >
+                    <MapPin className="h-4 w-4" aria-hidden="true" />
+                    Update now
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
         {/* Profile Card */}
         <Card className="mb-8 border-border bg-card p-5 shadow-[0_18px_50px_-42px_rgba(20,32,25,.55)] sm:p-7">
@@ -620,36 +799,50 @@ const MyAccount = () => {
               <Label className="text-sm font-medium text-muted-foreground">
                 {userRole === 'supervisor' ? 'District/Division' : 'School'}
               </Label>
-              {isEditing ? (
+              {isEditing && userRole !== "teacher" ? (
                 <Input
                   value={editedProfile?.school || ""}
                   onChange={(e) => setEditedProfile(prev => prev ? {...prev, school: e.target.value} : null)}
                   className="mt-1"
                 />
               ) : (
-                <div className="mt-1 flex items-center gap-2">
+                <div className="mt-1">
+                  <div className="flex items-center gap-2">
                   <School className="h-4 w-4 text-muted-foreground" />
-                  <span>{profile?.school}</span>
+                    <span>{sanitizeSchoolIdentityValue(profile?.school) || "Waiting for principal setup"}</span>
+                  </div>
+                  {userRole === "teacher" && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {schoolOptions.length > 0
+                        ? "Assigned by your principal through School Management."
+                        : "Saved from your teacher registration. Your principal's assignment will be used for official submissions."}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
 
-            {profile?.district_name && (
-              <div>
-                <Label className="text-sm font-medium text-muted-foreground">District</Label>
-                {isEditing ? (
-                  <Input
-                    value={editedProfile?.district_name || ""}
-                    onChange={(e) => setEditedProfile(prev => prev ? {...prev, district_name: e.target.value} : null)}
-                    className="mt-1"
-                  />
-                ) : (
-                  <div className="mt-1">
-                    <span>{profile?.district_name}</span>
-                  </div>
-                )}
-              </div>
-            )}
+            <div>
+              <Label className="text-sm font-medium text-muted-foreground">District</Label>
+              {isEditing && userRole !== "teacher" ? (
+                <Input
+                  value={editedProfile?.district_name || ""}
+                  onChange={(e) => setEditedProfile(prev => prev ? {...prev, district_name: e.target.value} : null)}
+                  className="mt-1"
+                />
+              ) : (
+                <div className="mt-1">
+                  <span>{sanitizeSchoolIdentityValue(profile?.district_name) || "Waiting for principal setup"}</span>
+                  {userRole === "teacher" && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {schoolOptions.length > 0
+                        ? "Assigned by your principal through School Management."
+                        : "Saved from your teacher registration. Your principal's assignment will be used for official submissions."}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
             </div>
           </div>
         </Card>
@@ -694,10 +887,12 @@ const MyAccount = () => {
                     <div className="rounded-xl border border-warning/25 bg-warning/10 p-6 text-center">
                     <XCircle className="mx-auto mb-3 h-10 w-10 text-warning" aria-hidden="true" />
       <p className="mb-2 text-lg font-semibold text-warning">
-        Waiting for your school principal
+        {schoolConnectionIssue === "principal_setup" ? "Your school details need principal setup" : "Waiting for your school principal"}
       </p>
       <p className="text-sm leading-6 text-warning/85">
-        WeeLMat submission will be enabled after your school principal adds your DepEd email in the School Management section of their Principal Dashboard. Once added, refresh this page.
+        {schoolConnectionIssue === "principal_setup"
+          ? "Your principal has added you, but must complete the official School and District in Account Information before submissions can be enabled."
+          : "WeeLMat submission will be enabled after your school principal adds your DepEd email in the School Management section of their Principal Dashboard. Once added, refresh this page."}
       </p>
                   </div>
                 ) : (
@@ -718,7 +913,17 @@ const MyAccount = () => {
                         <Label htmlFor="account-submission-school">School name</Label>
                         <Input
                           id="account-submission-school"
-                          value={selectedSchool?.school_name || profile?.school || ""}
+                          value={selectedSchool?.school_name || ""}
+                          readOnly
+                          className="bg-muted"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="account-submission-district">District</Label>
+                        <Input
+                          id="account-submission-district"
+                          value={selectedSchool?.district_name || ""}
                           readOnly
                           className="bg-muted"
                         />
@@ -855,17 +1060,10 @@ const MyAccount = () => {
                   {selectedSchool && (
                     <div className="rounded-xl border border-primary/20 bg-primary/5 p-5">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-14 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
-                          {selectedSchool.principal_profile_image_url ? (
-                            <img 
-                              src={selectedSchool.principal_profile_image_url} 
-                              alt={selectedSchool.principal_name} 
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <User className="h-6 w-6 text-primary" aria-hidden="true" />
-                          )}
-                        </div>
+                        <SchoolHeadPhoto
+                          name={selectedSchool.principal_name}
+                          profileImageUrl={selectedSchool.principal_profile_image_url}
+                        />
                         <div className="flex-1">
                           <p className="text-sm font-medium text-muted-foreground mb-1">
                             Submitting to:

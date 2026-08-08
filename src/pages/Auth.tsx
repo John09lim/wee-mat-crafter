@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Lock, Mail, School, User } from "lucide-react";
+import { Lock, Mail, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import PasswordResetDialog from "@/components/PasswordResetDialog";
+import SchoolDistrictPicker from "@/components/SchoolDistrictPicker";
 import {
   AuthField,
   AuthPortal,
@@ -34,6 +35,7 @@ const Auth = () => {
   const [password2, setPassword2] = useState("");
   const [teacherName, setTeacherName] = useState("");
   const [school, setSchool] = useState("");
+  const [district, setDistrict] = useState("");
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [showPasswordResetDialog, setShowPasswordResetDialog] = useState(false);
@@ -88,9 +90,10 @@ const Auth = () => {
     const { error } = await supabase.from("profiles").upsert(
       {
         user_id: uid,
-        teacher_name: teacherName,
-        school,
-        email,
+        teacher_name: teacherName.trim(),
+        school: school.trim(),
+        district_name: district.trim(),
+        email: email.trim(),
       },
       { onConflict: "user_id" },
     );
@@ -230,6 +233,7 @@ const Auth = () => {
       if (
         !teacherName.trim() ||
         !school.trim() ||
+        !district.trim() ||
         !email.trim() ||
         !password.trim() ||
         !password2.trim()
@@ -255,8 +259,10 @@ const Auth = () => {
             data: {
               full_name: teacherName,
               role: "teacher",
+              school: school.trim(),
+              district_name: district.trim(),
             },
-            emailRedirectTo: `${window.location.origin}/dashboard`,
+            emailRedirectTo: `${window.location.origin}/my-account`,
           },
         });
 
@@ -365,17 +371,16 @@ const Auth = () => {
               autoComplete="name"
               required
             />
-            <AuthField
-              id="teacher-school"
-              name="organization"
-              label="School name"
-              icon={School}
-              value={school}
-              onChange={(event) => setSchool(event.target.value)}
-              placeholder="Enter your school name"
-              autoComplete="organization"
-              required
-            />
+            <div className="space-y-1.5">
+              <SchoolDistrictPicker
+                school={school}
+                district={district}
+                onSchoolChange={setSchool}
+                onDistrictChange={setDistrict}
+                helper="This will appear in My Account and helps your principal connect you to the correct school."
+                required
+              />
+            </div>
           </>
         ) : null}
 

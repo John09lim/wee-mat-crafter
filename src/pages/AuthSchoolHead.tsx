@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Lock, Mail, MapPin, School, User } from "lucide-react";
+import { Lock, Mail, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import PasswordResetDialog from "@/components/PasswordResetDialog";
+import SchoolDistrictPicker from "@/components/SchoolDistrictPicker";
 import {
   AuthField,
   AuthPortal,
@@ -322,28 +323,17 @@ export default function AuthSchoolHead() {
               autoComplete="name"
               required
             />
-            <AuthField
-              id="principal-school"
-              name="organization"
-              label="School name"
-              icon={School}
-              value={school}
-              onChange={(event) => setSchool(event.target.value)}
-              placeholder="Enter your school name"
-              autoComplete="organization"
-              required
-            />
-            <AuthField
-              id="principal-district"
-              name="address-level2"
-              label="District name"
-              icon={MapPin}
-              value={district}
-              onChange={(event) => setDistrict(event.target.value)}
-              placeholder="Enter your district name"
-              autoComplete="address-level2"
-              required
-            />
+            <div className="space-y-1.5">
+              <SchoolDistrictPicker
+                school={school}
+                district={district}
+                onSchoolChange={setSchool}
+                onDistrictChange={setDistrict}
+                schoolLabel="School name"
+                districtLabel="District name"
+                required
+              />
+            </div>
           </>
         ) : null}
 

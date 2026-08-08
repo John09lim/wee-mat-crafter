@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/components/ui/sonner";
 import { PasscodeDialog } from "@/components/PasscodeDialog";
+import CompleteSchoolProfileDialog from "@/components/CompleteSchoolProfileDialog";
 import { ExtractedTextPreviewModal } from "@/components/ExtractedTextPreviewModal";
 import {
   ArrowRight,
@@ -19,21 +20,41 @@ import {
   CheckCircle2,
   FileText,
   History,
+  Info,
   Loader2,
   LogOut,
+  MapPin,
   ShieldCheck,
   Sparkles,
   Upload,
   UserRound,
+  AlertTriangle,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  assessmentFieldLabel,
+  assessmentTypesForKeyStage,
+  allAssessmentTypes,
+  defaultItemCount,
+  getKeyStageForGrade,
+  gradesForKeyStage,
+  isWorksheetKeyStage,
+  itemCountLabel,
+  itemCountPresets,
+  keyStageById,
+  keyStages,
+  ks1WorksheetHints,
+  type KeyStageId,
+} from "@/lib/keyStages";
+import { isMissingSchoolIdentityValue, sanitizeSchoolIdentityValue } from "@/lib/schoolIdentity";
 
-const examTypes = ["Identification", "Matching Type", "True/False", "Multiple Choice", "Essay", "Performance Task", "HOLIDAY"] as const;
-const questionCounts = [5, 10, 15] as const;
+const examTypes = allAssessmentTypes;
 
 const schema = z.object({
   subject: z.string().min(1, "Subject is required"),
+  keyStage: z.enum(["KS1", "KS2", "KS3", "KS4"], { required_error: "Key stage is required" }),
   gradeLevel: z.string().min(1, "Grade is required"),
   section: z.string().min(1, "Section is required"),
   dateFrom: z.string().min(1, "From date is required"),
@@ -78,6 +99,7 @@ const grades = [
   "Grade 11",
   "Grade 12",
 ] as const;
+
 const subjectSuggestions = ["Filipino","English","Math","Science","AP","EsP","MAPEH","EPP/TLE"];
 
 const planningDays = [
@@ -139,6 +161,10 @@ const Dashboard = ({ isPremium = false }: DashboardProps) => {
   const [extractedTextPreview, setExtractedTextPreview] = useState<string>("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [extractionSuccess, setExtractionSuccess] = useState(false);
+  const [profileSchool, setProfileSchool] = useState("");
+  const [profileDistrict, setProfileDistrict] = useState("");
+  const [showCompleteProfile, setShowCompleteProfile] = useState(false);
+  const [dismissedCompleteProfile, setDismissedCompleteProfile] = useState(false);
   const steps = useMemo(() => [
     "Planning daily competencies…",
     "Selecting trusted references…",
@@ -193,6 +219,33 @@ const Dashboard = ({ isPremium = false }: DashboardProps) => {
     };
   }, []);
 
+  useEffect(() => {
+    const checkSchoolIdentity = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("school, district_name")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (profile) {
+          setProfileSchool(profile.school || "");
+          setProfileDistrict(profile.district_name || "");
+          if (
+            isMissingSchoolIdentityValue(profile.school) ||
+            isMissingSchoolIdentityValue(profile.district_name)
+          ) {
+            setShowCompleteProfile(true);
+          }
+        }
+      } catch {
+        // Non-blocking — the dialog is a convenience prompt.
+      }
+    };
+    checkSchoolIdentity();
+  }, []);
+
   const handlePasscodeVerified = () => {
     setPasscodeVerified(true);
     setShowPasscodeDialog(false);
@@ -220,7 +273,11 @@ const { register, handleSubmit, formState: { errors }, setValue, watch, reset } 
 useEffect(() => {
   const prefillData = location.state?.prefillData;
   if (prefillData) {
-    reset(prefillData);
+    reset({
+      ...prefillData,
+      // Older saved matrices predate key stages; recover it from the grade level.
+      keyStage: prefillData.keyStage ?? getKeyStageForGrade(prefillData.gradeLevel),
+    });
     setDailyCompetencies({
       monday: prefillData.mondayCompetency || "",
       tuesday: prefillData.tuesdayCompetency || "",
@@ -233,6 +290,55 @@ useEffect(() => {
 }, [location.state, reset]);
 
 const watchedValues = watch();
+
+  const activeKeyStage = watchedValues.keyStage as KeyStageId | undefined;
+  const keyStageDefinition = keyStageById(activeKeyStage);
+  const availableGrades = gradesForKeyStage(activeKeyStage);
+  const availableAssessmentTypes = assessmentTypesForKeyStage(activeKeyStage);
+  const worksheetMode = isWorksheetKeyStage(activeKeyStage);
+  const countPresets = itemCountPresets(activeKeyStage);
+
+  /**
+   * Switching key stage swaps the whole assessment vocabulary, so any day that
+   * still holds a type from the previous stage is reset to that stage's default.
+   */
+  const syncAssessmentTypesForStage = (stageId: KeyStageId) => {
+    const allowedTypes = assessmentTypesForKeyStage(stageId);
+    const fallbackType = allowedTypes[0] as FormValues["mondayExamType"];
+    planningDays.forEach(({ prefix }) => {
+      const field = `${prefix}ExamType` as `${PlanningDayPrefix}ExamType`;
+      const current = watchedValues[field];
+      if (current && !allowedTypes.includes(current)) {
+        setValue(field, fallbackType, { shouldValidate: true });
+      }
+      const countField = `${prefix}QuestionCount` as `${PlanningDayPrefix}QuestionCount`;
+      if (isWorksheetKeyStage(stageId) && (watchedValues[countField] ?? 0) > 10) {
+        setValue(countField, defaultItemCount(stageId), { shouldValidate: true });
+      }
+    });
+  };
+
+  const handleKeyStageChange = (stageId: KeyStageId) => {
+    if (stageId === activeKeyStage) return;
+    setValue("keyStage", stageId, { shouldValidate: true });
+
+    // The grade must belong to the stage; drop it when the two no longer agree.
+    if (watchedValues.gradeLevel && !gradesForKeyStage(stageId).includes(watchedValues.gradeLevel)) {
+      setValue("gradeLevel", "", { shouldValidate: true });
+    }
+
+    syncAssessmentTypesForStage(stageId);
+  };
+
+  /** Picking a grade keeps the key stage in sync so the two can never disagree. */
+  const handleGradeChange = (grade: string) => {
+    setValue("gradeLevel", grade, { shouldValidate: true });
+    const derived = getKeyStageForGrade(grade);
+    if (derived && derived !== activeKeyStage) {
+      setValue("keyStage", derived, { shouldValidate: true });
+      syncAssessmentTypesForStage(derived);
+    }
+  };
 
   const isDayComplete = (day: PlanningDayPrefix) => {
     const competency = watchedValues[`${day}Competency` as keyof FormValues] as string | undefined;
@@ -248,7 +354,7 @@ const watchedValues = watch();
   const activeQuestionCountField = `${activeDay}QuestionCount` as `${PlanningDayPrefix}QuestionCount`;
 
   const isFormComplete = (values: Partial<FormValues>) => {
-    if (!values.subject?.trim() || !values.gradeLevel || !values.section?.trim() || 
+    if (!values.subject?.trim() || !values.keyStage || !values.gradeLevel || !values.section?.trim() ||
         !values.dateFrom || !values.dateTo || !values.language) {
       return false;
     }
@@ -417,13 +523,28 @@ const watchedValues = watch();
         friday: 'Friday'
       };
       
+      // Extraction only ever proposes pen-and-paper types, so anything the
+      // current key stage does not allow falls back to that stage's default.
+      const stage = watch("keyStage");
+      const allowedTypes = assessmentTypesForKeyStage(stage);
+      const fallbackType = allowedTypes[0] as FormValues["mondayExamType"];
+      const worksheetStage = isWorksheetKeyStage(stage);
+
       days.forEach((day) => {
         const dayData = extractedData.days?.[dayNames[day]];
         if (dayData) {
           setValue(`${day}Competency` as `${PlanningDayPrefix}Competency`, dayData.competency || '', { shouldValidate: true });
           setDailyCompetencies((current) => ({ ...current, [day]: dayData.competency || "" }));
-          setValue(`${day}ExamType` as `${PlanningDayPrefix}ExamType`, dayData.examType || 'Multiple Choice', { shouldValidate: true });
-          setValue(`${day}QuestionCount` as `${PlanningDayPrefix}QuestionCount`, dayData.questionCount || 10, { shouldValidate: true });
+          const proposedType = dayData.examType && allowedTypes.includes(dayData.examType)
+            ? dayData.examType
+            : fallbackType;
+          setValue(`${day}ExamType` as `${PlanningDayPrefix}ExamType`, proposedType, { shouldValidate: true });
+          const proposedCount = dayData.questionCount || (worksheetStage ? 5 : 10);
+          setValue(
+            `${day}QuestionCount` as `${PlanningDayPrefix}QuestionCount`,
+            worksheetStage ? Math.min(proposedCount, 8) : proposedCount,
+            { shouldValidate: true },
+          );
         }
       });
 
@@ -457,9 +578,24 @@ const watchedValues = watch();
 
   return (
     <>
-      <PasscodeDialog 
-        open={showPasscodeDialog} 
+      <PasscodeDialog
+        open={showPasscodeDialog}
         onPasscodeVerified={handlePasscodeVerified}
+      />
+
+      <CompleteSchoolProfileDialog
+        open={showCompleteProfile}
+        onOpenChange={(open) => {
+          setShowCompleteProfile(open);
+          if (!open) setDismissedCompleteProfile(true);
+        }}
+        initialSchool={sanitizeSchoolIdentityValue(profileSchool)}
+        initialDistrict={sanitizeSchoolIdentityValue(profileDistrict)}
+        onSaved={(newSchool, newDistrict) => {
+          setProfileSchool(newSchool);
+          setProfileDistrict(newDistrict);
+          setDismissedCompleteProfile(true);
+        }}
       />
       
       {/* Extracted Text Preview Modal */}
@@ -557,10 +693,43 @@ const watchedValues = watch();
               </div>
             </header>
 
+            {dismissedCompleteProfile &&
+              (isMissingSchoolIdentityValue(profileSchool) ||
+                isMissingSchoolIdentityValue(profileDistrict)) && (
+                <div
+                  className="mb-6 rounded-xl border border-[#D6A73D]/45 bg-[#FFF7DF] p-4"
+                  role="status"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#9A6A00]">
+                      <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <div className="flex-1">
+                      <p className="font-semibold text-[#5E4300]">
+                        Complete your school information
+                      </p>
+                      <p className="mt-1 text-sm leading-6 text-[#765D1B]">
+                        Your school or district is still unknown. Update it so your
+                        submissions reach the right principal.
+                      </p>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setShowCompleteProfile(true)}
+                        className="mt-3 gap-2 bg-[#236130] text-white hover:bg-[#173F2A]"
+                      >
+                        <MapPin className="h-4 w-4" aria-hidden="true" />
+                        Update now
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
             <nav aria-label="Creation progress" className="mb-7 overflow-x-auto border-b border-border">
               <ol className="flex min-w-[42rem]">
                 {[
-                  ["01", "Class details", Boolean(watchedValues.subject && watchedValues.gradeLevel && watchedValues.section)],
+                  ["01", "Class details", Boolean(watchedValues.keyStage && watchedValues.subject && watchedValues.gradeLevel && watchedValues.section)],
                   ["02", "Learning source", matrixMode === "manual" || extractionSuccess],
                   ["03", "Week plan", completedDays === planningDays.length],
                   ["04", "Review", isFormComplete(watchedValues)],
@@ -584,9 +753,65 @@ const watchedValues = watch();
                   <span className="font-display text-2xl font-semibold text-secondary">01</span>
                   <div>
                     <h2 id="class-details-heading" className="font-display text-2xl font-semibold text-foreground">Class details</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">Set the learning area, class, language, and school week.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Set the key stage, learning area, class, language, and school week.</p>
                   </div>
                 </div>
+
+              <fieldset className="mb-5">
+                <legend className="flex items-center gap-1.5 text-sm font-medium text-foreground">
+                  Key stage
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="What are key stages?"
+                        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <Info className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-80 text-sm leading-6">
+                      <p className="font-semibold text-foreground">About key stages</p>
+                      <p className="mt-1.5 text-muted-foreground">
+                        DepEd groups learners into four key stages. The stage you pick decides which assessment formats are developmentally appropriate for the week.
+                      </p>
+                      <dl className="mt-3 space-y-1.5 border-t border-border pt-3">
+                        {keyStages.map((stage) => (
+                          <div key={stage.id} className="flex gap-2">
+                            <dt className="w-24 shrink-0 font-medium text-foreground">{stage.label}</dt>
+                            <dd className="text-muted-foreground">{stage.range}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </PopoverContent>
+                  </Popover>
+                </legend>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                  {keyStages.map((stage) => {
+                    const selected = activeKeyStage === stage.id;
+                    return (
+                      <Button
+                        key={stage.id}
+                        type="button"
+                        variant={selected ? "default" : "outline"}
+                        className="h-auto min-h-16 flex-col items-start gap-0.5 whitespace-normal px-4 py-3 text-left"
+                        aria-pressed={selected}
+                        onClick={() => handleKeyStageChange(stage.id)}
+                      >
+                        <span className="font-display text-base font-semibold">{stage.label}</span>
+                        <span className="text-xs opacity-80">{stage.range}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
+                {keyStageDefinition && (
+                  <p className="mt-3 rounded-lg border border-border bg-muted/40 p-3 text-sm leading-6 text-muted-foreground">
+                    <span className="font-medium text-foreground">{keyStageDefinition.label} · {keyStageDefinition.stageName}.</span>{" "}
+                    {keyStageDefinition.blurb}
+                  </p>
+                )}
+                {errors.keyStage && <p role="alert" className="mt-2 text-sm text-destructive">{errors.keyStage.message}</p>}
+              </fieldset>
 
               <div className="grid gap-5 md:grid-cols-12">
                 <div className="space-y-2 md:col-span-5">
@@ -596,12 +821,12 @@ const watchedValues = watch();
                 </div>
                 <div className="space-y-2 md:col-span-3">
                   <Label htmlFor="matrix-grade">Grade level</Label>
-                  <Select value={watchedValues.gradeLevel || ""} onValueChange={(value) => setValue("gradeLevel", value, { shouldValidate: true })}>
+                  <Select value={watchedValues.gradeLevel || ""} onValueChange={handleGradeChange}>
                     <SelectTrigger id="matrix-grade" aria-invalid={Boolean(errors.gradeLevel)}>
                       <SelectValue placeholder="Select grade" />
                     </SelectTrigger>
                     <SelectContent>
-                      {grades.map((grade) => (<SelectItem key={grade} value={grade}>{grade}</SelectItem>))}
+                      {availableGrades.map((grade) => (<SelectItem key={grade} value={grade}>{grade}</SelectItem>))}
                     </SelectContent>
                   </Select>
                   {errors.gradeLevel && <p role="alert" className="text-destructive text-sm">{errors.gradeLevel.message}</p>}
@@ -796,9 +1021,14 @@ const watchedValues = watch();
                       </div>
 
                       <fieldset>
-                        <legend className="text-sm font-medium text-foreground">Assessment type</legend>
+                        <legend className="text-sm font-medium text-foreground">{assessmentFieldLabel(activeKeyStage)}</legend>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {worksheetMode
+                            ? "Kinder to Grade 3 learners are still emergent readers and writers, so the week is built from printable worksheet activities instead of a written test."
+                            : "Pen-and-paper assessment the learner answers on the printed matrix."}
+                        </p>
                         <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-4">
-                          {examTypes.map((type) => (
+                          {availableAssessmentTypes.map((type) => (
                             <Button
                               key={type}
                               type="button"
@@ -806,7 +1036,7 @@ const watchedValues = watch();
                               className="h-11 whitespace-normal px-3 text-xs sm:text-sm"
                               aria-pressed={watchedValues[activeExamTypeField] === type}
                               onClick={() => {
-                                setValue(activeExamTypeField, type, { shouldValidate: true });
+                                setValue(activeExamTypeField, type as FormValues["mondayExamType"], { shouldValidate: true });
                                 if (type === "HOLIDAY") {
                                   setDailyCompetencies((current) => ({ ...current, [activeDay]: "HOLIDAY" }));
                                   setValue(activeCompetencyField, "HOLIDAY", { shouldValidate: true });
@@ -817,13 +1047,18 @@ const watchedValues = watch();
                             </Button>
                           ))}
                         </div>
+                        {worksheetMode && ks1WorksheetHints[watchedValues[activeExamTypeField] as string] && (
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            {ks1WorksheetHints[watchedValues[activeExamTypeField] as string]}
+                          </p>
+                        )}
                         {errors[activeExamTypeField] && <p role="alert" className="mt-2 text-sm text-destructive">{errors[activeExamTypeField]?.message}</p>}
                       </fieldset>
 
                       <fieldset>
-                        <legend className="text-sm font-medium text-foreground">Question count</legend>
+                        <legend className="text-sm font-medium text-foreground">{itemCountLabel(activeKeyStage)}</legend>
                         <div className="mt-2 flex flex-wrap items-end gap-2">
-                          {questionCounts.map((count) => (
+                          {countPresets.map((count) => (
                             <Button
                               key={count}
                               type="button"
@@ -849,7 +1084,11 @@ const watchedValues = watch();
                             />
                           </div>
                         </div>
-                        <p className="mt-2 text-xs text-muted-foreground">Choose between 3 and 20 questions.</p>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {worksheetMode
+                            ? "Keep Kinder to Grade 3 worksheets short — 3 to 8 items is a full session for this stage."
+                            : "Choose between 3 and 20 questions."}
+                        </p>
                         {errors[activeQuestionCountField] && <p role="alert" className="mt-2 text-sm text-destructive">{errors[activeQuestionCountField]?.message}</p>}
                       </fieldset>
                     </div>
@@ -904,8 +1143,9 @@ const watchedValues = watch();
                   {matrixMode === "automatic" && extractionSuccess && !isFormComplete(watchedValues) && (
                     <p className="text-sm font-medium text-warning">
                       Extraction is complete. Add: {[
+                        !watchedValues.keyStage && "Key stage",
                         !watchedValues.subject && "Subject",
-                        !watchedValues.gradeLevel && "Grade level", 
+                        !watchedValues.gradeLevel && "Grade level",
                         !watchedValues.section && "Section",
                         (!watchedValues.dateFrom || !watchedValues.dateTo) && "Week dates"
                       ].filter(Boolean).join(", ")}
