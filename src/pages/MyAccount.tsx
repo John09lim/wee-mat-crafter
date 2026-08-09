@@ -413,14 +413,14 @@ const MyAccount = () => {
         return;
       }
 
-      // The principal's assignment is the canonical school identity. Legacy
-      // placeholder records stay blocked until the principal completes setup.
+      // Accept all valid principal-linked assignments. The principal already
+      // connected the teacher — the school/district on the assignment is the
+      // canonical identity, even if it hasn't been fully filled yet.
       const options: SchoolOption[] = Array.from(
         new Map(
           assignments.flatMap((assignment) => {
-            const schoolName = sanitizeSchoolIdentityValue(assignment.school_name);
-            const districtName = sanitizeSchoolIdentityValue(assignment.district_name);
-            if (!hasCompleteSchoolIdentity(schoolName, districtName)) return [];
+            const schoolName = (assignment.school_name || "").trim();
+            const districtName = (assignment.district_name || "").trim();
 
             const option: SchoolOption = {
               principal_id: assignment.principal_id!,
