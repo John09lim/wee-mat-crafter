@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { useForm, type FieldErrors } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,11 +46,12 @@ import {
   keyStageById,
   keyStages,
   ks1WorksheetHints,
+  allExamTypeValues,
   type KeyStageId,
 } from "@/lib/keyStages";
 import { isMissingSchoolIdentityValue, sanitizeSchoolIdentityValue } from "@/lib/schoolIdentity";
 
-const examTypes = allAssessmentTypes;
+const examTypes = allExamTypeValues;
 
 const schema = z.object({
   subject: z.string().min(1, "Subject is required"),
@@ -375,6 +376,12 @@ const watchedValues = watch();
     });
     
     return isComplete;
+  };
+
+  // Show a toast when zod validation fails so the user isn't left guessing
+  const onError = (errors: FieldErrors<FormValues>) => {
+    const firstMessage = Object.values(errors)[0]?.message;
+    toast.error(firstMessage ?? "Please fix the highlighted fields before generating.");
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -747,7 +754,7 @@ const watchedValues = watch();
             <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <div>
           <div className="rounded-2xl border border-border bg-card p-5 shadow-[0_18px_50px_-42px_rgba(20,32,25,.55)] sm:p-7 lg:p-8">
-            <form className="grid gap-8" onSubmit={handleSubmit(onSubmit)} noValidate>
+            <form className="grid gap-8" onSubmit={handleSubmit(onSubmit, onError)} noValidate>
               <section aria-labelledby="class-details-heading">
                 <div className="mb-5 flex items-center gap-3">
                   <span className="font-display text-2xl font-semibold text-secondary">01</span>
