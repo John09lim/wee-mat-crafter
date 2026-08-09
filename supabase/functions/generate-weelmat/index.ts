@@ -82,6 +82,7 @@ serve(async (req) => {
       code,
       customInstructions,
       language,
+      activityMode,
       aiJsonOverride,
       existingMatrixId,
     } = requestBody;
@@ -302,13 +303,23 @@ serve(async (req) => {
     // Generate effective language
     const effectiveLanguage = language || "English";
     const isKs1 = keyStage === "KS1";
+    // KS1 worksheet mode: when KS1 teachers pick "Worksheet Activity", we generate
+    // images. When they pick "Assessment Type", treat it like any other key stage (text only).
+    const isKs1Worksheet = isKs1 && activityMode !== "assessment";
     const researchContext = curatedSources.length
       ? curatedSources.map((source, index) => `${index + 1}. ${source.title}: ${source.note} (${source.url})`).join("\n")
       : "No verified web sources were returned. Stay strictly within the teacher-provided competencies and do not invent curriculum facts.";
 
     // Create comprehensive system prompt for AI focused on Row 4 generation
     const systemPrompt = `You are an expert DepEd Philippines curriculum specialist creating Weekly Learning Matrix content.
-
+${isKs1Worksheet ? `
+IMPORTANT: This is KEY STAGE 1 (${gradeLevel}) — emergent readers and writers (ages 4-8).
+- Use VERY SIMPLE words and short sentences that a young child can understand
+- Instructions must be concrete and visual, not abstract
+- Activities should be hands-on, playful, and developmentally appropriate
+- Avoid complex vocabulary, long reading passages, or abstract concepts
+- For worksheet activities: describe the VISUAL content the child will see and interact with
+` : ""}
 CRITICAL JSON FORMAT REQUIREMENTS:
 1. Return ONLY valid JSON - no markdown, explanations, or extra text
 2. Use proper JSON escaping for quotes and newlines
@@ -390,10 +401,10 @@ Return EXACTLY this JSON structure:
     "wed": "Instructions/Directions: [Real instructions]\\n\\nQuiz:\\n[${dailyPlan.Wednesday.questionCount} real ${dailyPlan.Wednesday.examType} questions]\\n\\nExpected Output: [Description]\\nContingency: [Backup plan]",
     "thu": "Instructions/Directions: [Real instructions]\\n\\nQuiz:\\n[${dailyPlan.Thursday.questionCount} real ${dailyPlan.Thursday.examType} questions]\\n\\nExpected Output: [Description]\\nContingency: [Backup plan]",
     "fri": "Instructions/Directions: [Real instructions]\\n\\nQuiz:\\n[${dailyPlan.Friday.questionCount} real ${dailyPlan.Friday.examType} questions]\\n\\nExpected Output: [Description]\\nContingency: [Backup plan]"
-  }${isKs1 ? `,\n  "imagePrompts": {\n    "mon": "[Detailed description of a text-free educational illustration for Monday's activity. Describe the visual content, objects, colors, and layout. The image must NOT contain any text, words, letters, or numbers.]",\n    "tue": "[Detailed description of a text-free educational illustration for Tuesday. Text-free, no words or letters.]",\n    "wed": "[Detailed description of a text-free educational illustration for Wednesday. Text-free, no words or letters.]",\n    "thu": "[Detailed description of a text-free educational illustration for Thursday. Text-free, no words or letters.]",\n    "fri": "[Detailed description of a text-free educational illustration for Friday. Text-free, no words or letters.]"\n  }` : ""}
+  }${isKs1Worksheet ? `,\n  "imagePrompts": {\n    "mon": "[Detailed description of a text-free educational illustration for Monday's activity. Describe the visual content, objects, colors, and layout. The image must NOT contain any text, words, letters, or numbers.]",\n    "tue": "[Detailed description of a text-free educational illustration for Tuesday. Text-free, no words or letters.]",\n    "wed": "[Detailed description of a text-free educational illustration for Wednesday. Text-free, no words or letters.]",\n    "thu": "[Detailed description of a text-free educational illustration for Thursday. Text-free, no words or letters.]",\n    "fri": "[Detailed description of a text-free educational illustration for Friday. Text-free, no words or letters.]"\n  }` : ""}
 }
 
-${isKs1 ? `KS1 VISUAL LEARNING ACTIVITIES - IMAGE PROMPT REQUIREMENTS:
+${isKs1Worksheet ? `KS1 VISUAL LEARNING ACTIVITIES - IMAGE PROMPT REQUIREMENTS:
 - This is for Key Stage 1 (${gradeLevel}) — young learners who need VISUAL illustrations
 - For each day, write a detailed imagePrompts entry describing a TEXT-FREE educational illustration
 - The image must show concrete objects, animals, people, or scenes related to the competency
@@ -403,7 +414,12 @@ ${isKs1 ? `KS1 VISUAL LEARNING ACTIVITIES - IMAGE PROMPT REQUIREMENTS:
 - Matching activities: describe two columns of related objects
 - Identifying/Circling: describe a scene with multiple items to find
 - Coloring activities: describe bold outline illustrations ready for coloring
-- Sequence activities: describe 3-4 pictures showing steps in jumbled order` : ""}`;
+- Sequence activities: describe 3-4 pictures showing steps in jumbled order
+- Sorting activities: describe mixed objects from different categories
+- Tracing activities: describe large dashed outline letters, numbers, or shapes
+- Pattern activities: describe a repeating visual pattern with the last item missing
+- Fill in the Blank: describe a picture scene with one item missing
+- Draw and Label: describe a simple object for the child to draw` : ""}`;
 
     // Step 2: AI Generation with prioritized API calls
     let aiJson: any = aiJsonOverride && typeof aiJsonOverride === "object" ? aiJsonOverride : null;
@@ -447,27 +463,53 @@ ${isKs1 ? `KS1 VISUAL LEARNING ACTIVITIES - IMAGE PROMPT REQUIREMENTS:
               try {
                 // Multiple strategies to extract JSON
                 let jsonString = content;
-                
+
                 // Remove markdown code blocks if present
                 jsonString = jsonString.replace(/```json\s*/, '').replace(/```\s*$/, '');
-                
+
                 // Find JSON object boundaries
                 const jsonStart = jsonString.indexOf('{');
                 const jsonEnd = jsonString.lastIndexOf('}');
-                
+
                 if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
                   jsonString = jsonString.substring(jsonStart, jsonEnd + 1);
-                  
-                  // Clean up common formatting issues
-                  jsonString = jsonString
-                    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
-                    .replace(/\n/g, '\\n') // Properly escape newlines
-                    .replace(/\r/g, '\\r') // Properly escape carriage returns
-                    .replace(/\t/g, '\\t'); // Properly escape tabs
-                  
-                  console.log("Cleaned JSON string:", jsonString.substring(0, 200) + "...");
-                  aiJson = JSON.parse(jsonString);
-                  console.log("DeepSeek API successful on attempt", retryCount + 1);
+
+                  // Strategy 1: Try parsing directly (DeepSeek usually returns valid JSON)
+                  try {
+                    aiJson = JSON.parse(jsonString);
+                    console.log("DeepSeek API successful on attempt", retryCount + 1, "(direct parse)");
+                    break;
+                  } catch (_directParseError) {
+                    // Fall through to strategy 2
+                  }
+
+                  // Strategy 2: Remove only raw control characters (NOT \n inside strings)
+                  // The previous approach of .replace(/\n/g, '\\n') corrupted valid JSON
+                  // by double-escaping newlines that were already escaped inside string values.
+                  const cleaned = jsonString.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '');
+                  try {
+                    aiJson = JSON.parse(cleaned);
+                    console.log("DeepSeek API successful on attempt", retryCount + 1, "(cleaned parse)");
+                    break;
+                  } catch (_cleanedParseError) {
+                    // Fall through to strategy 3
+                  }
+
+                  // Strategy 3: If still failing, the raw newlines inside strings are the problem.
+                  // Walk through the string and escape only newlines that are NOT already preceded by a backslash.
+                  let escaped = "";
+                  for (let i = 0; i < jsonString.length; i++) {
+                    const ch = jsonString[i];
+                    const prev = i > 0 ? jsonString[i - 1] : "";
+                    if ((ch === "\n" || ch === "\r" || ch === "\t") && prev !== "\\") {
+                      escaped += ch === "\n" ? "\\n" : ch === "\r" ? "\\r" : "\\t";
+                    } else {
+                      escaped += ch;
+                    }
+                  }
+                  console.log("Attempting escaped parse...");
+                  aiJson = JSON.parse(escaped);
+                  console.log("DeepSeek API successful on attempt", retryCount + 1, "(escaped parse)");
                   break;
                 }
               } catch (parseError) {
@@ -502,11 +544,135 @@ ${isKs1 ? `KS1 VISUAL LEARNING ACTIVITIES - IMAGE PROMPT REQUIREMENTS:
         if (plan.examType === "HOLIDAY") {
           return effectiveLanguage === 'Filipino' ? "Walang klase - Holiday" : "No class - Holiday";
         }
-        
+
         const count = plan.questionCount;
         const type = plan.examType;
         const competency = plan.competency;
         const subjectLower = subject.toLowerCase();
+
+        // ==================== KS1 WORKSHEET ACTIVITY FALLBACK ====================
+        // KS1 worksheet types need simple, visual, age-appropriate instructions — NOT
+        // the standard Multiple Choice / Identification exam questions below.
+        const worksheetTypes = [
+          "Picture Counting", "Picture Matching", "Identifying / Circling", "Coloring Activity",
+          "Sequence / Story Order", "Picture Sorting", "Tracing Activity", "Complete the Pattern",
+          "Fill in the Blank (Pictures)", "Draw and Label",
+        ];
+        if (worksheetTypes.includes(type)) {
+          const filipino = effectiveLanguage === 'Filipino';
+          let instructions = "";
+          let activity = "";
+          let answerKey = "";
+
+          switch (type) {
+            case "Picture Counting":
+              instructions = filipino
+                ? `Bilangin ang mga larawan sa kahon. Isulat ang tamang numero sa linya.`
+                : `Count the pictures in the box. Write the correct number on the line.`;
+              activity = Array.from({ length: count }, (_, i) =>
+                filipino ? `Set ${i + 1}: [____] larawan ng ${competency}` : `Set ${i + 1}: [____] pictures of ${competency}`
+              ).join("\n");
+              answerKey = filipino ? `Susi sa Sagot: ${count} larawan bawat set` : `Answer Key: ${count} pictures per set`;
+              break;
+            case "Picture Matching":
+              instructions = filipino
+                ? `Magpadulo ng linya mula sa larawan sa kaliwa patungo sa katugon nitong larawan sa kanan.`
+                : `Draw a line from each picture on the left to its matching picture on the right.`;
+              activity = Array.from({ length: count }, (_, i) =>
+                filipino ? `Hanay A (${i + 1}) [larawan] — Hanay B (${i + 1}) [larawan]` : `Column A (${i + 1}) [picture] — Column B (${i + 1}) [picture]`
+              ).join("\n");
+              answerKey = filipino ? `Susi sa Sagot: Iugnay ang mga magkapares` : `Answer Key: Match corresponding pairs`;
+              break;
+            case "Identifying / Circling":
+              instructions = filipino
+                ? `Bilugan ang mga larawang tumutugma sa: ${competency}`
+                : `Circle the pictures that match: ${competency}`;
+              activity = filipino
+                ? `[Larawan ng iba't ibang bagay — bilugan ang mga tamang larawan]`
+                : `[Picture of various objects — circle the correct ones]`;
+              answerKey = filipino ? `Susi sa Sagot: Bilugan ang mga tamang larawan` : `Answer Key: Circle the matching pictures`;
+              break;
+            case "Coloring Activity":
+              instructions = filipino
+                ? `Kulayan ang mga larawan ayon sa kulay na nakasulat.`
+                : `Color the pictures according to the color written below each one.`;
+              activity = Array.from({ length: Math.min(count, 5) }, (_, i) =>
+                filipino ? `Larawan ${i + 1}: [outline] — Kulay: ___` : `Picture ${i + 1}: [outline] — Color: ___`
+              ).join("\n");
+              answerKey = filipino ? `Susi sa Sagot: Sundin ang mga kulay` : `Answer Key: Follow the color directions`;
+              break;
+            case "Sequence / Story Order":
+              instructions = filipino
+                ? `Ayusin ang mga larawan sa tamang pagkakasunod-sunod. Lagyan ng numero 1, 2, 3, 4.`
+                : `Arrange the pictures in the correct order. Number them 1, 2, 3, 4.`;
+              activity = filipino
+                ? `[Apat na larawan tungkol sa: ${competency} — sa magulong ayos]`
+                : `[Four pictures about: ${competency} — in jumbled order]`;
+              answerKey = filipino ? `Susi sa Sagot: 1 → 2 → 3 → 4 (tamang pagkakasunod)` : `Answer Key: 1 → 2 → 3 → 4 (correct order)`;
+              break;
+            case "Picture Sorting":
+              instructions = filipino
+                ? `Hatiin ang mga larawan sa tamang grupo. Ilagay ang bawat larawan sa tamang kahon.`
+                : `Sort the pictures into the correct groups. Place each picture in the right box.`;
+              activity = filipino
+                ? `[Grupo 1: ___] [Grupo 2: ___] — Ihalo ang mga larawang tungkol sa ${competency}`
+                : `[Group 1: ___] [Group 2: ___] — Mix pictures about ${competency}`;
+              answerKey = filipino ? `Susi sa Sagot: Hatiin ayon sa kategorya` : `Answer Key: Sort by category`;
+              break;
+            case "Tracing Activity":
+              instructions = filipino
+                ? `Sundan ang mga tuldok upang masulat ang bawat isa.`
+                : `Trace along the dotted lines to write each one.`;
+              activity = Array.from({ length: count }, (_, i) =>
+                filipino ? `Hanay ${i + 1}: [dashed outline ng ${competency}]` : `Row ${i + 1}: [dashed outline of ${competency}]`
+              ).join("\n");
+              answerKey = filipino ? `Susi sa Sagot: Sundan ang linya` : `Answer Key: Follow the lines`;
+              break;
+            case "Complete the Pattern":
+              instructions = filipino
+                ? `Tingnan ang padron. Anong susunod? Bilugan ang tamang larawan.`
+                : `Look at the pattern. What comes next? Circle the correct picture.`;
+              activity = Array.from({ length: count }, (_, i) =>
+                filipino ? `Padron ${i + 1}: [A] [B] [A] [B] [?] — Pumili: [A] o [B]` : `Pattern ${i + 1}: [A] [B] [A] [B] [?] — Choose: [A] or [B]`
+              ).join("\n");
+              answerKey = filipino ? `Susi sa Sagot: Sundin ang padron` : `Answer Key: Follow the pattern`;
+              break;
+            case "Fill in the Blank (Pictures)":
+              instructions = filipino
+                ? `Tingnan ang larawan. Anong kulang? Pumili sa kahon at isulat.`
+                : `Look at the picture. What is missing? Choose from the box and write it.`;
+              activity = Array.from({ length: count }, (_, i) =>
+                filipino ? `${i + 1}. [Larawan ng ${competency} na may kulang] — ___` : `${i + 1}. [Picture of ${competency} with missing part] — ___`
+              ).join("\n");
+              answerKey = filipino ? `Susi sa Sagot: Punan ang patlang` : `Answer Key: Fill in the blank`;
+              break;
+            case "Draw and Label":
+              instructions = filipino
+                ? `Gumuhit ng larawan tungkol sa: ${competency}. Pagkatapos, sulatan ang pangalan.`
+                : `Draw a picture about: ${competency}. Then, write its name below.`;
+              activity = filipino
+                ? `[Walang laman na kahon para sa guhit]\nPangalan: ____________`
+                : `[Empty box for drawing]\nName: ____________`;
+              answerKey = filipino ? `Susi sa Sagot: Gumuhit at lagyan ng pangalan` : `Answer Key: Draw and label`;
+              break;
+            default:
+              instructions = filipino
+                ? `Gawin ang aktibidad tungkol sa: ${competency}`
+                : `Complete the activity about: ${competency}`;
+              activity = filipino ? `[Aktibidad sa ${competency}]` : `[Activity on ${competency}]`;
+              answerKey = "";
+          }
+
+          const expectedOutput = filipino
+            ? `Inaasahang Resulta: Ang bata ay makakumpleto ng gawain nang wasto.`
+            : `Expected Output: The learner completes the activity correctly.`;
+          const contingency = filipino
+            ? `Kontinhensiya: Kung mahirap, gawin sa pangkat o bigyan ng gabay.`
+            : `Contingency: If difficult, do in groups or provide guidance.`;
+
+          return `Instructions/Directions: ${instructions}\n\n${activity}\n\n${answerKey ? answerKey + "\n\n" : ""}${expectedOutput}\n${contingency}`;
+        }
+        // ==================== END KS1 WORKSHEET FALLBACK ====================
         
         // Create competency-specific questions based on the actual competency text
         const createCompetencyBasedQuestions = () => {
@@ -775,8 +941,54 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
     };
 
     // ==================== KS1 VISUAL ACTIVITY IMAGE GENERATION ====================
-    // For Key Stage 1 (Kinder–Grade 3), generate real illustrations with Qwen Image
-    // and embed them in the DOCX alongside the text instructions.
+    // For Key Stage 1 (Kinder–Grade 3) in worksheet mode, generate real illustrations
+    // with Qwen Image and embed them in the DOCX alongside the text instructions.
+
+    // If DeepSeek didn't return imagePrompts, synthesize them from competency + activity type.
+    if (isKs1Worksheet && !aiJson?.imagePrompts) {
+      console.log("DeepSeek did not return imagePrompts — synthesizing locally");
+      const synthesizeImagePrompt = (dayKey: "mon" | "tue" | "wed" | "thu" | "fri"): string => {
+        const plan = dailyPlan[dayKey === "mon" ? "Monday" : dayKey === "tue" ? "Tuesday" : dayKey === "wed" ? "Wednesday" : dayKey === "thu" ? "Thursday" : "Friday"];
+        const competency = plan.competency;
+        const examType = plan.examType;
+        const count = plan.questionCount;
+
+        switch (examType) {
+          case "Picture Counting":
+            return `Show exactly ${count} clearly visible objects related to "${competency}" arranged in a neat row on a clean white background. Bright cartoon style for young children.`;
+          case "Picture Matching":
+            return `Two columns side by side. Left column has ${count} items and right column has ${count} matching pairs, all related to "${competency}". Clean white background, cartoon style.`;
+          case "Identifying / Circling":
+            return `A colorful scene with several objects related to "${competency}". Some objects match the category and some do not. Clean cartoon style for young children.`;
+          case "Coloring Activity":
+            return `Bold black outline illustrations of objects related to "${competency}". Clear thick lines ready for coloring. No fill colors, white background inside the outlines.`;
+          case "Sequence / Story Order":
+            return `Four simple pictures showing steps or events related to "${competency}", arranged in a 2x2 grid. Each picture is a clear distinct scene. Cartoon style for children.`;
+          case "Picture Sorting":
+            return `Several mixed objects from different categories related to "${competency}". Objects should be clearly distinguishable into groups. Clean cartoon style.`;
+          case "Tracing Activity":
+            return `Large bold dashed outline shapes, letters, or numbers related to "${competency}". Dotted lines that a child can trace. Clean white background, very large format.`;
+          case "Complete the Pattern":
+            return `A repeating visual pattern (like colored shapes or objects) related to "${competency}" with the last item missing, shown as an empty box. Cartoon style for children.`;
+          case "Fill in the Blank (Pictures)":
+            return `A picture scene related to "${competency}" with one item clearly missing, shown as an empty space or dotted outline. Cartoon style for young children.`;
+          case "Draw and Label":
+            return `A large empty space with a simple example illustration of something related to "${competency}" in the corner. Clean white background for drawing.`;
+          default:
+            return `A bright, colorful, child-friendly illustration related to "${competency}". Cartoon style with clean white background.`;
+        }
+      };
+
+      aiJson.imagePrompts = {
+        mon: synthesizeImagePrompt("mon"),
+        tue: synthesizeImagePrompt("tue"),
+        wed: synthesizeImagePrompt("wed"),
+        thu: synthesizeImagePrompt("thu"),
+        fri: synthesizeImagePrompt("fri"),
+      };
+      console.log("Synthesized imagePrompts:", JSON.stringify(aiJson.imagePrompts));
+    }
+
     const ks1Images: Record<string, Uint8Array | null> = {
       mon: null,
       tue: null,
@@ -785,7 +997,7 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
       fri: null,
     };
 
-    if (isKs1 && DASHSCOPE_API_KEY && !hasHoliday) {
+    if (isKs1Worksheet && DASHSCOPE_API_KEY && !hasHoliday) {
       console.log("KS1 visual mode: generating illustrations with Qwen Image...");
 
       const dayKeys: Array<{ key: "mon" | "tue" | "wed" | "thu" | "fri"; day: string }> = [
@@ -887,8 +1099,8 @@ ${effectiveLanguage === "Filipino" ? "The illustration should feel relatable to 
         "KS1 image generation complete:",
         Object.entries(ks1Images).map(([k, v]) => `${k}: ${v ? "OK" : "none"}`),
       );
-    } else if (isKs1) {
-      console.log("KS1 visual mode requested but DASHSCOPE_API_KEY not set — falling back to text-only");
+    } else if (isKs1Worksheet) {
+      console.log("KS1 worksheet mode requested but DASHSCOPE_API_KEY not set — falling back to text-only");
     }
 
     // Step 3: Save to database
@@ -1364,19 +1576,19 @@ ${effectiveLanguage === "Filipino" ? "The illustration should feel relatable to 
                     children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Mga Gawain/Aktividad sa Pagkatuto" : "Learning Activities/Tasks", bold: true, size: 16 })] })],
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
-                  isKs1
+                  isKs1Worksheet
                     ? buildKs1ActivityCell("mon", parseActivityContentWithAnswerKey(aiJson?.activities?.mon || ""))
                     : buildTextActivityCell(parseActivityContentWithAnswerKey(aiJson?.activities?.mon || "")),
-                  isKs1
+                  isKs1Worksheet
                     ? buildKs1ActivityCell("tue", parseActivityContentWithAnswerKey(aiJson?.activities?.tue || ""))
                     : buildTextActivityCell(parseActivityContentWithAnswerKey(aiJson?.activities?.tue || "")),
-                  isKs1
+                  isKs1Worksheet
                     ? buildKs1ActivityCell("wed", parseActivityContentWithAnswerKey(aiJson?.activities?.wed || ""))
                     : buildTextActivityCell(parseActivityContentWithAnswerKey(aiJson?.activities?.wed || "")),
-                  isKs1
+                  isKs1Worksheet
                     ? buildKs1ActivityCell("thu", parseActivityContentWithAnswerKey(aiJson?.activities?.thu || ""))
                     : buildTextActivityCell(parseActivityContentWithAnswerKey(aiJson?.activities?.thu || "")),
-                  isKs1
+                  isKs1Worksheet
                     ? buildKs1ActivityCell("fri", parseActivityContentWithAnswerKey(aiJson?.activities?.fri || ""))
                     : buildTextActivityCell(parseActivityContentWithAnswerKey(aiJson?.activities?.fri || "")),
                 ],
@@ -1541,19 +1753,19 @@ ${effectiveLanguage === "Filipino" ? "The illustration should feel relatable to 
                     children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Mga Gawain/Aktividad sa Pagkatuto" : "Learning Activities/Tasks", bold: true, size: 16 })] })],
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
-                  isKs1
+                  isKs1Worksheet
                     ? buildKs1ActivityCell("mon", parseActivityContentForStudent(aiJson?.activities?.mon || ""))
                     : buildTextActivityCell(parseActivityContentForStudent(aiJson?.activities?.mon || "")),
-                  isKs1
+                  isKs1Worksheet
                     ? buildKs1ActivityCell("tue", parseActivityContentForStudent(aiJson?.activities?.tue || ""))
                     : buildTextActivityCell(parseActivityContentForStudent(aiJson?.activities?.tue || "")),
-                  isKs1
+                  isKs1Worksheet
                     ? buildKs1ActivityCell("wed", parseActivityContentForStudent(aiJson?.activities?.wed || ""))
                     : buildTextActivityCell(parseActivityContentForStudent(aiJson?.activities?.wed || "")),
-                  isKs1
+                  isKs1Worksheet
                     ? buildKs1ActivityCell("thu", parseActivityContentForStudent(aiJson?.activities?.thu || ""))
                     : buildTextActivityCell(parseActivityContentForStudent(aiJson?.activities?.thu || "")),
-                  isKs1
+                  isKs1Worksheet
                     ? buildKs1ActivityCell("fri", parseActivityContentForStudent(aiJson?.activities?.fri || ""))
                     : buildTextActivityCell(parseActivityContentForStudent(aiJson?.activities?.fri || "")),
                 ],
