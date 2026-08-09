@@ -167,6 +167,7 @@ const Dashboard = ({ isPremium = false }: DashboardProps) => {
   const [extractionSuccess, setExtractionSuccess] = useState(false);
   const [profileSchool, setProfileSchool] = useState("");
   const [profileDistrict, setProfileDistrict] = useState("");
+  const [teacherName, setTeacherName] = useState("");
   const [showCompleteProfile, setShowCompleteProfile] = useState(false);
   const [dismissedCompleteProfile, setDismissedCompleteProfile] = useState(false);
   const steps = useMemo(() => [
@@ -230,12 +231,13 @@ const Dashboard = ({ isPremium = false }: DashboardProps) => {
         if (!user) return;
         const { data: profile } = await supabase
           .from("profiles")
-          .select("school, district_name")
+          .select("school, district_name, teacher_name")
           .eq("user_id", user.id)
           .maybeSingle();
         if (profile) {
           setProfileSchool(profile.school || "");
           setProfileDistrict(profile.district_name || "");
+          setTeacherName(profile.teacher_name || "");
           if (
             isMissingSchoolIdentityValue(profile.school) ||
             isMissingSchoolIdentityValue(profile.district_name)
@@ -422,6 +424,7 @@ const watchedValues = watch();
     const submissionValues = {
       ...values,
       activityMode: isWorksheetKeyStage(values.keyStage) ? ks1ActivityMode : undefined,
+      teacherName: teacherName || undefined,
     };
     console.log("Navigating to WeeLMatGenerator with validated values:", submissionValues);
     navigate(isPremium ? "/premium/weelmat/result" : "/weelmatgenerator", { state: submissionValues });

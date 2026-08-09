@@ -49,6 +49,7 @@ serve(async (req) => {
       dateFrom,
       dateTo,
       language = "English",
+      teacherName,
       mondayCompetency,
       tuesdayCompetency,
       wednesdayCompetency,
@@ -357,6 +358,12 @@ The correct answer is ${correctAnswer}.`;
             children: [new TextRun({ text: "Weekly Learning Matrix (WeeLMat) - PREMIUM", bold: true, size: 28 })],
             alignment: AlignmentType.CENTER,
           }),
+          ...(teacherName ? [
+            new Paragraph({
+              children: [new TextRun({ text: teacherName, size: 22 })],
+              alignment: AlignmentType.CENTER,
+            }),
+          ] : []),
           new Paragraph({
             children: [new TextRun({ text: "TEACHER VERSION WITH ANSWER KEY", bold: true, size: 20, color: "FF0000" })],
             alignment: AlignmentType.CENTER,
