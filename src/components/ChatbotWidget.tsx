@@ -207,7 +207,13 @@ export default function ChatbotWidget() {
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
-        if (chunk === "[DONE]") break;
+        // The edge function appends [DONE] to signal end-of-stream, but it
+        // may arrive in the same chunk as content — strip it before appending.
+        if (chunk.includes("[DONE]")) {
+          const cleaned = chunk.replace(/\[DONE\]/g, "");
+          if (cleaned) fullContent += cleaned;
+          break;
+        }
 
         fullContent += chunk;
         setMessages((prev) => {
