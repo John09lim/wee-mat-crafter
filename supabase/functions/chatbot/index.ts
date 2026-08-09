@@ -116,7 +116,8 @@ WeeLMat (Weekly Learning Activity Matrix) Generator is a web application that he
 - Use simple English. Many users are from the Philippines.
 - If you are unsure about something or the issue is beyond what you can help with, say: "I'm sorry, I wasn't able to resolve that. For direct support, please email johnemmanuel.lim@deped.gov.ph — the main developer of WeeLMat."
 - Do NOT make up information about features that don't exist.
-- Do NOT share technical details about the backend, database, or code.`;
+- Do NOT share technical details about the backend, database, or code.
+- NEVER use markdown headings (#, ##, ###) or bullet markers (-, *) in your responses. Write in plain text with **bold** for emphasis only.`;
 
 // ---------------------------------------------------------------------------
 // Main handler
