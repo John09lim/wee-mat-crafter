@@ -608,17 +608,16 @@ const MyAccount = () => {
         initialSchool={sanitizeSchoolIdentityValue(profile?.school)}
         initialDistrict={sanitizeSchoolIdentityValue(profile?.district_name)}
         onSaved={(newSchool, newDistrict) => {
-          setProfile((current) =>
-            current
-              ? { ...current, school: newSchool, district_name: newDistrict }
-              : current,
-          );
-          setEditedProfile((current) =>
-            current
-              ? { ...current, school: newSchool, district_name: newDistrict }
-              : current,
-          );
+          const updatedProfile = profile
+            ? { ...profile, school: newSchool, district_name: newDistrict }
+            : profile;
+          setProfile(updatedProfile);
+          setEditedProfile(updatedProfile);
           setDismissedCompleteProfile(true);
+          // Re-fetch assignments — the DB sync trigger copies the new
+          // school/district into school_assignments, which should unblock
+          // submissions immediately.
+          fetchAssignedPrincipals(updatedProfile);
         }}
       />
       
@@ -891,9 +890,18 @@ const MyAccount = () => {
       </p>
       <p className="text-sm leading-6 text-warning/85">
         {schoolConnectionIssue === "principal_setup"
-          ? "Your principal has added you, but must complete the official School and District in Account Information before submissions can be enabled."
+          ? "Your principal has added you, but the official School and District still need to be set. You can fix this now by selecting your school and district below — submissions will be enabled immediately."
           : "WeeLMat submission will be enabled after your school principal adds your DepEd email in the School Management section of their Principal Dashboard. Once added, refresh this page."}
       </p>
+      {schoolConnectionIssue === "principal_setup" && (
+        <Button
+          type="button"
+          className="mt-4"
+          onClick={() => setShowCompleteProfile(true)}
+        >
+          Set my School & District
+        </Button>
+      )}
                   </div>
                 ) : (
                   <form onSubmit={handleSubmitWeelMat} className="space-y-6">
