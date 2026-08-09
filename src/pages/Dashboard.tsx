@@ -37,6 +37,7 @@ import {
   assessmentFieldLabel,
   assessmentTypesForKeyStage,
   allAssessmentTypes,
+  worksheetAssessmentTypes,
   defaultItemCount,
   getKeyStageForGrade,
   gradesForKeyStage,
@@ -78,6 +79,7 @@ const schema = z.object({
   code: z.string().optional().or(z.literal("")),
   customInstructions: z.string().optional().or(z.literal("")),
   language: z.enum(["English","Filipino"]).default("English"),
+  activityMode: z.enum(["worksheet", "assessment"]).optional(),
 }).refine((data) => new Date(data.dateFrom) <= new Date(data.dateTo), {
   message: "From date must be before or equal to To date",
   path: ["dateFrom"],
@@ -147,6 +149,7 @@ const Dashboard = ({ isPremium = false }: DashboardProps) => {
   const [checkingWorkspaceAccess, setCheckingWorkspaceAccess] = useState(true);
   const [usingPrincipalAccount, setUsingPrincipalAccount] = useState(false);
   const [matrixMode, setMatrixMode] = useState<"automatic" | "manual">("manual");
+  const [ks1ActivityMode, setKs1ActivityMode] = useState<"worksheet" | "assessment">("worksheet");
   const [activeDay, setActiveDay] = useState<PlanningDayPrefix>("monday");
   const [dailyCompetencies, setDailyCompetencies] = useState<Record<PlanningDayPrefix, string>>({
     monday: "",
@@ -295,16 +298,21 @@ const watchedValues = watch();
   const activeKeyStage = watchedValues.keyStage as KeyStageId | undefined;
   const keyStageDefinition = keyStageById(activeKeyStage);
   const availableGrades = gradesForKeyStage(activeKeyStage);
-  const availableAssessmentTypes = assessmentTypesForKeyStage(activeKeyStage);
-  const worksheetMode = isWorksheetKeyStage(activeKeyStage);
+  const availableAssessmentTypes = isWorksheetKeyStage(activeKeyStage)
+    ? (ks1ActivityMode === "assessment" ? allAssessmentTypes : worksheetAssessmentTypes)
+    : allAssessmentTypes;
+  const worksheetMode = isWorksheetKeyStage(activeKeyStage) && ks1ActivityMode === "worksheet";
   const countPresets = itemCountPresets(activeKeyStage);
 
   /**
-   * Switching key stage swaps the whole assessment vocabulary, so any day that
-   * still holds a type from the previous stage is reset to that stage's default.
+   * Switching key stage (or KS1 activity mode) swaps the whole assessment
+   * vocabulary, so any day that still holds a type from the previous set is
+   * reset to that set's default.
    */
   const syncAssessmentTypesForStage = (stageId: KeyStageId) => {
-    const allowedTypes = assessmentTypesForKeyStage(stageId);
+    const allowedTypes = isWorksheetKeyStage(stageId)
+      ? (ks1ActivityMode === "assessment" ? allAssessmentTypes : worksheetAssessmentTypes)
+      : allAssessmentTypes;
     const fallbackType = allowedTypes[0] as FormValues["mondayExamType"];
     planningDays.forEach(({ prefix }) => {
       const field = `${prefix}ExamType` as `${PlanningDayPrefix}ExamType`;
@@ -313,7 +321,7 @@ const watchedValues = watch();
         setValue(field, fallbackType, { shouldValidate: true });
       }
       const countField = `${prefix}QuestionCount` as `${PlanningDayPrefix}QuestionCount`;
-      if (isWorksheetKeyStage(stageId) && (watchedValues[countField] ?? 0) > 10) {
+      if (isWorksheetKeyStage(stageId) && ks1ActivityMode === "worksheet" && (watchedValues[countField] ?? 0) > 10) {
         setValue(countField, defaultItemCount(stageId), { shouldValidate: true });
       }
     });
@@ -410,8 +418,13 @@ const watchedValues = watch();
     }
     
     setLoading(true);
-    console.log("Navigating to WeeLMatGenerator with validated values:", values);
-    navigate(isPremium ? "/premium/weelmat/result" : "/weelmatgenerator", { state: values });
+    // Inject the KS1 activity mode so the edge function knows whether to generate images
+    const submissionValues = {
+      ...values,
+      activityMode: isWorksheetKeyStage(values.keyStage) ? ks1ActivityMode : undefined,
+    };
+    console.log("Navigating to WeeLMatGenerator with validated values:", submissionValues);
+    navigate(isPremium ? "/premium/weelmat/result" : "/weelmatgenerator", { state: submissionValues });
   }
 
   const [result, setResult] = useState<{subject:string;grade:string;section:string;dates:string;docx?:string;pdf?:string}|null>(null);
@@ -1028,6 +1041,43 @@ const watchedValues = watch();
                       </div>
 
                       <fieldset>
+                        {isWorksheetKeyStage(activeKeyStage) && (
+                          <div className="mb-4 space-y-2">
+                            <legend className="text-sm font-medium text-foreground">Activity mode</legend>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <Button
+                                type="button"
+                                variant={ks1ActivityMode === "worksheet" ? "default" : "outline"}
+                                className="h-auto min-h-14 justify-start gap-2 px-3 py-2 text-left"
+                                onClick={() => {
+                                  setKs1ActivityMode("worksheet");
+                                  syncAssessmentTypesForStage(activeKeyStage);
+                                }}
+                                aria-pressed={ks1ActivityMode === "worksheet"}
+                              >
+                                <span>
+                                  <span className="block text-sm font-semibold">Worksheet Activity</span>
+                                  <span className="block text-xs opacity-75">Visual illustrations with pictures</span>
+                                </span>
+                              </Button>
+                              <Button
+                                type="button"
+                                variant={ks1ActivityMode === "assessment" ? "default" : "outline"}
+                                className="h-auto min-h-14 justify-start gap-2 px-3 py-2 text-left"
+                                onClick={() => {
+                                  setKs1ActivityMode("assessment");
+                                  syncAssessmentTypesForStage(activeKeyStage);
+                                }}
+                                aria-pressed={ks1ActivityMode === "assessment"}
+                              >
+                                <span>
+                                  <span className="block text-sm font-semibold">Assessment Type</span>
+                                  <span className="block text-xs opacity-75">Pen-and-paper written test</span>
+                                </span>
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                         <legend className="text-sm font-medium text-foreground">{assessmentFieldLabel(activeKeyStage)}</legend>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {worksheetMode

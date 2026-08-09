@@ -95,6 +95,11 @@ export const worksheetAssessmentTypes = [
   "Identifying / Circling",
   "Coloring Activity",
   "Sequence / Story Order",
+  "Picture Sorting",
+  "Tracing Activity",
+  "Complete the Pattern",
+  "Fill in the Blank (Pictures)",
+  "Draw and Label",
 ] as const;
 
 /** Union of all assessment/worksheet types across every key stage (for Zod schemas). */
@@ -102,6 +107,10 @@ export const allExamTypeValues = [...allAssessmentTypes, ...worksheetAssessmentT
 
 export const assessmentTypesForKeyStage = (id?: KeyStageId | null): readonly string[] =>
   isWorksheetKeyStage(id) ? worksheetAssessmentTypes : allAssessmentTypes;
+
+/** Returns true if the given type string is a KS1 worksheet activity type. */
+export const isWorksheetActivityType = (type?: string | null): boolean =>
+  !!type && (worksheetAssessmentTypes as readonly string[]).includes(type);
 
 export const assessmentFieldLabel = (id?: KeyStageId | null): string =>
   isWorksheetKeyStage(id) ? "Worksheet activity" : "Assessment type";
@@ -126,4 +135,14 @@ export const ks1WorksheetHints: Record<string, string> = {
     "Provide outline illustrations. The learner colors the objects according to the given directions.",
   "Sequence / Story Order":
     "Show three or four story pictures in jumbled order. The learner numbers them in the correct sequence.",
+  "Picture Sorting":
+    "Show mixed objects in different categories. The learner groups them by type, size, color, or shape.",
+  "Tracing Activity":
+    "Provide large dashed outline letters, numbers, or shapes. The learner traces along the dotted lines.",
+  "Complete the Pattern":
+    "Show a repeating pattern (AB, AABB, ABC) with the last item missing. The learner identifies what comes next.",
+  "Fill in the Blank (Pictures)":
+    "Show a picture scene with a missing item. The learner chooses or draws the object that completes it.",
+  "Draw and Label":
+    "Give a simple prompt. The learner draws the object and traces or writes its name underneath.",
 };
