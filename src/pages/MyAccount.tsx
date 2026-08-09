@@ -142,6 +142,8 @@ const MyAccount = () => {
     subject: submissionDraft?.subject || "",
     weekStart: submissionDraft?.weekStart || "",
     weekEnd: submissionDraft?.weekEnd || "",
+    schoolName: submissionDraft?.schoolName || "",
+    districtName: submissionDraft?.districtName || "",
   });
 
   const handleLogout = async () => {
@@ -155,6 +157,17 @@ const MyAccount = () => {
     // Account bootstrap should run once; subsequent refreshes are triggered by successful mutations.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sync school/district into submission form when selectedSchool changes
+  useEffect(() => {
+    if (selectedSchool) {
+      setFormData((prev) => ({
+        ...prev,
+        schoolName: prev.schoolName || selectedSchool.school_name || "",
+        districtName: prev.districtName || selectedSchool.district_name || "",
+      }));
+    }
+  }, [selectedSchool]);
 
   useEffect(() => {
     if (!loading && location.hash === "#submit-weelmat") {
@@ -515,8 +528,8 @@ const MyAccount = () => {
       submitFormData.append("weekEnd", formData.weekEnd);
       submitFormData.append("principalId", selectedSchool.principal_id);
       submitFormData.append("schoolHeadName", selectedSchool.principal_name);
-      submitFormData.append("schoolName", selectedSchool.school_name);
-      submitFormData.append("districtName", selectedSchool.district_name);
+      submitFormData.append("schoolName", formData.schoolName);
+      submitFormData.append("districtName", formData.districtName);
 
       const { data: result, error: submissionError } = await supabase.functions.invoke(
         "submit-weelmat",
@@ -798,7 +811,7 @@ const MyAccount = () => {
               <Label className="text-sm font-medium text-muted-foreground">
                 {userRole === 'supervisor' ? 'District/Division' : 'School'}
               </Label>
-              {isEditing && userRole !== "teacher" ? (
+              {isEditing ? (
                 <Input
                   value={editedProfile?.school || ""}
                   onChange={(e) => setEditedProfile(prev => prev ? {...prev, school: e.target.value} : null)}
@@ -808,22 +821,15 @@ const MyAccount = () => {
                 <div className="mt-1">
                   <div className="flex items-center gap-2">
                   <School className="h-4 w-4 text-muted-foreground" />
-                    <span>{sanitizeSchoolIdentityValue(profile?.school) || "Waiting for principal setup"}</span>
+                    <span>{sanitizeSchoolIdentityValue(profile?.school) || "Not set"}</span>
                   </div>
-                  {userRole === "teacher" && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {schoolOptions.length > 0
-                        ? "Assigned by your principal through School Management."
-                        : "Saved from your teacher registration. Your principal's assignment will be used for official submissions."}
-                    </p>
-                  )}
                 </div>
               )}
             </div>
 
             <div>
               <Label className="text-sm font-medium text-muted-foreground">District</Label>
-              {isEditing && userRole !== "teacher" ? (
+              {isEditing ? (
                 <Input
                   value={editedProfile?.district_name || ""}
                   onChange={(e) => setEditedProfile(prev => prev ? {...prev, district_name: e.target.value} : null)}
@@ -831,14 +837,7 @@ const MyAccount = () => {
                 />
               ) : (
                 <div className="mt-1">
-                  <span>{sanitizeSchoolIdentityValue(profile?.district_name) || "Waiting for principal setup"}</span>
-                  {userRole === "teacher" && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {schoolOptions.length > 0
-                        ? "Assigned by your principal through School Management."
-                        : "Saved from your teacher registration. Your principal's assignment will be used for official submissions."}
-                    </p>
-                  )}
+                  <span>{sanitizeSchoolIdentityValue(profile?.district_name) || "Not set"}</span>
                 </div>
               )}
             </div>
@@ -921,9 +920,10 @@ const MyAccount = () => {
                         <Label htmlFor="account-submission-school">School name</Label>
                         <Input
                           id="account-submission-school"
-                          value={selectedSchool?.school_name || ""}
-                          readOnly
-                          className="bg-muted"
+                          value={formData.schoolName}
+                          onChange={(e) => setFormData({...formData, schoolName: e.target.value})}
+                          placeholder="Enter your school name"
+                          required
                         />
                       </div>
 
@@ -931,9 +931,10 @@ const MyAccount = () => {
                         <Label htmlFor="account-submission-district">District</Label>
                         <Input
                           id="account-submission-district"
-                          value={selectedSchool?.district_name || ""}
-                          readOnly
-                          className="bg-muted"
+                          value={formData.districtName}
+                          onChange={(e) => setFormData({...formData, districtName: e.target.value})}
+                          placeholder="Enter your district"
+                          required
                         />
                       </div>
 
