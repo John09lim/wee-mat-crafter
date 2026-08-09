@@ -42,8 +42,13 @@ function TypingIndicator() {
 // Simple markdown-like rendering for bold (**text**) and line breaks
 // ---------------------------------------------------------------------------
 function RenderContent({ text }: { text: string }) {
+  // Strip markdown headings (###, ##, #) and other markdown artifacts that
+  // leak from the system prompt into the AI's responses.
+  const cleaned = text
+    .replace(/^#{1,6}\s+/gm, "")   // ### / ## / # headings
+    .replace(/^\s*[-*]\s+/gm, ""); // bullet point markers
   // Split by ** for bold, handle line breaks
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  const parts = cleaned.split(/(\*\*[^*]+\*\*)/g);
   return (
     <span>
       {parts.map((part, i) => {
