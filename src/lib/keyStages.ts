@@ -89,13 +89,16 @@ export const allAssessmentTypes = [
   "Performance Task",
 ] as const;
 
-const worksheetAssessmentTypes = [
+export const worksheetAssessmentTypes = [
   "Picture Counting",
   "Picture Matching",
   "Identifying / Circling",
   "Coloring Activity",
   "Sequence / Story Order",
 ] as const;
+
+/** Union of all assessment/worksheet types across every key stage (for Zod schemas). */
+export const allExamTypeValues = [...allAssessmentTypes, ...worksheetAssessmentTypes] as const;
 
 export const assessmentTypesForKeyStage = (id?: KeyStageId | null): readonly string[] =>
   isWorksheetKeyStage(id) ? worksheetAssessmentTypes : allAssessmentTypes;
