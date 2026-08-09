@@ -23,7 +23,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import PasswordResetDialog from "@/components/PasswordResetDialog";
-import CompleteSchoolProfileDialog from "@/components/CompleteSchoolProfileDialog";
 import AssessmentGeneratorDialog from "@/features/assessment-generator/AssessmentGeneratorDialog";
 import { hasCompleteSchoolIdentity, isMissingSchoolIdentityValue, sanitizeSchoolIdentityValue } from "@/lib/schoolIdentity";
 import { getSupabaseFunctionErrorMessage } from "@/lib/supabaseFunctionError";
@@ -57,7 +56,7 @@ interface SchoolOption {
   district_name: string;
 }
 
-type SchoolConnectionIssue = "not_assigned" | "principal_setup" | null;
+type SchoolConnectionIssue = "not_assigned" | null;
 
 const getProfileInitials = (name: string) => {
   const initials = name
@@ -125,9 +124,7 @@ const MyAccount = () => {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [showAssessmentGenerator, setShowAssessmentGenerator] = useState(false);
-  const [showCompleteProfile, setShowCompleteProfile] = useState(false);
-  const [dismissedCompleteProfile, setDismissedCompleteProfile] = useState(false);
-  
+
   // Submission form state
   const [submitting, setSubmitting] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -276,14 +273,9 @@ const MyAccount = () => {
           teacherName: profileData.teacher_name || "",
         }));
 
-        // Auto-open the profile completion dialog when school or district
-        // is still a placeholder ("Unknown School", "Please update", etc.).
-        if (
-          isMissingSchoolIdentityValue(profileData.school) ||
-          isMissingSchoolIdentityValue(profileData.district_name)
-        ) {
-          setShowCompleteProfile(true);
-        }
+        // Note: school/district placeholders are expected when the principal
+        // hasn't set them yet. The teacher doesn't need a self-fix popup —
+        // the principal manages school identity through their dashboard.
       }
 
       // Render the workspace as soon as identity and profile are ready.
@@ -446,7 +438,7 @@ const MyAccount = () => {
       );
 
       setSchoolOptions(options);
-      setSchoolConnectionIssue(options.length === 0 ? "principal_setup" : null);
+      setSchoolConnectionIssue(options.length === 0 ? "not_assigned" : null);
 
       // Auto-select if only one option
       if (options.length === 1) {
@@ -599,28 +591,7 @@ const MyAccount = () => {
         open={showAssessmentGenerator}
         onOpenChange={setShowAssessmentGenerator}
       />
-      <CompleteSchoolProfileDialog
-        open={showCompleteProfile}
-        onOpenChange={(open) => {
-          setShowCompleteProfile(open);
-          if (!open) setDismissedCompleteProfile(true);
-        }}
-        initialSchool={sanitizeSchoolIdentityValue(profile?.school)}
-        initialDistrict={sanitizeSchoolIdentityValue(profile?.district_name)}
-        onSaved={(newSchool, newDistrict) => {
-          const updatedProfile = profile
-            ? { ...profile, school: newSchool, district_name: newDistrict }
-            : profile;
-          setProfile(updatedProfile);
-          setEditedProfile(updatedProfile);
-          setDismissedCompleteProfile(true);
-          // Re-fetch assignments — the DB sync trigger copies the new
-          // school/district into school_assignments, which should unblock
-          // submissions immediately.
-          fetchAssignedPrincipals(updatedProfile);
-        }}
-      />
-      
+
       <main className="min-h-[calc(100dvh-4rem)] bg-background py-8 sm:py-12">
         <div className="container max-w-7xl">
           {/* Welcome Section */}
@@ -648,41 +619,6 @@ const MyAccount = () => {
               </Button>
             </div>
           </header>
-
-        {/* Incomplete school identity banner */}
-        {profile &&
-          dismissedCompleteProfile &&
-          (isMissingSchoolIdentityValue(profile.school) ||
-            isMissingSchoolIdentityValue(profile.district_name)) && (
-            <div
-              className="mb-5 rounded-xl border border-[#D6A73D]/45 bg-[#FFF7DF] p-4"
-              role="status"
-            >
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-[#9A6A00]">
-                  <AlertTriangle className="h-4 w-4" aria-hidden="true" />
-                </span>
-                <div className="flex-1">
-                  <p className="font-semibold text-[#5E4300]">
-                    Complete your school information
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-[#765D1B]">
-                    Your school or district is still marked as unknown. Select your
-                    school so your submissions are tracked correctly.
-                  </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => setShowCompleteProfile(true)}
-                    className="mt-3 gap-2 bg-[#236130] text-white hover:bg-[#173F2A]"
-                  >
-                    <MapPin className="h-4 w-4" aria-hidden="true" />
-                    Update now
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
 
         {/* Profile Card */}
         <Card className="mb-8 border-border bg-card p-5 shadow-[0_18px_50px_-42px_rgba(20,32,25,.55)] sm:p-7">
@@ -886,22 +822,11 @@ const MyAccount = () => {
                     <div className="rounded-xl border border-warning/25 bg-warning/10 p-6 text-center">
                     <XCircle className="mx-auto mb-3 h-10 w-10 text-warning" aria-hidden="true" />
       <p className="mb-2 text-lg font-semibold text-warning">
-        {schoolConnectionIssue === "principal_setup" ? "Your school details need principal setup" : "Waiting for your school principal"}
+        Waiting for your school principal
       </p>
       <p className="text-sm leading-6 text-warning/85">
-        {schoolConnectionIssue === "principal_setup"
-          ? "Your principal has added you, but the official School and District still need to be set. You can fix this now by selecting your school and district below — submissions will be enabled immediately."
-          : "WeeLMat submission will be enabled after your school principal adds your DepEd email in the School Management section of their Principal Dashboard. Once added, refresh this page."}
+        WeeLMat submission will be enabled after your school principal adds your DepEd email in the School Management section of their Principal Dashboard. Once added, refresh this page.
       </p>
-      {schoolConnectionIssue === "principal_setup" && (
-        <Button
-          type="button"
-          className="mt-4"
-          onClick={() => setShowCompleteProfile(true)}
-        >
-          Set my School & District
-        </Button>
-      )}
                   </div>
                 ) : (
                   <form onSubmit={handleSubmitWeelMat} className="space-y-6">
