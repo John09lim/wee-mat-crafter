@@ -1,11 +1,21 @@
 const SCHOOL_IDENTITY_PLACEHOLDERS = new Set([
   "unknown school",
   "unknown district",
+  "unknown",
   "please update",
   "not provided",
   "not set yet",
+  "not assigned",
+  "no school",
+  "none",
+  "tbd",
+  "to be determined",
+  "pending",
+  "for update",
   "n/a",
   "na",
+  "-",
+  "?",
 ]);
 
 export const isMissingSchoolIdentityValue = (value?: string | null): boolean => {
