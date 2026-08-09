@@ -29,6 +29,7 @@ const DEEPSEEK_API_KEY = Deno.env.get("DEEPSEEK_API_KEY");
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 const TAVILY_API_KEY = Deno.env.get("TAVILY_API_KEY");
+const DASHSCOPE_API_KEY = Deno.env.get("DASHSCOPE_API_KEY");
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing Supabase environment variables");
@@ -38,7 +39,8 @@ console.log("Available API Keys:", {
   hasDeepSeek: !!DEEPSEEK_API_KEY,
   hasOpenRouter: !!OPENROUTER_API_KEY,
   hasOpenAI: !!OPENAI_API_KEY,
-  hasTavily: !!TAVILY_API_KEY
+  hasTavily: !!TAVILY_API_KEY,
+  hasDashScope: !!DASHSCOPE_API_KEY,
 });
 
 const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
@@ -61,6 +63,7 @@ serve(async (req) => {
       section,
       dateFrom,
       dateTo,
+      keyStage,
       mondayCompetency,
       tuesdayCompetency,
       wednesdayCompetency,
@@ -298,6 +301,7 @@ serve(async (req) => {
 
     // Generate effective language
     const effectiveLanguage = language || "English";
+    const isKs1 = keyStage === "KS1";
     const researchContext = curatedSources.length
       ? curatedSources.map((source, index) => `${index + 1}. ${source.title}: ${source.note} (${source.url})`).join("\n")
       : "No verified web sources were returned. Stay strictly within the teacher-provided competencies and do not invent curriculum facts.";
@@ -386,8 +390,20 @@ Return EXACTLY this JSON structure:
     "wed": "Instructions/Directions: [Real instructions]\\n\\nQuiz:\\n[${dailyPlan.Wednesday.questionCount} real ${dailyPlan.Wednesday.examType} questions]\\n\\nExpected Output: [Description]\\nContingency: [Backup plan]",
     "thu": "Instructions/Directions: [Real instructions]\\n\\nQuiz:\\n[${dailyPlan.Thursday.questionCount} real ${dailyPlan.Thursday.examType} questions]\\n\\nExpected Output: [Description]\\nContingency: [Backup plan]",
     "fri": "Instructions/Directions: [Real instructions]\\n\\nQuiz:\\n[${dailyPlan.Friday.questionCount} real ${dailyPlan.Friday.examType} questions]\\n\\nExpected Output: [Description]\\nContingency: [Backup plan]"
-  }
-}`;
+  }${isKs1 ? `,\n  "imagePrompts": {\n    "mon": "[Detailed description of a text-free educational illustration for Monday's activity. Describe the visual content, objects, colors, and layout. The image must NOT contain any text, words, letters, or numbers.]",\n    "tue": "[Detailed description of a text-free educational illustration for Tuesday. Text-free, no words or letters.]",\n    "wed": "[Detailed description of a text-free educational illustration for Wednesday. Text-free, no words or letters.]",\n    "thu": "[Detailed description of a text-free educational illustration for Thursday. Text-free, no words or letters.]",\n    "fri": "[Detailed description of a text-free educational illustration for Friday. Text-free, no words or letters.]"\n  }` : ""}
+}
+
+${isKs1 ? `KS1 VISUAL LEARNING ACTIVITIES - IMAGE PROMPT REQUIREMENTS:
+- This is for Key Stage 1 (${gradeLevel}) — young learners who need VISUAL illustrations
+- For each day, write a detailed imagePrompts entry describing a TEXT-FREE educational illustration
+- The image must show concrete objects, animals, people, or scenes related to the competency
+- NEVER include text, words, letters, numbers, or labels in the image description
+- Style: bright, colorful, cartoon-like, child-friendly, clean white background
+- Counting activities: show exactly the right number of objects clearly arranged
+- Matching activities: describe two columns of related objects
+- Identifying/Circling: describe a scene with multiple items to find
+- Coloring activities: describe bold outline illustrations ready for coloring
+- Sequence activities: describe 3-4 pictures showing steps in jumbled order` : ""}`;
 
     // Step 2: AI Generation with prioritized API calls
     let aiJson: any = aiJsonOverride && typeof aiJsonOverride === "object" ? aiJsonOverride : null;
@@ -758,6 +774,123 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
       fri: dailyPlan.Friday.competency,
     };
 
+    // ==================== KS1 VISUAL ACTIVITY IMAGE GENERATION ====================
+    // For Key Stage 1 (Kinder–Grade 3), generate real illustrations with Qwen Image
+    // and embed them in the DOCX alongside the text instructions.
+    const ks1Images: Record<string, Uint8Array | null> = {
+      mon: null,
+      tue: null,
+      wed: null,
+      thu: null,
+      fri: null,
+    };
+
+    if (isKs1 && DASHSCOPE_API_KEY && !hasHoliday) {
+      console.log("KS1 visual mode: generating illustrations with Qwen Image...");
+
+      const dayKeys: Array<{ key: "mon" | "tue" | "wed" | "thu" | "fri"; day: string }> = [
+        { key: "mon", day: "Monday" },
+        { key: "tue", day: "Tuesday" },
+        { key: "wed", day: "Wednesday" },
+        { key: "thu", day: "Thursday" },
+        { key: "fri", day: "Friday" },
+      ];
+
+      for (const { key, day } of dayKeys) {
+        const isDayHoliday =
+          dailyPlan[key === "mon" ? "Monday" : key === "tue" ? "Tuesday" : key === "wed" ? "Wednesday" : key === "thu" ? "Thursday" : "Friday"].examType === "HOLIDAY";
+
+        if (isDayHoliday) {
+          console.log(`Skipping image for ${day} (Holiday)`);
+          continue;
+        }
+
+        const imagePromptDescription = aiJson?.imagePrompts?.[key];
+        if (!imagePromptDescription) {
+          console.log(`No image prompt for ${day}, skipping`);
+          continue;
+        }
+
+        const fullPrompt = `Create a TEXT-FREE educational illustration for ${gradeLevel} Filipino students.
+
+REQUIREMENTS:
+- NO text, NO words, NO letters, NO numbers, NO labels anywhere in the image
+- Show: ${imagePromptDescription}
+- Subject context: ${subject}
+- Style: bright, colorful, cartoon-like, child-friendly, clean white background
+- Purpose: classroom worksheet illustration for young learners
+- Make objects large, clear, and easy to identify
+
+${effectiveLanguage === "Filipino" ? "The illustration should feel relatable to Filipino children — local objects, animals, and settings where appropriate." : ""}`;
+
+        try {
+          console.log(`Generating Qwen Image for ${day}...`);
+          const imageResponse = await fetch(
+            "https://dashscope-intl.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${DASHSCOPE_API_KEY}`,
+              },
+              body: JSON.stringify({
+                model: "qwen-image-2.0-pro",
+                input: {
+                  messages: [
+                    {
+                      role: "user",
+                      content: [{ text: fullPrompt }],
+                    },
+                  ],
+                },
+                parameters: {
+                  negative_prompt:
+                    "text, words, letters, numbers, labels, captions, watermarks, signatures, low quality, distorted, blurry, deformed, extra limbs, wrong proportions",
+                  prompt_extend: true,
+                  watermark: false,
+                  size: "1328*1328",
+                },
+              }),
+            },
+          );
+
+          if (imageResponse.ok) {
+            const imageData = await imageResponse.json();
+            const tempImageUrl =
+              imageData?.output?.choices?.[0]?.message?.content?.[0]?.image;
+
+            if (tempImageUrl) {
+              console.log(`Image generated for ${day}, downloading...`);
+              // Download the image from the temporary URL
+              const imgFetch = await fetch(tempImageUrl);
+              if (imgFetch.ok) {
+                const arrayBuffer = await imgFetch.arrayBuffer();
+                ks1Images[key] = new Uint8Array(arrayBuffer);
+                console.log(`Image downloaded for ${day} (${ks1Images[key]!.byteLength} bytes)`);
+              } else {
+                console.error(`Failed to download image for ${day}: ${imgFetch.status}`);
+              }
+            } else {
+              console.error(`No image URL in Qwen response for ${day}:`, JSON.stringify(imageData));
+            }
+          } else {
+            const errorText = await imageResponse.text();
+            console.error(`Qwen Image API failed for ${day}: ${imageResponse.status}`, errorText);
+          }
+        } catch (imgError) {
+          console.error(`Image generation error for ${day}:`, imgError);
+          // Graceful degradation — continue without image for this day
+        }
+      }
+
+      console.log(
+        "KS1 image generation complete:",
+        Object.entries(ks1Images).map(([k, v]) => `${k}: ${v ? "OK" : "none"}`),
+      );
+    } else if (isKs1) {
+      console.log("KS1 visual mode requested but DASHSCOPE_API_KEY not set — falling back to text-only");
+    }
+
     // Step 3: Save to database
     console.log("Saving matrix data to database...");
     const matrixPayload = {
@@ -1027,6 +1160,58 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
       return paragraphs;
     };
 
+    // Helper: build an Activities cell for KS1 with optional image + text content
+    const buildKs1ActivityCell = (
+      dayKey: "mon" | "tue" | "wed" | "thu" | "fri",
+      textParagraphs: Paragraph[],
+    ): TableCell => {
+      const imageBuffer = ks1Images[dayKey];
+      const children: Paragraph[] = [];
+
+      if (imageBuffer) {
+        // Insert the image first
+        children.push(
+          new Paragraph({
+            children: [
+              new ImageRun({
+                data: imageBuffer,
+                transformation: { width: 240, height: 180 },
+                type: "png",
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 120 },
+          }),
+        );
+      }
+
+      // Then append the text content (instructions, quiz, etc.)
+      children.push(...textParagraphs);
+
+      return new TableCell({
+        children,
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 1 },
+          bottom: { style: BorderStyle.SINGLE, size: 1 },
+          left: { style: BorderStyle.SINGLE, size: 1 },
+          right: { style: BorderStyle.SINGLE, size: 1 },
+        },
+      });
+    };
+
+    // Helper: build a plain text Activities cell (non-KS1 or image failed)
+    const buildTextActivityCell = (textParagraphs: Paragraph[]): TableCell => {
+      return new TableCell({
+        children: textParagraphs,
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 1 },
+          bottom: { style: BorderStyle.SINGLE, size: 1 },
+          left: { style: BorderStyle.SINGLE, size: 1 },
+          right: { style: BorderStyle.SINGLE, size: 1 },
+        },
+      });
+    };
+
     // Step 4: Generate Teacher DOCX (Full Version with Answer Keys)
     console.log("Generating Teacher version DOCX...");
     const teacherDoc = new Document({
@@ -1179,26 +1364,21 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
                     children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Mga Gawain/Aktividad sa Pagkatuto" : "Learning Activities/Tasks", bold: true, size: 16 })] })],
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
-                  new TableCell({
-                    children: parseActivityContentWithAnswerKey(aiJson?.activities?.mon || ""),
-                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
-                  }),
-                  new TableCell({
-                    children: parseActivityContentWithAnswerKey(aiJson?.activities?.tue || ""),
-                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
-                  }),
-                  new TableCell({
-                    children: parseActivityContentWithAnswerKey(aiJson?.activities?.wed || ""),
-                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
-                  }),
-                  new TableCell({
-                    children: parseActivityContentWithAnswerKey(aiJson?.activities?.thu || ""),
-                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
-                  }),
-                  new TableCell({
-                    children: parseActivityContentWithAnswerKey(aiJson?.activities?.fri || ""),
-                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
-                  }),
+                  isKs1
+                    ? buildKs1ActivityCell("mon", parseActivityContentWithAnswerKey(aiJson?.activities?.mon || ""))
+                    : buildTextActivityCell(parseActivityContentWithAnswerKey(aiJson?.activities?.mon || "")),
+                  isKs1
+                    ? buildKs1ActivityCell("tue", parseActivityContentWithAnswerKey(aiJson?.activities?.tue || ""))
+                    : buildTextActivityCell(parseActivityContentWithAnswerKey(aiJson?.activities?.tue || "")),
+                  isKs1
+                    ? buildKs1ActivityCell("wed", parseActivityContentWithAnswerKey(aiJson?.activities?.wed || ""))
+                    : buildTextActivityCell(parseActivityContentWithAnswerKey(aiJson?.activities?.wed || "")),
+                  isKs1
+                    ? buildKs1ActivityCell("thu", parseActivityContentWithAnswerKey(aiJson?.activities?.thu || ""))
+                    : buildTextActivityCell(parseActivityContentWithAnswerKey(aiJson?.activities?.thu || "")),
+                  isKs1
+                    ? buildKs1ActivityCell("fri", parseActivityContentWithAnswerKey(aiJson?.activities?.fri || ""))
+                    : buildTextActivityCell(parseActivityContentWithAnswerKey(aiJson?.activities?.fri || "")),
                 ],
               }),
             ],
@@ -1361,26 +1541,21 @@ ${effectiveLanguage === 'Filipino' ? 'Contingency:' : 'Contingency:'} ${effectiv
                     children: [new Paragraph({ children: [new TextRun({ text: effectiveLanguage === 'Filipino' ? "Mga Gawain/Aktividad sa Pagkatuto" : "Learning Activities/Tasks", bold: true, size: 16 })] })],
                     borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
                   }),
-                  new TableCell({
-                    children: parseActivityContentForStudent(aiJson?.activities?.mon || ""),
-                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
-                  }),
-                  new TableCell({
-                    children: parseActivityContentForStudent(aiJson?.activities?.tue || ""),
-                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
-                  }),
-                  new TableCell({
-                    children: parseActivityContentForStudent(aiJson?.activities?.wed || ""),
-                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
-                  }),
-                  new TableCell({
-                    children: parseActivityContentForStudent(aiJson?.activities?.thu || ""),
-                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
-                  }),
-                  new TableCell({
-                    children: parseActivityContentForStudent(aiJson?.activities?.fri || ""),
-                    borders: { top: { style: BorderStyle.SINGLE, size: 1 }, bottom: { style: BorderStyle.SINGLE, size: 1 }, left: { style: BorderStyle.SINGLE, size: 1 }, right: { style: BorderStyle.SINGLE, size: 1 } },
-                  }),
+                  isKs1
+                    ? buildKs1ActivityCell("mon", parseActivityContentForStudent(aiJson?.activities?.mon || ""))
+                    : buildTextActivityCell(parseActivityContentForStudent(aiJson?.activities?.mon || "")),
+                  isKs1
+                    ? buildKs1ActivityCell("tue", parseActivityContentForStudent(aiJson?.activities?.tue || ""))
+                    : buildTextActivityCell(parseActivityContentForStudent(aiJson?.activities?.tue || "")),
+                  isKs1
+                    ? buildKs1ActivityCell("wed", parseActivityContentForStudent(aiJson?.activities?.wed || ""))
+                    : buildTextActivityCell(parseActivityContentForStudent(aiJson?.activities?.wed || "")),
+                  isKs1
+                    ? buildKs1ActivityCell("thu", parseActivityContentForStudent(aiJson?.activities?.thu || ""))
+                    : buildTextActivityCell(parseActivityContentForStudent(aiJson?.activities?.thu || "")),
+                  isKs1
+                    ? buildKs1ActivityCell("fri", parseActivityContentForStudent(aiJson?.activities?.fri || ""))
+                    : buildTextActivityCell(parseActivityContentForStudent(aiJson?.activities?.fri || "")),
                 ],
               }),
             ],

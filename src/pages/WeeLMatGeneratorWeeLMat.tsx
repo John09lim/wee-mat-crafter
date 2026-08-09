@@ -42,6 +42,7 @@ type FormValues = {
   section: string;
   dateFrom: string;
   dateTo: string;
+  keyStage?: string;
   mondayCompetency: string;
   tuesdayCompetency: string;
   wednesdayCompetency: string;
