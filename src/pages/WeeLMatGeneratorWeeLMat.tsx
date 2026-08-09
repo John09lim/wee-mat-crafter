@@ -61,6 +61,7 @@ type FormValues = {
   code?: string;
   customInstructions?: string;
   language?: string;
+  teacherName?: string;
 };
 
 type DayKey = "mon" | "tue" | "wed" | "thu" | "fri";

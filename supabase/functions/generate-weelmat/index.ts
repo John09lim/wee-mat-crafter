@@ -83,6 +83,7 @@ serve(async (req) => {
       customInstructions,
       language,
       activityMode,
+      teacherName,
       aiJsonOverride,
       existingMatrixId,
     } = requestBody;
@@ -1447,12 +1448,24 @@ ${effectiveLanguage === "Filipino" ? "The illustration should feel relatable to 
               }),
             ],
             alignment: AlignmentType.CENTER,
-            spacing: { after: 400 },
+            spacing: { after: 200 },
           }),
+          ...(teacherName ? [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: teacherName,
+                  size: 24,
+                }),
+              ],
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 200 },
+            }),
+          ] : []),
           new Paragraph({
             children: [
               new TextRun({
-                text: effectiveLanguage === 'Filipino' 
+                text: effectiveLanguage === 'Filipino'
                   ? `Asignatura: ${subject} | Antas: ${gradeLevel} | Seksyon: ${section}`
                   : `Subject: ${subject} | Grade Level: ${gradeLevel} | Section: ${section}`,
                 size: 24,
@@ -1464,7 +1477,7 @@ ${effectiveLanguage === "Filipino" ? "The illustration should feel relatable to 
           new Paragraph({
             children: [
               new TextRun({
-                text: effectiveLanguage === 'Filipino' 
+                text: effectiveLanguage === 'Filipino'
                   ? `Petsa na Nasaklaw: ${dateFrom} hanggang ${dateTo}`
                   : `Covered Dates: ${dateFrom} to ${dateTo}`,
                 size: 20,
@@ -1624,12 +1637,24 @@ ${effectiveLanguage === "Filipino" ? "The illustration should feel relatable to 
               }),
             ],
             alignment: AlignmentType.CENTER,
-            spacing: { after: 400 },
+            spacing: { after: 200 },
           }),
+          ...(teacherName ? [
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: teacherName,
+                  size: 24,
+                }),
+              ],
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 200 },
+            }),
+          ] : []),
           new Paragraph({
             children: [
               new TextRun({
-                text: effectiveLanguage === 'Filipino' 
+                text: effectiveLanguage === 'Filipino'
                   ? `Asignatura: ${subject} | Antas: ${gradeLevel} | Seksyon: ${section}`
                   : `Subject: ${subject} | Grade Level: ${gradeLevel} | Section: ${section}`,
                 size: 24,
@@ -1641,7 +1666,7 @@ ${effectiveLanguage === "Filipino" ? "The illustration should feel relatable to 
           new Paragraph({
             children: [
               new TextRun({
-                text: effectiveLanguage === 'Filipino' 
+                text: effectiveLanguage === 'Filipino'
                   ? `Petsa na Nasaklaw: ${dateFrom} hanggang ${dateTo}`
                   : `Covered Dates: ${dateFrom} to ${dateTo}`,
                 size: 20,

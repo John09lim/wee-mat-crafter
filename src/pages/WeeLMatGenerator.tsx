@@ -33,6 +33,7 @@ type FormValues = {
   code?: string;
   customInstructions?: string;
   language?: string;
+  teacherName?: string;
 };
 
 interface GeneratedMatrixContent {
@@ -318,12 +319,43 @@ const WeeLMatGenerator = () => {
       if (!aiJson || !values) return;
       const [{ jsPDF }, autoTableModule] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
       const pdf = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const isFilipino = values.language === "Filipino";
+
+      // Title — centered, bold, size 16 (matches DOCX bold size 32 = 16pt)
       pdf.setFontSize(16);
-      pdf.text(values.language === "Filipino" ? "Lingguhang Matris ng Pagkatuto (WeeLMat)" : "Weekly Learning Matrix (WeeLMat)", 40, 38);
+      pdf.setFont("helvetica", "bold");
+      const titleText = isFilipino ? "Lingguhang Matris ng Pagkatuto (WeeLMat)" : "Weekly Learning Matrix (WeeLMat)";
+      pdf.text(titleText, pageWidth / 2, 38, { align: "center" });
+
+      // Teacher name — centered below title (if available)
+      let currentY = 56;
+      if (values.teacherName) {
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(values.teacherName, pageWidth / 2, currentY, { align: "center" });
+        currentY += 16;
+      }
+
+      // Subject / Grade Level / Section — centered, pipe-separated (matches DOCX)
       pdf.setFontSize(10);
-      pdf.text(`${values.subject} • ${values.gradeLevel} • ${values.section} • ${values.dateFrom} – ${values.dateTo}`, 40, 56);
+      pdf.setFont("helvetica", "normal");
+      const subjectLine = isFilipino
+        ? `Asignatura: ${values.subject} | Antas: ${values.gradeLevel} | Seksyon: ${values.section}`
+        : `Subject: ${values.subject} | Grade Level: ${values.gradeLevel} | Section: ${values.section}`;
+      pdf.text(subjectLine, pageWidth / 2, currentY, { align: "center" });
+      currentY += 16;
+
+      // Covered dates — centered (matches DOCX)
+      pdf.setFontSize(9);
+      const dateLine = isFilipino
+        ? `Petsa na Nasaklaw: ${values.dateFrom} hanggang ${values.dateTo}`
+        : `Covered Dates: ${values.dateFrom} to ${values.dateTo}`;
+      pdf.text(dateLine, pageWidth / 2, currentY, { align: "center" });
+      currentY += 16;
+
       const autoTable = autoTableModule.default;
-      autoTable(pdf, { startY: 72, head: [["", ...calculateWeekdayDates()]], body: previewRows(), styles: { fontSize: 7, cellPadding: 4, overflow: "linebreak" }, headStyles: { fillColor: [30, 103, 58] }, columnStyles: { 0: { fontStyle: "bold", cellWidth: 95 } } });
+      autoTable(pdf, { startY: currentY, head: [["", ...calculateWeekdayDates()]], body: previewRows(), styles: { fontSize: 7, cellPadding: 4, overflow: "linebreak" }, headStyles: { fillColor: [30, 103, 58] }, columnStyles: { 0: { fontStyle: "bold", cellWidth: 95 } } });
       pdf.save(buildFilename("pdf"));
       toast("PDF generated from the current preview.");
     };
@@ -344,6 +376,56 @@ const WeeLMatGenerator = () => {
       const rows = [["", ...calculateWeekdayDates()], ...previewRows()].map((row, rowIndex) => new DocxRow({
         children: row.map((text) => new DocxCell({ children: [new Paragraph({ children: [new TextRun({ text, bold: rowIndex === 0 })] })] })),
       }));
+      const docxChildren: any[] = [
+        // Title — centered, bold (matches edge function DOCX)
+        new Paragraph({
+          children: [new TextRun({ text: values.language === "Filipino" ? "Lingguhang Matris ng Pagkatuto (WeeLMat)" : "Weekly Learning Matrix (WeeLMat)", bold: true, size: 32 })],
+          alignment: "center",
+          spacing: { after: 200 },
+        }),
+      ];
+
+      // Teacher name — centered below title
+      if (values.teacherName) {
+        docxChildren.push(
+          new Paragraph({
+            children: [new TextRun({ text: values.teacherName, size: 22 })],
+            alignment: "center",
+            spacing: { after: 200 },
+          }),
+        );
+      }
+
+      // Subject / Grade / Section — centered, pipe-separated
+      docxChildren.push(
+        new Paragraph({
+          children: [new TextRun({
+            text: values.language === "Filipino"
+              ? `Asignatura: ${values.subject} | Antas: ${values.gradeLevel} | Seksyon: ${values.section}`
+              : `Subject: ${values.subject} | Grade Level: ${values.gradeLevel} | Section: ${values.section}`,
+            size: 24,
+          })],
+          alignment: "center",
+          spacing: { after: 200 },
+        }),
+      );
+
+      // Covered dates — centered
+      docxChildren.push(
+        new Paragraph({
+          children: [new TextRun({
+            text: values.language === "Filipino"
+              ? `Petsa na Nasaklaw: ${values.dateFrom} hanggang ${values.dateTo}`
+              : `Covered Dates: ${values.dateFrom} to ${values.dateTo}`,
+            size: 20,
+          })],
+          alignment: "center",
+          spacing: { after: 400 },
+        }),
+      );
+
+      docxChildren.push(new DocxTable({ width: { size: 100, type: WidthType.PERCENTAGE }, rows }));
+
       const docxDocument = new Document({
         sections: [{
           properties: {
@@ -358,11 +440,7 @@ const WeeLMatGenerator = () => {
               margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
             },
           },
-          children: [
-            new Paragraph({ children: [new TextRun({ text: values.language === "Filipino" ? "Lingguhang Matris ng Pagkatuto (WeeLMat)" : "Weekly Learning Matrix (WeeLMat)", bold: true, size: 30 })] }),
-            new Paragraph(`${values.subject} • ${values.gradeLevel} • ${values.section} • ${values.dateFrom} – ${values.dateTo}`),
-            new DocxTable({ width: { size: 100, type: WidthType.PERCENTAGE }, rows }),
-          ],
+          children: docxChildren,
         }],
       });
       const blob = await Packer.toBlob(docxDocument);
