@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Download, CheckCircle, Users, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload, Share2, Copy, Printer, FileText, IdCard, Save, Pencil, X, BookOpenCheck } from "lucide-react";
+import { Download, CheckCircle, Users, Calendar, UserCircle, CheckCircle2, XCircle, Bell, ExternalLink, Upload, Share2, Copy, Printer, FileText, IdCard, Save, Pencil, X, BookOpenCheck, CalendarDays, BarChart3, PieChart as PieChartIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { SubmissionsReportModal } from "@/components/SubmissionsReportModal";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -89,6 +91,7 @@ export default function PrincipalDashboard() {
   const [accountDraft, setAccountDraft] = useState<PrincipalAccountDraft>(emptyPrincipalAccountDraft);
   const [isEditingAccount, setIsEditingAccount] = useState(false);
   const [savingAccount, setSavingAccount] = useState(false);
+  const [openDialog, setOpenDialog] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSubmissions();
@@ -582,9 +585,6 @@ export default function PrincipalDashboard() {
           <Button asChild variant="outline" className="min-h-12 border-[#236130] text-[#173F2A] hover:bg-[#E8EFE8]">
             <Link to="/dashboard"><BookOpenCheck className="mr-2 h-4 w-4" />Teacher workspace</Link>
           </Button>
-          <Button asChild variant="outline" className="min-h-12 border-[#236130] text-[#173F2A] hover:bg-[#E8EFE8]">
-            <a href="#manage-teachers"><Users className="mr-2 h-4 w-4" />Manage teachers</a>
-          </Button>
           <Button
             onClick={markWeekComplete}
             className="min-h-12 bg-[#236130] px-5 text-white shadow-[0_10px_24px_rgba(23,63,42,0.16)] hover:bg-[#173F2A]"
@@ -596,7 +596,7 @@ export default function PrincipalDashboard() {
       </header>
 
       {/* Stats Cards */}
-      <section className="order-3 mb-7 grid overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7] shadow-[0_8px_26px_rgba(20,32,25,0.05)] sm:grid-cols-2 lg:grid-cols-4" aria-label="This week’s submission summary">
+      <section className="mb-7 grid overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7] shadow-[0_8px_26px_rgba(20,32,25,0.05)] sm:grid-cols-2 lg:grid-cols-4" aria-label="This week’s submission summary">
         <div className="border-b border-[#D8D0C4] p-4 sm:border-r lg:border-b-0 sm:p-5">
           <div className="flex items-center gap-3">
             <Users className="h-8 w-8 text-[#236130]" aria-hidden="true" />
@@ -635,102 +635,49 @@ export default function PrincipalDashboard() {
         </div>
       </section>
 
-      <section className="order-2 mb-6" aria-labelledby="requires-attention-heading">
-        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 id="requires-attention-heading" className="font-display text-2xl font-semibold text-[#173F2A]">Requires attention</h2>
-            <p className="mt-1 text-sm text-[#526159]">Submissions waiting for review or revision follow-up.</p>
-          </div>
-          <span className="inline-flex min-h-8 items-center rounded-full bg-[#F1E2BC] px-3 text-sm font-bold text-[#76500A]" aria-label={`${attentionSubmissions.length} submissions require attention`}>
-            {attentionSubmissions.length}
-          </span>
-        </div>
-        <div className="overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7] shadow-[0_8px_24px_rgba(20,32,25,0.05)]">
-          {attentionSubmissions.length === 0 ? (
-            <div className="flex min-h-28 items-center gap-3 px-5 py-6 text-[#526159]">
-              <CheckCircle2 className="h-6 w-6 text-[#17613A]" aria-hidden="true" />
-              <div><p className="font-semibold text-[#173F2A]">You’re all caught up.</p><p className="mt-1 text-sm">No submissions currently need review or revision.</p></div>
-            </div>
-          ) : (
-            attentionSubmissions.slice(0, 4).map((submission) => (
-              <SubmissionCard key={`attention-${submission.id}`} submission={submission} onStatusUpdate={updateStatus} compact />
-            ))
-          )}
-        </div>
+      {/* Quick Actions */}
+      <section className="mb-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Dashboard sections">
+        <ActionCard
+          icon={Bell}
+          label="Requires Attention"
+          count={attentionSubmissions.length}
+          active={openDialog === "attention"}
+          onClick={() => setOpenDialog("attention")}
+        />
+        <ActionCard
+          icon={CalendarDays}
+          label="Weekly Submission History"
+          active={openDialog === "calendar"}
+          onClick={() => setOpenDialog("calendar")}
+        />
+        <ActionCard
+          icon={BarChart3}
+          label="Weekly Submission Summary"
+          active={openDialog === "summary"}
+          onClick={() => setOpenDialog("summary")}
+        />
+        <ActionCard
+          icon={FileText}
+          label="Recent Submissions"
+          active={openDialog === "submissions"}
+          onClick={() => setOpenDialog("submissions")}
+        />
+        <ActionCard
+          icon={Users}
+          label="Manage Teachers"
+          active={openDialog === "teachers"}
+          onClick={() => setOpenDialog("teachers")}
+        />
+        <ActionCard
+          icon={PieChartIcon}
+          label="Submission Charts"
+          active={openDialog === "charts"}
+          onClick={() => setOpenDialog("charts")}
+        />
       </section>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="order-6 mb-7">
-        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="font-display text-2xl font-semibold text-[#173F2A]">Recent submissions</h2>
-            <p className="mt-1 text-sm text-[#526159]">Open a record to review the file, update its status, or leave notes.</p>
-          </div>
-          <Button
-            variant="outline"
-            onClick={() => setShowReportModal(true)}
-            className="min-h-11 gap-2 border-[#236130] text-[#173F2A] hover:bg-[#E8EFE8]"
-          >
-            <Printer className="h-4 w-4" aria-hidden="true" />
-            Print report
-          </Button>
-        </div>
-        <div className="overflow-x-auto pb-1">
-          <TabsList className="h-auto min-w-max border border-[#D8D0C4] bg-[#EEE8DE] p-1">
-            <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="all">All submissions</TabsTrigger>
-            <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="by-teacher">By teacher</TabsTrigger>
-            <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="by-subject">By learning area</TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="all" className="mt-3 overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7] shadow-[0_8px_24px_rgba(20,32,25,0.05)]">
-          {submissions.length === 0 ? <DashboardEmptyState /> : submissions.map((sub) => (
-            <SubmissionCard 
-              key={sub.id} 
-              submission={sub} 
-              onStatusUpdate={updateStatus}
-            />
-          ))}
-        </TabsContent>
-
-        <TabsContent value="by-teacher" className="space-y-6">
-          {Object.entries(groupedByTeacher).map(([teacher, subs]) => (
-            <div key={teacher}>
-              <h3 className="font-display mb-3 text-xl font-semibold text-[#173F2A]">
-                {teacher} ({subs.length} submissions)
-              </h3>
-              <div className="overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]">
-                {subs.map((sub) => (
-                  <SubmissionCard 
-                    key={sub.id} 
-                    submission={sub} 
-                    onStatusUpdate={updateStatus}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </TabsContent>
-
-        <TabsContent value="by-subject" className="space-y-6">
-          {Object.entries(groupedBySubject).map(([subject, subs]) => (
-            <div key={subject}>
-              <h3 className="font-display mb-3 text-xl font-semibold text-[#173F2A]">
-                {subject} ({subs.length} submissions)
-              </h3>
-              <div className="overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]">
-                {subs.map((sub) => (
-                  <SubmissionCard 
-                    key={sub.id} 
-                    submission={sub} 
-                    onStatusUpdate={updateStatus}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </TabsContent>
-      </Tabs>      {/* Teacher Tracking for Current Week */}
-      <Card className="order-1 mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+      {/* Teacher Tracking for Current Week */}
+      <Card className="mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <h2 className="font-display text-xl font-semibold text-[#173F2A]">
             This Week's Teacher Submissions ({(() => {
@@ -909,107 +856,10 @@ export default function PrincipalDashboard() {
         </div>
       </Card>
 
-      {/* Weekly Submission Calendar */}
-      {profile && (
-        <section className="order-4 mb-6" aria-label="Weekly submission calendar">
-          <WeeklySubmissionCalendar
-            schoolName={profile.school}
-            managedTeachers={managedTeachers}
-            submissions={submissions}
-          />
-        </section>
-      )}
-
       {/* Weekly Submission Summary Grid */}
-      {managedTeachers.length > 0 && (
-        <section className="order-5" aria-label="Weekly submission summary">
-          <WeeklySubmissionSummary
-            managedTeachers={managedTeachers}
-            submissions={submissions}
-            schoolName={profile?.school || ""}
-          />
-        </section>
-      )}
-
-      {/* Charts Section */}
-      <section className="order-7 mb-6 grid gap-6 md:grid-cols-2" aria-label="Submission charts">
-        <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
-          <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
-            Submission Status Distribution
-          </h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={statusChartData}
-                cx="50%"
-                cy="40%"
-                labelLine={false}
-                label={({ name, percent, cx, cy, midAngle, outerRadius, index }) => {
-                  // Only show label if value > 0
-                  if (percent === 0) return null;
-                  
-                  const RADIAN = Math.PI / 180;
-                  const radius = outerRadius * 1.4;
-                  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-                  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-                  
-                  return (
-                    <text
-                      x={x}
-                      y={y}
-                      fill={statusChartData[index].color}
-                      textAnchor={x > cx ? 'start' : 'end'}
-                      dominantBaseline="central"
-                      fontSize={12}
-                    >
-                      {`${name}: ${(percent * 100).toFixed(0)}%`}
-                    </text>
-                  );
-                }}
-                outerRadius={60}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {statusChartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend verticalAlign="bottom" height={36} />
-            </PieChart>
-          </ResponsiveContainer>
-        </Card>
-
-        <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
-          <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
-            Teacher Completion Rate
-          </h2>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={submissionCompletionData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {submissionCompletionData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </Card>
-      </section>
-
       {/* Account Info Card */}
       {profile && (
-        <Card className="order-8 mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-[0_10px_30px_rgba(20,32,25,0.06)] sm:p-6">
+        <Card className="mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-[0_10px_30px_rgba(20,32,25,0.06)] sm:p-6">
           <div className="flex flex-col items-start gap-5 sm:flex-row">
             <div className="relative">
               <div className="w-20 h-24 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border-2 border-border">
@@ -1193,7 +1043,7 @@ export default function PrincipalDashboard() {
 
       {/* Supervisor Info Card */}
       {supervisorInfo && (
-        <Card className="order-9 mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+        <Card className="mb-6 border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
           <h2 className="font-display mb-3 text-lg font-semibold text-[#173F2A]">
             Your District Supervisor
           </h2>
@@ -1218,21 +1068,231 @@ export default function PrincipalDashboard() {
         </Card>
       )}
 
-      {/* Teacher Management Section */}
-      {profile && (
-        <section id="manage-teachers" className="order-10 mb-6 scroll-mt-24" aria-label="Teacher management">
-          <TeacherManagement 
+
+      </div>
+
+      {/* ── Dialog: Requires Attention ── */}
+      <DashboardSectionDialog
+        open={openDialog === "attention"}
+        onOpenChange={(v) => !v && setOpenDialog(null)}
+        title="Requires Attention"
+        description="Submissions waiting for review or revision follow-up."
+      >
+        <div className="space-y-3">
+          {attentionSubmissions.length === 0 ? (
+            <div className="flex min-h-28 items-center gap-3 px-5 py-6 text-[#526159]">
+              <CheckCircle2 className="h-6 w-6 text-[#17613A]" aria-hidden="true" />
+              <div>
+                <p className="font-semibold text-[#173F2A]">You're all caught up.</p>
+                <p className="mt-1 text-sm">No submissions currently need review or revision.</p>
+              </div>
+            </div>
+          ) : (
+            attentionSubmissions.map((submission) => (
+              <SubmissionCard key={`attention-${submission.id}`} submission={submission} onStatusUpdate={updateStatus} compact />
+            ))
+          )}
+        </div>
+      </DashboardSectionDialog>
+
+      {/* ── Dialog: Weekly Submission History ── */}
+      <DashboardSectionDialog
+        open={openDialog === "calendar"}
+        onOpenChange={(v) => !v && setOpenDialog(null)}
+        title="Weekly Submission History"
+        description="Track teacher submission rates across weeks."
+      >
+        {profile && (
+          <WeeklySubmissionCalendar
+            schoolName={profile.school}
+            managedTeachers={managedTeachers}
+            submissions={submissions}
+          />
+        )}
+      </DashboardSectionDialog>
+
+      {/* ── Dialog: Weekly Submission Summary ── */}
+      <DashboardSectionDialog
+        open={openDialog === "summary"}
+        onOpenChange={(v) => !v && setOpenDialog(null)}
+        title="Weekly Submission Summary"
+        description="Weekly overview of teacher submission status."
+      >
+        {managedTeachers.length > 0 && (
+          <WeeklySubmissionSummary
+            managedTeachers={managedTeachers}
+            submissions={submissions}
+            schoolName={profile?.school || ""}
+          />
+        )}
+      </DashboardSectionDialog>
+
+      {/* ── Dialog: Recent Submissions ── */}
+      <DashboardSectionDialog
+        open={openDialog === "submissions"}
+        onOpenChange={(v) => !v && setOpenDialog(null)}
+        title="Recent Submissions"
+        description="Open a record to review the file, update its status, or leave notes."
+      >
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <div className="mb-4 overflow-x-auto pb-1">
+            <TabsList className="h-auto min-w-max border border-[#D8D0C4] bg-[#EEE8DE] p-1">
+              <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="all">All submissions</TabsTrigger>
+              <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="by-teacher">By teacher</TabsTrigger>
+              <TabsTrigger className="min-h-11 px-4 data-[state=active]:bg-[#173F2A] data-[state=active]:text-white" value="by-subject">By learning area</TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="all" className="mt-3">
+            {submissions.length === 0 ? <DashboardEmptyState /> : (
+              <div className="space-y-3">
+                {submissions.map((sub) => (
+                  <SubmissionCard key={sub.id} submission={sub} onStatusUpdate={updateStatus} />
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="by-teacher" className="space-y-6">
+            {Object.entries(groupedByTeacher).map(([teacher, subs]) => (
+              <div key={teacher}>
+                <h3 className="font-display mb-3 text-xl font-semibold text-[#173F2A]">
+                  {teacher} ({subs.length} submissions)
+                </h3>
+                <div className="overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]">
+                  {subs.map((sub) => (
+                    <SubmissionCard key={sub.id} submission={sub} onStatusUpdate={updateStatus} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </TabsContent>
+
+          <TabsContent value="by-subject" className="space-y-6">
+            {Object.entries(groupedBySubject).map(([subject, subs]) => (
+              <div key={subject}>
+                <h3 className="font-display mb-3 text-xl font-semibold text-[#173F2A]">
+                  {subject} ({subs.length} submissions)
+                </h3>
+                <div className="overflow-hidden rounded-xl border border-[#D8D0C4] bg-[#FFFCF7]">
+                  {subs.map((sub) => (
+                    <SubmissionCard key={sub.id} submission={sub} onStatusUpdate={updateStatus} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </TabsContent>
+        </Tabs>
+
+        <div className="mt-4 flex justify-end">
+          <Button
+            variant="outline"
+            onClick={() => setShowReportModal(true)}
+            className="min-h-11 gap-2 border-[#236130] text-[#173F2A] hover:bg-[#E8EFE8]"
+          >
+            <Printer className="h-4 w-4" aria-hidden="true" />
+            Print report
+          </Button>
+        </div>
+      </DashboardSectionDialog>
+
+      {/* ── Dialog: Manage Teachers ── */}
+      <DashboardSectionDialog
+        open={openDialog === "teachers"}
+        onOpenChange={(v) => !v && setOpenDialog(null)}
+        title="Manage Teachers"
+        description="Add, edit, or remove teachers from your school."
+      >
+        {profile && (
+          <TeacherManagement
             schoolName={profile.school}
             districtName={profile.district_name || ""}
             principalId={profile.user_id}
             teachers={managedTeacherAssignments}
             onRefresh={fetchSubmissions}
           />
-        </section>
-      )}
+        )}
+      </DashboardSectionDialog>
 
+      {/* ── Dialog: Submission Charts ── */}
+      <DashboardSectionDialog
+        open={openDialog === "charts"}
+        onOpenChange={(v) => !v && setOpenDialog(null)}
+        title="Submission Charts"
+        description="Visual overview of submission statuses and teacher completion rates."
+      >
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+            <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
+              Submission Status Distribution
+            </h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={statusChartData}
+                  cx="50%"
+                  cy="40%"
+                  labelLine={false}
+                  label={({ name, percent, cx, cy, midAngle, outerRadius, index }) => {
+                    if (percent === 0) return null;
+                    const RADIAN = Math.PI / 180;
+                    const radius = outerRadius * 1.4;
+                    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                    return (
+                      <text
+                        x={x}
+                        y={y}
+                        fill={statusChartData[index].color}
+                        textAnchor={x > cx ? 'start' : 'end'}
+                        dominantBaseline="central"
+                        fontSize={12}
+                      >
+                        {`${name}: ${(percent * 100).toFixed(0)}%`}
+                      </text>
+                    );
+                  }}
+                  outerRadius={60}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {statusChartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend verticalAlign="bottom" height={36} />
+              </PieChart>
+            </ResponsiveContainer>
+          </Card>
 
-      </div>
+          <Card className="border-[#D8D0C4] bg-[#FFFCF7] p-5 shadow-none sm:p-6">
+            <h2 className="font-display mb-4 text-xl font-semibold text-[#173F2A]">
+              Teacher Completion Rate
+            </h2>
+            <ResponsiveContainer width="100%" height={250}>
+              <PieChart>
+                <Pie
+                  data={submissionCompletionData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {submissionCompletionData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </Card>
+        </div>
+      </DashboardSectionDialog>
 
       <SubmissionsReportModal
         open={showReportModal}
@@ -1243,6 +1303,80 @@ export default function PrincipalDashboard() {
       />
       
     </main>
+  );
+}
+
+/* ────────────────────────────────────────────
+   Dashboard section dialog (overlay for each quick-action card)
+   ──────────────────────────────────────────── */
+function DashboardSectionDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-5xl max-h-[85dvh] overflow-hidden bg-[#FFFCF7] border-[#D8D0C4] p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b border-[#D8D0C4]">
+          <DialogTitle className="font-display text-xl font-semibold text-[#173F2A]">{title}</DialogTitle>
+          {description && (
+            <DialogDescription className="text-sm text-[#526159]">{description}</DialogDescription>
+          )}
+        </DialogHeader>
+        <ScrollArea className="max-h-[calc(85dvh-5rem)] px-6 py-4">
+          {children}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ────────────────────────────────────────────
+   Quick-action card button
+   ──────────────────────────────────────────── */
+function ActionCard({
+  icon: Icon,
+  label,
+  count,
+  onClick,
+  active,
+}: {
+  icon: React.ElementType;
+  label: string;
+  count?: number;
+  onClick: () => void;
+  active?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`group flex items-center gap-3 rounded-xl border bg-[#FFFCF7] p-4 text-left transition-all hover:shadow-[0_6px_20px_rgba(20,32,25,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#236130] ${
+        active
+          ? "border-[#236130] ring-1 ring-[#236130]/30"
+          : "border-[#D8D0C4]"
+      }`}
+    >
+      <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg transition-colors ${
+        active ? "bg-[#236130] text-white" : "bg-[#E8EFE8] text-[#236130] group-hover:bg-[#D6E4D6]"
+      }`}>
+        <Icon className="h-5 w-5" aria-hidden="true" />
+      </span>
+      <span className="flex-1 font-display text-sm font-semibold text-[#173F2A]">{label}</span>
+      {count !== undefined && count > 0 && (
+        <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[#F1E2BC] px-2 text-xs font-bold text-[#76500A]">
+          {count}
+        </span>
+      )}
+    </button>
   );
 }
 
