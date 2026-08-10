@@ -8,7 +8,9 @@ export const normalizeWeekStart = (value?: string | null) => {
 
   const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
   const day = date.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
+  // Saturday (+2) and Sunday (+1) snap forward to the following Monday.
+  // This matches the weeks generator in WeeklySubmissionSummary.
+  const diff = day === 6 ? 2 : day === 0 ? 1 : 1 - day;
   date.setDate(date.getDate() + diff);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 };
