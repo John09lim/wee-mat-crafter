@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -636,7 +635,7 @@ export default function PrincipalDashboard() {
       </section>
 
       {/* Quick Actions */}
-      <section className="mb-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Dashboard sections">
+      <section className="mb-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-label="Dashboard sections">
         <ActionCard
           icon={Bell}
           label="Requires Attention"
@@ -1307,7 +1306,7 @@ export default function PrincipalDashboard() {
 }
 
 /* ────────────────────────────────────────────
-   Dashboard section dialog (overlay for each quick-action card)
+   Dashboard section panel (full-viewport overlay for each quick-action card)
    ──────────────────────────────────────────── */
 function DashboardSectionDialog({
   open,
@@ -1324,16 +1323,23 @@ function DashboardSectionDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[85dvh] overflow-hidden bg-[#FFFCF7] border-[#D8D0C4] p-0 gap-0">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b border-[#D8D0C4]">
-          <DialogTitle className="font-display text-xl font-semibold text-[#173F2A]">{title}</DialogTitle>
-          {description && (
-            <DialogDescription className="text-sm text-[#526159]">{description}</DialogDescription>
-          )}
-        </DialogHeader>
-        <ScrollArea className="max-h-[calc(85dvh-5rem)] px-6 py-4">
+      <DialogContent
+        className="flex h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-[min(96vw,80rem)] flex-col gap-0 overflow-hidden rounded-2xl border-[#D8D0C4] bg-[#FFFCF7] p-0 sm:h-[calc(100dvh-3rem)] sm:w-[calc(100vw-3rem)] [&>button]:text-white [&>button]:opacity-80 [&>button]:hover:bg-white/10 [&>button]:hover:opacity-100"
+      >
+        {/* ── Fixed header band ── */}
+        <div className="shrink-0 border-b border-[#173F2A]/20 bg-[#173F2A] px-6 py-5 pr-16 text-white sm:px-8 sm:py-6 sm:pr-16">
+          <DialogHeader>
+            <DialogTitle className="font-display text-2xl font-semibold text-white sm:text-2xl">{title}</DialogTitle>
+            {description && (
+              <DialogDescription className="mt-1.5 text-sm text-white/70">{description}</DialogDescription>
+            )}
+          </DialogHeader>
+        </div>
+
+        {/* ── Flexible scroll body ── */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6 sm:px-8 sm:py-8">
           {children}
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -1359,20 +1365,20 @@ function ActionCard({
     <button
       type="button"
       onClick={onClick}
-      className={`group flex items-center gap-3 rounded-xl border bg-[#FFFCF7] p-4 text-left transition-all hover:shadow-[0_6px_20px_rgba(20,32,25,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#236130] ${
+      className={`group flex items-center gap-4 rounded-xl border bg-[#FFFCF7] p-5 text-left transition-all duration-200 hover:scale-[1.02] hover:shadow-[0_8px_24px_rgba(20,32,25,0.10)] hover:border-l-[3px] hover:border-l-[#236130] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#236130] ${
         active
           ? "border-[#236130] ring-1 ring-[#236130]/30"
           : "border-[#D8D0C4]"
       }`}
     >
-      <span className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg transition-colors ${
+      <span className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl transition-colors ${
         active ? "bg-[#236130] text-white" : "bg-[#E8EFE8] text-[#236130] group-hover:bg-[#D6E4D6]"
       }`}>
-        <Icon className="h-5 w-5" aria-hidden="true" />
+        <Icon className="h-6 w-6" aria-hidden="true" />
       </span>
-      <span className="flex-1 font-display text-sm font-semibold text-[#173F2A]">{label}</span>
+      <span className="flex-1 font-display text-[0.9375rem] font-semibold text-[#173F2A]">{label}</span>
       {count !== undefined && count > 0 && (
-        <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-[#F1E2BC] px-2 text-xs font-bold text-[#76500A]">
+        <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-[#F1E2BC] px-2.5 text-xs font-bold text-[#76500A]">
           {count}
         </span>
       )}
