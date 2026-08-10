@@ -88,10 +88,15 @@ const Header = () => {
       }
 
       if (!cancelled) setLoading(true);
-      const { data } = await supabase.from("user_roles").select("role").eq("user_id", userId).single();
+      // Multi-role users have multiple rows in user_roles. .single() would
+      // throw — use priority selection instead: school_head > supervisor > teacher.
+      const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", userId);
+      const effectiveRole = roles?.length
+        ? (roles.find(r => r.role === "school_head") ?? roles.find(r => r.role === "supervisor") ?? roles[0]).role
+        : null;
 
       if (!cancelled) {
-        setUserRole(data?.role ?? null);
+        setUserRole(effectiveRole);
         setLoading(false);
       }
     };

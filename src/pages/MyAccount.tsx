@@ -212,16 +212,9 @@ const MyAccount = () => {
         .maybeSingle();
 
       if (!roleData) {
-        const metadataRole = user.user_metadata?.role;
-        if (metadataRole === "school_head") {
-          navigate("/principal-dashboard", { replace: true });
-          return;
-        }
-        if (metadataRole === "supervisor") {
-          navigate("/supervisor-dashboard", { replace: true });
-          return;
-        }
-
+        // Always ensure the teacher role exists for this workspace.
+        // Multi-role users (teacher + school_head) legitimately visit /my-account
+        // to submit their own WeeLMats. ROLE must not gate IDENTITY.
         const { error: roleRepairError } = await supabase
           .from("user_roles")
           .insert({ user_id: user.id, role: "teacher" });

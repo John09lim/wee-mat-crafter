@@ -132,7 +132,43 @@ serve(async (req) => {
     if (assignmentError) throw assignmentError;
 
     const assignment = assignmentRows?.[0];
-    if (!assignment?.principal_id) {
+
+    // Resolve final principal_id, school, and district.
+    // For TIC/School Head users who are also teachers, allow self-submission
+    // using their own user.id as principal_id when no regular assignment exists.
+    let finalPrincipalId: string | null = null;
+    let canonicalSchoolName = "";
+    let canonicalDistrictName = "";
+
+    if (assignment?.principal_id) {
+      if (!assignment.user_id) {
+        const { error: linkError } = await supabase
+          .from("school_assignments")
+          .update({ user_id: user.id })
+          .eq("id", assignment.id);
+        if (linkError) throw linkError;
+      }
+
+      finalPrincipalId = assignment.principal_id;
+      canonicalSchoolName = assignment.school_name || schoolName || profile?.school || "";
+      canonicalDistrictName = assignment.district_name || districtName || profile?.district_name || "";
+    } else {
+      // Self-submission path: check if the submitter is a school_head (TIC).
+      const { data: roleRows } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id);
+
+      const isSchoolHead = roleRows?.some(r => r.role === "school_head");
+
+      if (isSchoolHead) {
+        finalPrincipalId = user.id;
+        canonicalSchoolName = schoolName || profile?.school || "";
+        canonicalDistrictName = districtName || profile?.district_name || "";
+      }
+    }
+
+    if (!finalPrincipalId) {
       await supabase.storage.from("weelmat").remove([fileName]);
       return new Response(JSON.stringify({
         error: "You must be added by this School Head before submitting. Please ask your School Head to add your DepEd email first."
@@ -141,18 +177,6 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
-
-    if (!assignment.user_id) {
-      const { error: linkError } = await supabase
-        .from("school_assignments")
-        .update({ user_id: user.id })
-        .eq("id", assignment.id);
-      if (linkError) throw linkError;
-    }
-
-    const finalPrincipalId = assignment.principal_id;
-    const canonicalSchoolName = assignment.school_name || schoolName || profile?.school || "";
-    const canonicalDistrictName = assignment.district_name || districtName || profile?.district_name || "";
 
     console.log("Final principal_id for submission:", finalPrincipalId);
 

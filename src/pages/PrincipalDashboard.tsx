@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -90,10 +90,6 @@ export default function PrincipalDashboard() {
   const [isEditingAccount, setIsEditingAccount] = useState(false);
   const [savingAccount, setSavingAccount] = useState(false);
 
-  useEffect(() => {
-    fetchSubmissions();
-  }, []);
-
   // Realtime subscription for submissions addressed to this principal.
   useEffect(() => {
     if (!profile?.user_id) return;
@@ -141,7 +137,7 @@ export default function PrincipalDashboard() {
     };
   }, [profile?.user_id]);
 
-  const fetchSubmissions = async () => {
+  const fetchSubmissions = useCallback(async () => {
     try {
       // Get principal's profile to filter by their school
       const { data: { user } } = await supabase.auth.getUser();
@@ -239,7 +235,24 @@ export default function PrincipalDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Periodic refresh + visibility-change handler so the dashboard stays current
+  // when the principal switches tabs or returns to this browser tab.
+  useEffect(() => {
+    void fetchSubmissions();
+
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") void fetchSubmissions();
+    };
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    const refreshInterval = window.setInterval(() => void fetchSubmissions(), 30_000);
+
+    return () => {
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.clearInterval(refreshInterval);
+    };
+  }, [fetchSubmissions]);
 
   const updateStatus = async (id: string, newStatus: string, notes?: string) => {
     const updateData: { status: string; principal_notes?: string } = { status: newStatus };
