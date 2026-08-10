@@ -557,9 +557,13 @@ const MyAccount = () => {
     }
   };
 
-  const handleViewFile = (fileUrl: string) => {
-    const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
-    window.open(viewerUrl, '_blank');
+  const handleViewFile = (fileUrl: string, fileType?: string) => {
+    if (fileType === "pdf") {
+      window.open(fileUrl, '_blank');
+    } else {
+      const viewerUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
+      window.open(viewerUrl, '_blank');
+    }
   };
 
   const getStatusIcon = (status: string) => {
@@ -1080,7 +1084,7 @@ const MyAccount = () => {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => handleViewFile(item.file_url)}
+                              onClick={() => handleViewFile(item.file_url, item.file_type)}
                               aria-label={`View ${item.subject} submission in a new tab`}
                             >
                               <Eye className="h-4 w-4 mr-1" />

@@ -784,7 +784,9 @@ export default function SupervisorDashboard() {
                       </div>
                       <div className="flex gap-2">
                         <a
-                          href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(submission.file_url)}`}
+                          href={submission.file_type === "pdf"
+                            ? submission.file_url
+                            : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(submission.file_url)}`}
                           target="_blank"
                           rel="noopener noreferrer"
                         >

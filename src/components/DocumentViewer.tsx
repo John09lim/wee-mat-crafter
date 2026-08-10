@@ -19,6 +19,8 @@ export default function DocumentViewer({ fileUrl, fileName, onClose }: DocumentV
   const [isOpen, setIsOpen] = useState(false);
   const [viewerType, setViewerType] = useState<"microsoft" | "google">("microsoft");
 
+  const isPdf = fileUrl.toLowerCase().endsWith(".pdf");
+
   const getMicrosoftViewerUrl = () => {
     return `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(fileUrl)}`;
   };
@@ -27,7 +29,9 @@ export default function DocumentViewer({ fileUrl, fileName, onClose }: DocumentV
     return `https://docs.google.com/gview?url=${encodeURIComponent(fileUrl)}&embedded=true`;
   };
 
-  const viewerUrl = viewerType === "microsoft" ? getMicrosoftViewerUrl() : getGoogleViewerUrl();
+  // PDFs cannot be rendered by Microsoft Office Online — default to Google Docs viewer.
+  const effectiveViewerType = isPdf ? "google" : viewerType;
+  const viewerUrl = effectiveViewerType === "microsoft" ? getMicrosoftViewerUrl() : getGoogleViewerUrl();
 
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
@@ -63,6 +67,7 @@ export default function DocumentViewer({ fileUrl, fileName, onClose }: DocumentV
           </DialogHeader>
 
           <div className="flex flex-col gap-3 border-b border-warm-border bg-paper px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            {!isPdf && (
             <div
               aria-label="Document viewer service"
               className="grid grid-cols-2 gap-1 rounded-lg border border-warm-border bg-cream p-1"
@@ -87,6 +92,7 @@ export default function DocumentViewer({ fileUrl, fileName, onClose }: DocumentV
                 Google viewer
               </Button>
             </div>
+            )}
 
             <a
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -110,7 +116,7 @@ export default function DocumentViewer({ fileUrl, fileName, onClose }: DocumentV
           </div>
 
           <p className="border-t border-warm-border bg-paper px-5 py-3 text-xs text-muted-foreground sm:px-6">
-            Viewing through {viewerType === "microsoft" ? "Microsoft Office Online" : "Google Docs Viewer"}.
+            Viewing through {isPdf ? "Google Docs Viewer" : effectiveViewerType === "microsoft" ? "Microsoft Office Online" : "Google Docs Viewer"}.
           </p>
         </DialogContent>
       </Dialog>
