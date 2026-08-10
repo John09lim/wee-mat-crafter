@@ -37,6 +37,7 @@ interface Submission {
   created_at: string;
   status: string;
   file_url?: string | null;
+  file_type?: string | null;
   principal_notes?: string | null;
 }
 

@@ -156,6 +156,21 @@ serve(async (req) => {
 
     console.log("Final principal_id for submission:", finalPrincipalId);
 
+    // Normalize week_start to the Monday of that week so every consumer
+    // (summary grid, calendar, realtime toast) sees a canonical date.
+    const weekDate = new Date(weekStart + "T00:00:00");
+    const dayOfWeek = weekDate.getDay();
+    // Saturday (+2) and Sunday (+1) snap forward to the following Monday.
+    const snapDiff = dayOfWeek === 6 ? 2 : dayOfWeek === 0 ? 1 : 1 - dayOfWeek;
+    weekDate.setDate(weekDate.getDate() + snapDiff);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const normalizedWeekStart = `${weekDate.getFullYear()}-${pad(weekDate.getMonth() + 1)}-${pad(weekDate.getDate())}`;
+
+    // Compute the corresponding Friday (Monday + 4) for week_end.
+    const fridayDate = new Date(weekDate);
+    fridayDate.setDate(fridayDate.getDate() + 4);
+    const normalizedWeekEnd = `${fridayDate.getFullYear()}-${pad(fridayDate.getMonth() + 1)}-${pad(fridayDate.getDate())}`;
+
     // Insert submission record with status 'pending' by default
     const { data: submissionData, error: insertError } = await supabase
       .from("teacher_submissions")
@@ -165,8 +180,8 @@ serve(async (req) => {
         grade_level: gradeLevel,
         section: section,
         subject: subject,
-        week_start: weekStart,
-        week_end: weekEnd,
+        week_start: normalizedWeekStart,
+        week_end: normalizedWeekEnd,
         file_url: urlData.publicUrl,
         file_type: fileExt,
         school_name: canonicalSchoolName,
