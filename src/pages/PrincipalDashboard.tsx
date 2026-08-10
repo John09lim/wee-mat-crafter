@@ -281,7 +281,8 @@ export default function PrincipalDashboard() {
       const getMondayOfWeek = (date: Date) => {
         const d = new Date(date);
         const day = d.getDay();
-        const diff = day === 0 ? -6 : 1 - day;
+        // Saturday (+2) and Sunday (+1) snap forward to the following Monday.
+        const diff = day === 6 ? 2 : day === 0 ? 1 : 1 - day;
         d.setDate(d.getDate() + diff);
         d.setHours(0, 0, 0, 0);
         return d;
