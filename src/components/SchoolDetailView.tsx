@@ -162,11 +162,15 @@ export function SchoolDetailView({ schoolName, districtName, onClose }: SchoolDe
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    const encodedUrl = encodeURIComponent(teacher.submission.file_url);
-                    window.open(
-                      `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`,
-                      "_blank"
-                    );
+                    if (teacher.submission.file_type === "pdf") {
+                      window.open(teacher.submission.file_url, "_blank");
+                    } else {
+                      const encodedUrl = encodeURIComponent(teacher.submission.file_url);
+                      window.open(
+                        `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`,
+                        "_blank"
+                      );
+                    }
                   }}
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />

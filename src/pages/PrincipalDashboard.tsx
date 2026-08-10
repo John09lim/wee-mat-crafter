@@ -1335,7 +1335,9 @@ function SubmissionCard({ submission, onStatusUpdate, compact = false }: Submiss
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <Button className="min-h-11 bg-[#236130] px-4 text-white hover:bg-[#173F2A]" asChild>
               <a
-                href={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(submission.file_url)}`}
+                href={submission.file_type === "pdf"
+                  ? submission.file_url
+                  : `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(submission.file_url)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`Open ${submission.teacher_name}'s submission in a new tab`}

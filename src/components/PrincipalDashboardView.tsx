@@ -345,8 +345,12 @@ export function PrincipalDashboardView({ schoolName, districtName, weekStart, on
                           variant="outline"
                           className="min-h-11 min-w-11 border-[#9FB5A3] text-[#173F2A]"
                           onClick={() => {
-                            const encodedUrl = encodeURIComponent(submission.file_url);
-                            window.open(`https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`, "_blank");
+                            if (submission.file_type === "pdf") {
+                              window.open(submission.file_url, "_blank");
+                            } else {
+                              const encodedUrl = encodeURIComponent(submission.file_url);
+                              window.open(`https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`, "_blank");
+                            }
                           }}
                         >
                           <ExternalLink className="h-4 w-4" aria-hidden="true" />
@@ -428,8 +432,12 @@ export function PrincipalDashboardView({ schoolName, districtName, weekStart, on
                   variant="outline"
                   className="min-h-11 min-w-11 border-[#CFC6B9] text-[#173F2A]"
                   onClick={() => {
-                    const encodedUrl = encodeURIComponent(sub.file_url);
-                    window.open(`https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`, "_blank");
+                    if (sub.file_type === "pdf") {
+                      window.open(sub.file_url, "_blank");
+                    } else {
+                      const encodedUrl = encodeURIComponent(sub.file_url);
+                      window.open(`https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`, "_blank");
+                    }
                   }}
                 >
                   <ExternalLink className="h-4 w-4" aria-hidden="true" />
