@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Download } from "lucide-react";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -327,8 +327,8 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
           })}
         </div>
 
-        <ScrollArea className="hidden w-full whitespace-nowrap rounded-xl border border-[#D8D0C4] md:block">
-          <div className="min-w-full">
+        <div className="hidden md:block">
+          <div className="overflow-x-auto rounded-xl border border-[#D8D0C4]">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -336,7 +336,7 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
                     Teacher Name
                   </TableHead>
                   {weeks.map((week, i) => (
-                    <TableHead key={i} className="text-center min-w-[120px] text-xs px-2">
+                    <TableHead key={i} className="text-center min-w-[120px] text-xs px-2 whitespace-nowrap">
                       <div className="font-semibold">{week.label}</div>
                       <div className="text-muted-foreground font-normal">{week.monday.getFullYear()}</div>
                     </TableHead>
@@ -357,7 +357,7 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
                       {weeks.map((week, i) => {
                         const submitted = hasTeacherWeek(teacher, week.weekStart);
                         return (
-                          <TableCell key={i} className="text-center px-2">
+                          <TableCell key={i} className="text-center px-2 whitespace-nowrap">
                             <span
                               className={`mx-auto block h-5 w-5 rounded-[3px] ${submitted ? "bg-[#17613A]" : "bg-[#A83224]"}`}
                               role="img"
@@ -375,7 +375,7 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
                     Total Submitted
                   </TableCell>
                   {weekTotals.map((total, i) => (
-                    <TableCell key={i} className="text-center text-sm">
+                    <TableCell key={i} className="text-center text-sm whitespace-nowrap">
                       <span className={total === sortedTeachers.length ? "font-bold text-[#17613A]" : total === 0 ? "text-[#A83224]" : "text-[#8A5A00]"}>
                         {total}/{sortedTeachers.length}
                       </span>
@@ -385,8 +385,7 @@ export function WeeklySubmissionSummary({ managedTeachers, submissions, schoolNa
               </TableBody>
             </Table>
           </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+        </div>
       </Card>
 
       {/* Week Selection Dialog */}
